@@ -24,7 +24,7 @@ public class OrderClauseBuilder : QueryClauseBuilder<Expression?>
         _extensionType = extensionType;
     }
 
-    public Expression ApplyOrderBy(SortExpression expression)
+    public virtual Expression ApplyOrderBy(SortExpression expression)
     {
         ArgumentGuard.NotNull(expression);
 

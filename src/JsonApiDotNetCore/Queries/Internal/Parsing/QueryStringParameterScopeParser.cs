@@ -14,13 +14,13 @@ public class QueryStringParameterScopeParser : QueryExpressionParser
     private ResourceType? _resourceTypeInScope;
 
     public QueryStringParameterScopeParser(FieldChainRequirements chainRequirements,
-        Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback = null)
+        Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback)
     {
         _chainRequirements = chainRequirements;
         _validateSingleFieldCallback = validateSingleFieldCallback;
     }
 
-    public QueryStringParameterScopeExpression Parse(string source, ResourceType resourceTypeInScope)
+    public virtual QueryStringParameterScopeExpression Parse(string source, ResourceType resourceTypeInScope)
     {
         ArgumentGuard.NotNull(resourceTypeInScope);
 
@@ -35,7 +35,7 @@ public class QueryStringParameterScopeParser : QueryExpressionParser
         return expression;
     }
 
-    protected QueryStringParameterScopeExpression ParseQueryStringParameterScope()
+    protected virtual QueryStringParameterScopeExpression ParseQueryStringParameterScope()
     {
         if (!TokenStack.TryPop(out Token? token) || token.Kind != TokenKind.Text)
         {

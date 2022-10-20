@@ -27,11 +27,11 @@ public class SparseFieldSetQueryStringParameterReader : QueryStringParameterRead
     /// <inheritdoc />
     bool IQueryStringParameterReader.AllowEmptyValue => true;
 
-    public SparseFieldSetQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph)
-        : base(request, resourceGraph)
+    public SparseFieldSetQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IQueryExpressionParserFactory queryExpressionParserFactory)
+        : base(request, resourceGraph, queryExpressionParserFactory)
     {
-        _sparseFieldTypeParser = new SparseFieldTypeParser(resourceGraph);
-        _sparseFieldSetParser = new SparseFieldSetParser(ValidateSingleField);
+        _sparseFieldTypeParser = QueryExpressionParserFactory.CreateSparseFieldTypeParser();
+        _sparseFieldSetParser = QueryExpressionParserFactory.CreateSparseFieldSetParser(ValidateSingleField);
     }
 
     protected void ValidateSingleField(ResourceFieldAttribute field, ResourceType resourceType, string path)

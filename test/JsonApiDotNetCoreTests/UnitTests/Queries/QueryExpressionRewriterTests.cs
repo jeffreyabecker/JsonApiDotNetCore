@@ -31,8 +31,15 @@ public sealed class QueryExpressionRewriterTests
         .Add<LoginAttempt, int>()
         .Build();
 
+    private readonly QueryExpressionParserFactory _queryExpressionParserFactory;
+
     // @formatter:wrap_chained_method_calls restore
     // @formatter:keep_existing_linebreaks restore
+
+    public QueryExpressionRewriterTests()
+    {
+        _queryExpressionParserFactory = new QueryExpressionParserFactory(ResourceGraph, ResourceFactory);
+    }
 
     [Theory]
     [InlineData("posts", "Include,IncludeElement")]
@@ -40,7 +47,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitInclude(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new IncludeParser();
+        IncludeParser parser = _queryExpressionParserFactory.CreateIncludeParser();
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
 
         QueryExpression expression = parser.Parse(expressionText, blogType, null);
@@ -63,7 +70,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitSparseFieldSet(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new SparseFieldSetParser();
+        var parser = _queryExpressionParserFactory.CreateSparseFieldSetParser(null);
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
 
         QueryExpression expression = parser.Parse(expressionText, blogType)!;
@@ -84,7 +91,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitSparseFieldTable()
     {
         // Arrange
-        var parser = new SparseFieldSetParser();
+        var parser = _queryExpressionParserFactory.CreateSparseFieldSetParser(null);
 
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
         ResourceType commentType = ResourceGraph.GetResourceType<Comment>();
@@ -123,7 +130,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitFilter(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new FilterParser(ResourceFactory);
+        var parser = _queryExpressionParserFactory.CreateFilterParser(null);
         ResourceType webAccountType = ResourceGraph.GetResourceType<WebAccount>();
 
         QueryExpression expression = parser.Parse(expressionText, webAccountType);
@@ -147,7 +154,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitSort(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new SortParser();
+        var parser = _queryExpressionParserFactory.CreateSortParser(null);
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
 
         QueryExpression expression = parser.Parse(expressionText, blogType);
@@ -170,7 +177,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitPagination(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new PaginationParser();
+        var parser = _queryExpressionParserFactory.CreatePaginationParser(null);
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
 
         QueryExpression expression = parser.Parse(expressionText, blogType);
@@ -193,7 +200,7 @@ public sealed class QueryExpressionRewriterTests
     public void VisitParameterScope(string expressionText, string expectedTypes)
     {
         // Arrange
-        var parser = new QueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany);
+        var parser = _queryExpressionParserFactory.CreateQueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany, null);
         ResourceType blogType = ResourceGraph.GetResourceType<Blog>();
 
         QueryExpression expression = parser.Parse(expressionText, blogType);

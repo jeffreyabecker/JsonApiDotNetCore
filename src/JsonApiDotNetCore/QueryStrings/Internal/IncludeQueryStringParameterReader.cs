@@ -20,13 +20,13 @@ public class IncludeQueryStringParameterReader : QueryStringParameterReader, IIn
 
     public bool AllowEmptyValue => true;
 
-    public IncludeQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options)
-        : base(request, resourceGraph)
+    public IncludeQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options, IQueryExpressionParserFactory queryExpressionParserFactory)
+        : base(request, resourceGraph, queryExpressionParserFactory)
     {
         ArgumentGuard.NotNull(options);
 
         _options = options;
-        _includeParser = new IncludeParser();
+        _includeParser = QueryExpressionParserFactory.CreateIncludeParser();
     }
 
     /// <inheritdoc />

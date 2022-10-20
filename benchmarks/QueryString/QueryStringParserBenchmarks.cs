@@ -4,6 +4,7 @@ using Benchmarks.Tools;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Middleware;
+using JsonApiDotNetCore.Queries.Internal.Parsing;
 using JsonApiDotNetCore.QueryStrings;
 using JsonApiDotNetCore.QueryStrings.Internal;
 using JsonApiDotNetCore.Resources;
@@ -36,12 +37,13 @@ public class QueryStringParserBenchmarks
         };
 
         var resourceFactory = new ResourceFactory(new ServiceContainer());
+        var queryExpressionParserFactory = new QueryExpressionParserFactory(resourceGraph, resourceFactory);
 
-        var includeReader = new IncludeQueryStringParameterReader(request, resourceGraph, options);
-        var filterReader = new FilterQueryStringParameterReader(request, resourceGraph, resourceFactory, options);
-        var sortReader = new SortQueryStringParameterReader(request, resourceGraph);
-        var sparseFieldSetReader = new SparseFieldSetQueryStringParameterReader(request, resourceGraph);
-        var paginationReader = new PaginationQueryStringParameterReader(request, resourceGraph, options);
+        var includeReader = new IncludeQueryStringParameterReader(request, resourceGraph, options, queryExpressionParserFactory);
+        var filterReader = new FilterQueryStringParameterReader(request, resourceGraph, options, queryExpressionParserFactory);
+        var sortReader = new SortQueryStringParameterReader(request, resourceGraph, queryExpressionParserFactory);
+        var sparseFieldSetReader = new SparseFieldSetQueryStringParameterReader(request, resourceGraph, queryExpressionParserFactory);
+        var paginationReader = new PaginationQueryStringParameterReader(request, resourceGraph, options, queryExpressionParserFactory);
 
         IQueryStringParameterReader[] readers = ArrayFactory.Create<IQueryStringParameterReader>(includeReader, filterReader, sortReader,
             sparseFieldSetReader, paginationReader);

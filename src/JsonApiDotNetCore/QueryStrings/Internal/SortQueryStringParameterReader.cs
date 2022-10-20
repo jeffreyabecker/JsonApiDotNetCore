@@ -21,11 +21,11 @@ public class SortQueryStringParameterReader : QueryStringParameterReader, ISortQ
 
     public bool AllowEmptyValue => false;
 
-    public SortQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph)
-        : base(request, resourceGraph)
+    public SortQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IQueryExpressionParserFactory queryExpressionParserFactory)
+        : base(request, resourceGraph, queryExpressionParserFactory)
     {
-        _scopeParser = new QueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany);
-        _sortParser = new SortParser(ValidateSingleField);
+        _scopeParser = QueryExpressionParserFactory.CreateQueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany, null);
+        _sortParser = QueryExpressionParserFactory.CreateSortParser(ValidateSingleField);
     }
 
     protected void ValidateSingleField(ResourceFieldAttribute field, ResourceType resourceType, string path)

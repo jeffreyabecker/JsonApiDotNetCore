@@ -17,7 +17,7 @@ public class SparseFieldTypeParser : QueryExpressionParser
         _resourceGraph = resourceGraph;
     }
 
-    public ResourceType Parse(string source)
+    public virtual ResourceType Parse(string source)
     {
         Tokenize(source);
 
@@ -28,7 +28,7 @@ public class SparseFieldTypeParser : QueryExpressionParser
         return resourceType;
     }
 
-    private ResourceType ParseSparseFieldTarget()
+    protected virtual ResourceType ParseSparseFieldTarget()
     {
         if (!TokenStack.TryPop(out Token? token) || token.Kind != TokenKind.Text)
         {

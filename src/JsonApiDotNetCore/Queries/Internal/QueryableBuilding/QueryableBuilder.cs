@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using JetBrains.Annotations;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Queries.Expressions;
-using JsonApiDotNetCore.Resources;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace JsonApiDotNetCore.Queries.Internal.QueryableBuilding;
@@ -17,26 +16,26 @@ public class QueryableBuilder
     private readonly Type _elementType;
     private readonly Type _extensionType;
     private readonly LambdaParameterNameFactory _nameFactory;
-    private readonly IResourceFactory _resourceFactory;
     private readonly IModel _entityModel;
+    private readonly IQueryableFactory _queryableFactory;
     private readonly LambdaScopeFactory _lambdaScopeFactory;
 
-    public QueryableBuilder(Expression source, Type elementType, Type extensionType, LambdaParameterNameFactory nameFactory, IResourceFactory resourceFactory,
-        IModel entityModel, LambdaScopeFactory? lambdaScopeFactory = null)
+    public QueryableBuilder(Expression source, Type elementType, Type extensionType, LambdaParameterNameFactory nameFactory,
+        IModel entityModel, LambdaScopeFactory? lambdaScopeFactory, IQueryableFactory queryableFactory)
     {
         ArgumentGuard.NotNull(source);
         ArgumentGuard.NotNull(elementType);
         ArgumentGuard.NotNull(extensionType);
         ArgumentGuard.NotNull(nameFactory);
-        ArgumentGuard.NotNull(resourceFactory);
         ArgumentGuard.NotNull(entityModel);
+        ArgumentGuard.NotNull(queryableFactory);
 
         _source = source;
         _elementType = elementType;
         _extensionType = extensionType;
         _nameFactory = nameFactory;
-        _resourceFactory = resourceFactory;
         _entityModel = entityModel;
+        _queryableFactory = queryableFactory;
         _lambdaScopeFactory = lambdaScopeFactory ?? new LambdaScopeFactory(_nameFactory);
     }
 
@@ -78,7 +77,7 @@ public class QueryableBuilder
     {
         using LambdaScope lambdaScope = _lambdaScopeFactory.CreateScope(_elementType);
 
-        var builder = new IncludeClauseBuilder(source, lambdaScope, resourceType);
+        var builder = _queryableFactory.CreateIncludeClauseBuilder(source, lambdaScope, resourceType);
         return builder.ApplyInclude(include);
     }
 
@@ -86,7 +85,7 @@ public class QueryableBuilder
     {
         using LambdaScope lambdaScope = _lambdaScopeFactory.CreateScope(_elementType);
 
-        var builder = new WhereClauseBuilder(source, lambdaScope, _extensionType, _nameFactory);
+        var builder = _queryableFactory.CreateWhereClauseBuilder(source, lambdaScope, _extensionType, _nameFactory);
         return builder.ApplyWhere(filter);
     }
 
@@ -94,7 +93,7 @@ public class QueryableBuilder
     {
         using LambdaScope lambdaScope = _lambdaScopeFactory.CreateScope(_elementType);
 
-        var builder = new OrderClauseBuilder(source, lambdaScope, _extensionType);
+        var builder = _queryableFactory.CreateOrderClauseBuilder(source, lambdaScope, _extensionType);
         return builder.ApplyOrderBy(sort);
     }
 
@@ -102,7 +101,7 @@ public class QueryableBuilder
     {
         using LambdaScope lambdaScope = _lambdaScopeFactory.CreateScope(_elementType);
 
-        var builder = new SkipTakeClauseBuilder(source, lambdaScope, _extensionType);
+        var builder = _queryableFactory.CreateSkipTakeClauseBuilder(source, lambdaScope, _extensionType);
         return builder.ApplySkipTake(pagination);
     }
 
@@ -110,7 +109,7 @@ public class QueryableBuilder
     {
         using LambdaScope lambdaScope = _lambdaScopeFactory.CreateScope(_elementType);
 
-        var builder = new SelectClauseBuilder(source, lambdaScope, _entityModel, _extensionType, _nameFactory, _resourceFactory);
+        var builder = _queryableFactory.CreateSelectClauseBuilder(source, lambdaScope, _entityModel, _extensionType, _nameFactory);
         return builder.ApplySelect(selection, resourceType);
     }
 }

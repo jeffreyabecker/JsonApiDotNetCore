@@ -24,7 +24,7 @@ public class SkipTakeClauseBuilder : QueryClauseBuilder<object?>
         _extensionType = extensionType;
     }
 
-    public Expression ApplySkipTake(PaginationExpression expression)
+    public virtual Expression ApplySkipTake(PaginationExpression expression)
     {
         ArgumentGuard.NotNull(expression);
 

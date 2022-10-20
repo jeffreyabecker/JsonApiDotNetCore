@@ -25,13 +25,13 @@ public class PaginationQueryStringParameterReader : QueryStringParameterReader, 
 
     public bool AllowEmptyValue => false;
 
-    public PaginationQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options)
-        : base(request, resourceGraph)
+    public PaginationQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options, IQueryExpressionParserFactory queryExpressionParserFactory)
+        : base(request, resourceGraph, queryExpressionParserFactory)
     {
         ArgumentGuard.NotNull(options);
 
         _options = options;
-        _paginationParser = new PaginationParser();
+        _paginationParser = QueryExpressionParserFactory.CreatePaginationParser(null);
     }
 
     /// <inheritdoc />

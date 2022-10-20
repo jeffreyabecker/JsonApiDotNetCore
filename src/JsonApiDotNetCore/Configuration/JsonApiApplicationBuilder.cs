@@ -3,6 +3,8 @@ using JsonApiDotNetCore.AtomicOperations.Processors;
 using JsonApiDotNetCore.Middleware;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Internal;
+using JsonApiDotNetCore.Queries.Internal.Parsing;
+using JsonApiDotNetCore.Queries.Internal.QueryableBuilding;
 using JsonApiDotNetCore.QueryStrings;
 using JsonApiDotNetCore.QueryStrings.Internal;
 using JsonApiDotNetCore.Repositories;
@@ -193,6 +195,7 @@ internal sealed class JsonApiApplicationBuilder : IJsonApiApplicationBuilder, ID
         RegisterImplementationForInterfaces(ServiceDiscoveryFacade.RepositoryUnboundInterfaces, typeof(EntityFrameworkCoreRepository<,>));
 
         _services.AddScoped<IResourceRepositoryAccessor, ResourceRepositoryAccessor>();
+        _services.AddScoped<IQueryableFactory, QueryableFactory>();
     }
 
     private void AddServiceLayer()
@@ -233,6 +236,7 @@ internal sealed class JsonApiApplicationBuilder : IJsonApiApplicationBuilder, ID
 
         _services.AddScoped<IQueryStringReader, QueryStringReader>();
         _services.AddSingleton<IRequestQueryStringAccessor, RequestQueryStringAccessor>();
+        _services.AddScoped<IQueryExpressionParserFactory, QueryExpressionParserFactory>();
     }
 
     private void RegisterDependentService<TCollectionElement, TElementToAdd>()

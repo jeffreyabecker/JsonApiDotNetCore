@@ -13,7 +13,7 @@ public class IncludeParser : QueryExpressionParser
 {
     private static readonly ResourceFieldChainErrorFormatter ErrorFormatter = new();
 
-    public IncludeExpression Parse(string source, ResourceType resourceTypeInScope, int? maximumDepth)
+    public virtual IncludeExpression Parse(string source, ResourceType resourceTypeInScope, int? maximumDepth)
     {
         ArgumentGuard.NotNull(resourceTypeInScope);
 
@@ -27,7 +27,7 @@ public class IncludeParser : QueryExpressionParser
         return expression;
     }
 
-    protected IncludeExpression ParseInclude(ResourceType resourceTypeInScope, int? maximumDepth)
+    protected virtual IncludeExpression ParseInclude(ResourceType resourceTypeInScope, int? maximumDepth)
     {
         var treeRoot = IncludeTreeNode.CreateRoot(resourceTypeInScope);
         bool isAtStart = true;

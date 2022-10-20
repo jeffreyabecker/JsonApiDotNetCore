@@ -1,14 +1,17 @@
+using System.ComponentModel.Design;
 using FluentAssertions;
 using Humanizer;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Middleware;
 using JsonApiDotNetCore.Queries;
+using JsonApiDotNetCore.Queries.Internal.Parsing;
 using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 using JsonApiDotNetCore.Serialization.Objects;
 using JsonApiDotNetCore.Serialization.Response;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging.Abstractions;
 using TestBuildingBlocks;
 using Xunit;
 
@@ -85,7 +88,12 @@ public sealed class LinkInclusionTests
         var httpContextAccessor = new FakeHttpContextAccessor();
         var linkGenerator = new FakeLinkGenerator();
         var controllerResourceMapping = new FakeControllerResourceMapping();
-        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping);
+        var resourceFactory = new ResourceFactory(new ServiceContainer());
+        IResourceGraph resourceGraph = new ResourceGraphBuilder(options, NullLoggerFactory.Instance).Add<ExampleResource, int>().Build();
+        var queryExpressionParserFactory = new QueryExpressionParserFactory(resourceGraph, resourceFactory);
+
+        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping,
+            queryExpressionParserFactory);
 
         // Act
         TopLevelLinks? topLevelLinks = linkBuilder.GetTopLevelLinks();
@@ -166,7 +174,12 @@ public sealed class LinkInclusionTests
         var httpContextAccessor = new FakeHttpContextAccessor();
         var linkGenerator = new FakeLinkGenerator();
         var controllerResourceMapping = new FakeControllerResourceMapping();
-        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping);
+        var resourceFactory = new ResourceFactory(new ServiceContainer());
+        IResourceGraph resourceGraph = new ResourceGraphBuilder(options, NullLoggerFactory.Instance).Add<ExampleResource, int>().Build();
+        var queryExpressionParserFactory = new QueryExpressionParserFactory(resourceGraph, resourceFactory);
+
+        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping,
+            queryExpressionParserFactory);
 
         // Act
         ResourceLinks? resourceLinks = linkBuilder.GetResourceLinks(exampleResourceType, new ExampleResource());
@@ -325,7 +338,12 @@ public sealed class LinkInclusionTests
         var httpContextAccessor = new FakeHttpContextAccessor();
         var linkGenerator = new FakeLinkGenerator();
         var controllerResourceMapping = new FakeControllerResourceMapping();
-        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping);
+        var resourceFactory = new ResourceFactory(new ServiceContainer());
+        IResourceGraph resourceGraph = new ResourceGraphBuilder(options, NullLoggerFactory.Instance).Add<ExampleResource, int>().Build();
+        var queryExpressionParserFactory = new QueryExpressionParserFactory(resourceGraph, resourceFactory);
+
+        var linkBuilder = new LinkBuilder(options, request, paginationContext, httpContextAccessor, linkGenerator, controllerResourceMapping,
+            queryExpressionParserFactory);
 
         var relationship = new HasOneAttribute
         {

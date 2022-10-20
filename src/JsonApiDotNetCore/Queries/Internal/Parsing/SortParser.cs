@@ -12,12 +12,12 @@ public class SortParser : QueryExpressionParser
     private readonly Action<ResourceFieldAttribute, ResourceType, string>? _validateSingleFieldCallback;
     private ResourceType? _resourceTypeInScope;
 
-    public SortParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback = null)
+    public SortParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback)
     {
         _validateSingleFieldCallback = validateSingleFieldCallback;
     }
 
-    public SortExpression Parse(string source, ResourceType resourceTypeInScope)
+    public virtual SortExpression Parse(string source, ResourceType resourceTypeInScope)
     {
         ArgumentGuard.NotNull(resourceTypeInScope);
 
@@ -32,7 +32,7 @@ public class SortParser : QueryExpressionParser
         return expression;
     }
 
-    protected SortExpression ParseSort()
+    protected virtual SortExpression ParseSort()
     {
         SortElementExpression firstElement = ParseSortElement();
 
@@ -50,7 +50,7 @@ public class SortParser : QueryExpressionParser
         return new SortExpression(elementsBuilder.ToImmutable());
     }
 
-    protected SortElementExpression ParseSortElement()
+    protected virtual SortElementExpression ParseSortElement()
     {
         bool isAscending = true;
 

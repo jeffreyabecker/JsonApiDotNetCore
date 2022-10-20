@@ -7,7 +7,6 @@ using JsonApiDotNetCore.Middleware;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.Internal.Parsing;
-using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 using Microsoft.Extensions.Primitives;
 
@@ -28,14 +27,14 @@ public class FilterQueryStringParameterReader : QueryStringParameterReader, IFil
 
     public bool AllowEmptyValue => false;
 
-    public FilterQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IResourceFactory resourceFactory, IJsonApiOptions options)
-        : base(request, resourceGraph)
+    public FilterQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options, IQueryExpressionParserFactory queryExpressionParserFactory)
+        : base(request, resourceGraph, queryExpressionParserFactory)
     {
         ArgumentGuard.NotNull(options);
 
         _options = options;
-        _scopeParser = new QueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany);
-        _filterParser = new FilterParser(resourceFactory, ValidateSingleField);
+        _scopeParser = QueryExpressionParserFactory.CreateQueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany, null);
+        _filterParser = QueryExpressionParserFactory.CreateFilterParser(ValidateSingleField);
     }
 
     protected void ValidateSingleField(ResourceFieldAttribute field, ResourceType resourceType, string path)

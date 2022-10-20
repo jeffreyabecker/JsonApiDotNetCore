@@ -1,11 +1,14 @@
+using System.ComponentModel.Design;
 using System.Net;
 using FluentAssertions;
 using JsonApiDotNetCore.Controllers.Annotations;
 using JsonApiDotNetCore.Errors;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
+using JsonApiDotNetCore.Queries.Internal.Parsing;
 using JsonApiDotNetCore.QueryStrings;
 using JsonApiDotNetCore.QueryStrings.Internal;
+using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Serialization.Objects;
 using TestBuildingBlocks;
 using Xunit;
@@ -18,7 +21,10 @@ public sealed class SortParseTests : BaseParseTests
 
     public SortParseTests()
     {
-        _reader = new SortQueryStringParameterReader(Request, ResourceGraph);
+        var resourceFactory = new ResourceFactory(new ServiceContainer());
+        var queryExpressionParserFactory = new QueryExpressionParserFactory(ResourceGraph, resourceFactory);
+
+        _reader = new SortQueryStringParameterReader(Request, ResourceGraph, queryExpressionParserFactory);
     }
 
     [Theory]

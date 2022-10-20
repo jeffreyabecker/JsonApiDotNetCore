@@ -12,12 +12,12 @@ public class SparseFieldSetParser : QueryExpressionParser
     private readonly Action<ResourceFieldAttribute, ResourceType, string>? _validateSingleFieldCallback;
     private ResourceType? _resourceType;
 
-    public SparseFieldSetParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback = null)
+    public SparseFieldSetParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback)
     {
         _validateSingleFieldCallback = validateSingleFieldCallback;
     }
 
-    public SparseFieldSetExpression? Parse(string source, ResourceType resourceType)
+    public virtual SparseFieldSetExpression? Parse(string source, ResourceType resourceType)
     {
         ArgumentGuard.NotNull(resourceType);
 
@@ -32,7 +32,7 @@ public class SparseFieldSetParser : QueryExpressionParser
         return expression;
     }
 
-    protected SparseFieldSetExpression? ParseSparseFieldSet()
+    protected virtual SparseFieldSetExpression? ParseSparseFieldSet()
     {
         ImmutableHashSet<ResourceFieldAttribute>.Builder fieldSetBuilder = ImmutableHashSet.CreateBuilder<ResourceFieldAttribute>();
 

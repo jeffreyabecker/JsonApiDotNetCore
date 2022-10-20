@@ -16,7 +16,7 @@ public class FilterParser : QueryExpressionParser
     private readonly Action<ResourceFieldAttribute, ResourceType, string>? _validateSingleFieldCallback;
     private ResourceType? _resourceTypeInScope;
 
-    public FilterParser(IResourceFactory resourceFactory, Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback = null)
+    public FilterParser(IResourceFactory resourceFactory, Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback)
     {
         ArgumentGuard.NotNull(resourceFactory);
 
@@ -24,7 +24,7 @@ public class FilterParser : QueryExpressionParser
         _validateSingleFieldCallback = validateSingleFieldCallback;
     }
 
-    public FilterExpression Parse(string source, ResourceType resourceTypeInScope)
+    public virtual FilterExpression Parse(string source, ResourceType resourceTypeInScope)
     {
         ArgumentGuard.NotNull(resourceTypeInScope);
 
@@ -40,7 +40,7 @@ public class FilterParser : QueryExpressionParser
         });
     }
 
-    protected FilterExpression ParseFilter()
+    protected virtual FilterExpression ParseFilter()
     {
         if (TokenStack.TryPeek(out Token? nextToken) && nextToken.Kind == TokenKind.Text)
         {
@@ -87,7 +87,7 @@ public class FilterParser : QueryExpressionParser
         throw new QueryParseException("Filter function expected.");
     }
 
-    protected NotExpression ParseNot()
+    protected virtual NotExpression ParseNot()
     {
         EatText(Keywords.Not);
         EatSingleCharacterToken(TokenKind.OpenParen);
@@ -99,7 +99,7 @@ public class FilterParser : QueryExpressionParser
         return new NotExpression(child);
     }
 
-    protected LogicalExpression ParseLogical(string operatorName)
+    protected virtual LogicalExpression ParseLogical(string operatorName)
     {
         EatText(operatorName);
         EatSingleCharacterToken(TokenKind.OpenParen);
@@ -128,7 +128,7 @@ public class FilterParser : QueryExpressionParser
         return new LogicalExpression(logicalOperator, termsBuilder.ToImmutable());
     }
 
-    protected ComparisonExpression ParseComparison(string operatorName)
+    protected virtual ComparisonExpression ParseComparison(string operatorName)
     {
         var comparisonOperator = Enum.Parse<ComparisonOperator>(operatorName.Pascalize());
 
@@ -168,7 +168,7 @@ public class FilterParser : QueryExpressionParser
         return new ComparisonExpression(comparisonOperator, leftTerm, rightTerm);
     }
 
-    protected MatchTextExpression ParseTextMatch(string matchFunctionName)
+    protected virtual MatchTextExpression ParseTextMatch(string matchFunctionName)
     {
         EatText(matchFunctionName);
         EatSingleCharacterToken(TokenKind.OpenParen);
@@ -185,7 +185,7 @@ public class FilterParser : QueryExpressionParser
         return new MatchTextExpression(targetAttribute, constant, matchKind);
     }
 
-    protected AnyExpression ParseAny()
+    protected virtual AnyExpression ParseAny()
     {
         EatText(Keywords.Any);
         EatSingleCharacterToken(TokenKind.OpenParen);
@@ -242,7 +242,7 @@ public class FilterParser : QueryExpressionParser
         return idConstantsBuilder.ToImmutable();
     }
 
-    protected HasExpression ParseHas()
+    protected virtual HasExpression ParseHas()
     {
         EatText(Keywords.Has);
         EatSingleCharacterToken(TokenKind.OpenParen);
@@ -404,7 +404,7 @@ public class FilterParser : QueryExpressionParser
         return null;
     }
 
-    protected LiteralConstantExpression ParseConstant()
+    protected virtual LiteralConstantExpression ParseConstant()
     {
         if (TokenStack.TryPop(out Token? token) && token.Kind == TokenKind.QuotedText)
         {

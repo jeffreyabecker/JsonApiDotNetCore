@@ -28,7 +28,7 @@ public class IncludeClauseBuilder : QueryClauseBuilder<object?>
         _resourceType = resourceType;
     }
 
-    public Expression ApplyInclude(IncludeExpression include)
+    public virtual Expression ApplyInclude(IncludeExpression include)
     {
         ArgumentGuard.NotNull(include);
 

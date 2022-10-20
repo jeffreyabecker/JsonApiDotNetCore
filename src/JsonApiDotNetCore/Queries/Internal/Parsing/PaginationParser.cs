@@ -12,12 +12,12 @@ public class PaginationParser : QueryExpressionParser
     private readonly Action<ResourceFieldAttribute, ResourceType, string>? _validateSingleFieldCallback;
     private ResourceType? _resourceTypeInScope;
 
-    public PaginationParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback = null)
+    public PaginationParser(Action<ResourceFieldAttribute, ResourceType, string>? validateSingleFieldCallback)
     {
         _validateSingleFieldCallback = validateSingleFieldCallback;
     }
 
-    public PaginationQueryStringValueExpression Parse(string source, ResourceType resourceTypeInScope)
+    public virtual PaginationQueryStringValueExpression Parse(string source, ResourceType resourceTypeInScope)
     {
         ArgumentGuard.NotNull(resourceTypeInScope);
 
@@ -32,7 +32,7 @@ public class PaginationParser : QueryExpressionParser
         return expression;
     }
 
-    protected PaginationQueryStringValueExpression ParsePagination()
+    protected virtual PaginationQueryStringValueExpression ParsePagination()
     {
         ImmutableArray<PaginationElementQueryStringValueExpression>.Builder elementsBuilder =
             ImmutableArray.CreateBuilder<PaginationElementQueryStringValueExpression>();
@@ -51,7 +51,7 @@ public class PaginationParser : QueryExpressionParser
         return new PaginationQueryStringValueExpression(elementsBuilder.ToImmutable());
     }
 
-    protected PaginationElementQueryStringValueExpression ParsePaginationElement()
+    protected virtual PaginationElementQueryStringValueExpression ParsePaginationElement()
     {
         int? number = TryParseNumber();
 

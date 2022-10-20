@@ -136,9 +136,7 @@ public class EntityFrameworkCoreRepository<TResource, TId> : IResourceRepository
                 source = queryableHandler.Apply(source);
             }
 
-            var nameFactory = new LambdaParameterNameFactory();
-
-            var builder = new QueryableBuilder(source.Expression, source.ElementType, typeof(Queryable), nameFactory, _resourceFactory, _dbContext.Model);
+            QueryableBuilder builder = CreateQueryableBuilder(source);
 
             Expression expression = builder.ApplyQuery(queryLayer);
 
@@ -147,6 +145,17 @@ public class EntityFrameworkCoreRepository<TResource, TId> : IResourceRepository
                 return source.Provider.CreateQuery<TResource>(expression);
             }
         }
+    }
+
+    protected virtual QueryableBuilder CreateQueryableBuilder(IQueryable<TResource> source)
+    {
+        // Ideally we'd inject IQueryableFactory instead of providing this virtual method. But adding a constructor parameter
+        // breaks all derived types, which is too invasive for a non-major release.
+
+        IQueryableFactory queryableFactory = new QueryableFactory(_resourceFactory);
+        var nameFactory = new LambdaParameterNameFactory();
+
+        return queryableFactory.CreateQueryableBuilder(source.Expression, source.ElementType, typeof(Queryable), nameFactory, _dbContext.Model, null);
     }
 
     protected virtual IQueryable<TResource> GetAll()

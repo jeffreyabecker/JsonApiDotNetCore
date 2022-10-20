@@ -20,20 +20,23 @@ public class WhereClauseBuilder : QueryClauseBuilder<Type?>
     private readonly Expression _source;
     private readonly Type _extensionType;
     private readonly LambdaParameterNameFactory _nameFactory;
+    private readonly IQueryableFactory _queryableFactory;
 
-    public WhereClauseBuilder(Expression source, LambdaScope lambdaScope, Type extensionType, LambdaParameterNameFactory nameFactory)
+    public WhereClauseBuilder(Expression source, LambdaScope lambdaScope, Type extensionType, LambdaParameterNameFactory nameFactory, IQueryableFactory queryableFactory)
         : base(lambdaScope)
     {
         ArgumentGuard.NotNull(source);
         ArgumentGuard.NotNull(extensionType);
         ArgumentGuard.NotNull(nameFactory);
+        ArgumentGuard.NotNull(queryableFactory);
 
         _source = source;
         _extensionType = extensionType;
         _nameFactory = nameFactory;
+        _queryableFactory = queryableFactory;
     }
 
-    public Expression ApplyWhere(FilterExpression filter)
+    public virtual Expression ApplyWhere(FilterExpression filter)
     {
         ArgumentGuard.NotNull(filter);
 
@@ -71,7 +74,7 @@ public class WhereClauseBuilder : QueryClauseBuilder<Type?>
             var lambdaScopeFactory = new LambdaScopeFactory(_nameFactory);
             using LambdaScope lambdaScope = lambdaScopeFactory.CreateScope(elementType);
 
-            var builder = new WhereClauseBuilder(property, lambdaScope, typeof(Enumerable), _nameFactory);
+            var builder = _queryableFactory.CreateWhereClauseBuilder(property, lambdaScope, typeof(Enumerable), _nameFactory);
             predicate = builder.GetPredicateLambda(expression.Filter);
         }
 

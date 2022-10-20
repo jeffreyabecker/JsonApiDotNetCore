@@ -26,9 +26,10 @@ public class SelectClauseBuilder : QueryClauseBuilder<object>
     private readonly Type _extensionType;
     private readonly LambdaParameterNameFactory _nameFactory;
     private readonly IResourceFactory _resourceFactory;
+    private readonly IQueryableFactory _queryableFactory;
 
     public SelectClauseBuilder(Expression source, LambdaScope lambdaScope, IModel entityModel, Type extensionType, LambdaParameterNameFactory nameFactory,
-        IResourceFactory resourceFactory)
+        IResourceFactory resourceFactory, IQueryableFactory queryableFactory)
         : base(lambdaScope)
     {
         ArgumentGuard.NotNull(source);
@@ -36,15 +37,17 @@ public class SelectClauseBuilder : QueryClauseBuilder<object>
         ArgumentGuard.NotNull(extensionType);
         ArgumentGuard.NotNull(nameFactory);
         ArgumentGuard.NotNull(resourceFactory);
+        ArgumentGuard.NotNull(queryableFactory);
 
         _source = source;
         _entityModel = entityModel;
         _extensionType = extensionType;
         _nameFactory = nameFactory;
         _resourceFactory = resourceFactory;
+        _queryableFactory = queryableFactory;
     }
 
-    public Expression ApplySelect(FieldSelection selection, ResourceType resourceType)
+    public virtual Expression ApplySelect(FieldSelection selection, ResourceType resourceType)
     {
         ArgumentGuard.NotNull(selection);
 
@@ -239,7 +242,7 @@ public class SelectClauseBuilder : QueryClauseBuilder<object>
     {
         MemberExpression propertyExpression = Expression.Property(lambdaScope.Accessor, collectionProperty);
 
-        var builder = new QueryableBuilder(propertyExpression, elementType, typeof(Enumerable), _nameFactory, _resourceFactory, _entityModel,
+        QueryableBuilder builder = _queryableFactory.CreateQueryableBuilder(propertyExpression, elementType, typeof(Enumerable), _nameFactory, _entityModel,
             lambdaScopeFactory);
 
         Expression layerExpression = builder.ApplyQuery(layer);

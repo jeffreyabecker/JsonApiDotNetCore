@@ -13,13 +13,16 @@ public abstract class QueryStringParameterReader
 
     protected ResourceType RequestResourceType { get; }
     protected bool IsAtomicOperationsRequest { get; }
+    protected IQueryExpressionParserFactory QueryExpressionParserFactory { get; }
 
-    protected QueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph)
+    protected QueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IQueryExpressionParserFactory queryExpressionParserFactory)
     {
         ArgumentGuard.NotNull(request);
         ArgumentGuard.NotNull(resourceGraph);
+        ArgumentGuard.NotNull(queryExpressionParserFactory);
 
         _resourceGraph = resourceGraph;
+        QueryExpressionParserFactory = queryExpressionParserFactory;
         _isCollectionRequest = request.IsCollection;
         // There are currently no query string readers that work with operations, so non-nullable for convenience.
         RequestResourceType = (request.SecondaryResourceType ?? request.PrimaryResourceType)!;
