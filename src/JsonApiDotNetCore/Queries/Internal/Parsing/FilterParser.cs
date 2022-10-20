@@ -355,9 +355,9 @@ public class FilterParser : QueryExpressionParser
 
     protected QueryExpression ParseCountOrField(FieldChainRequirements chainRequirements)
     {
-        CountExpression? count = TryParseCount();
+        FunctionExpression? function = TryParseFunction();
 
-        if (count != null)
+        if (function is CountExpression count)
         {
             return count;
         }
@@ -367,9 +367,9 @@ public class FilterParser : QueryExpressionParser
 
     protected QueryExpression ParseCountOrConstantOrNullOrField(FieldChainRequirements chainRequirements)
     {
-        CountExpression? count = TryParseCount();
+        FunctionExpression? function = TryParseFunction();
 
-        if (count != null)
+        if (function is CountExpression count)
         {
             return count;
         }

@@ -30,6 +30,34 @@ public abstract class QueryExpressionParser
         TokenStack = new Stack<Token>(tokenizer.EnumerateTokens().Reverse());
     }
 
+    protected virtual FunctionExpression? TryParseFunction()
+    {
+        if (TokenStack.TryPeek(out Token? nextToken) && nextToken.Kind == TokenKind.Text)
+        {
+            switch (nextToken.Value)
+            {
+                case Keywords.Count:
+                {
+                    return ParseCount();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected FunctionExpression ParseCount()
+    {
+        EatText(Keywords.Count);
+        EatSingleCharacterToken(TokenKind.OpenParen);
+
+        ResourceFieldChainExpression targetCollection = ParseFieldChain(FieldChainRequirements.EndsInToMany, null);
+
+        EatSingleCharacterToken(TokenKind.CloseParen);
+
+        return new CountExpression(targetCollection);
+    }
+
     protected ResourceFieldChainExpression ParseFieldChain(FieldChainRequirements chainRequirements, string? alternativeErrorMessage)
     {
         var pathBuilder = new StringBuilder();
@@ -68,24 +96,6 @@ public abstract class QueryExpressionParser
                 throw new QueryParseException(alternativeErrorMessage ?? "Field name expected.");
             }
         }
-    }
-
-    protected CountExpression? TryParseCount()
-    {
-        if (TokenStack.TryPeek(out Token? nextToken) && nextToken.Kind == TokenKind.Text && nextToken.Value == Keywords.Count)
-        {
-            TokenStack.Pop();
-
-            EatSingleCharacterToken(TokenKind.OpenParen);
-
-            ResourceFieldChainExpression targetCollection = ParseFieldChain(FieldChainRequirements.EndsInToMany, null);
-
-            EatSingleCharacterToken(TokenKind.CloseParen);
-
-            return new CountExpression(targetCollection);
-        }
-
-        return null;
     }
 
     protected void EatText(string text)

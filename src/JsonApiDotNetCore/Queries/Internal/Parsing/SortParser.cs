@@ -60,15 +60,16 @@ public class SortParser : QueryExpressionParser
             isAscending = false;
         }
 
-        CountExpression? count = TryParseCount();
+        FunctionExpression? function = TryParseFunction();
 
-        if (count != null)
+        if (function is CountExpression count)
         {
             return new SortElementExpression(count, isAscending);
         }
 
         string errorMessage = isAscending ? "-, count function or field name expected." : "Count function or field name expected.";
         ResourceFieldChainExpression targetAttribute = ParseFieldChain(FieldChainRequirements.EndsInAttribute, errorMessage);
+
         return new SortElementExpression(targetAttribute, isAscending);
     }
 
