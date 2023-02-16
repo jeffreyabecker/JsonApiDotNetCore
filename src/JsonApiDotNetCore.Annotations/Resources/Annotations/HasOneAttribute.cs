@@ -26,7 +26,7 @@ public sealed class HasOneAttribute : RelationshipAttribute
     /// <summary>
     /// Inspects <see cref="RelationshipAttribute.InverseNavigationProperty" /> to determine if this is a one-to-one relationship.
     /// </summary>
-    internal bool IsOneToOne => _lazyIsOneToOne.Value;
+    public bool IsOneToOne => _lazyIsOneToOne.Value;
 
     internal bool HasExplicitCapabilities => _capabilities != null;
 
@@ -62,6 +62,13 @@ public sealed class HasOneAttribute : RelationshipAttribute
         }
 
         return false;
+    }
+
+    /// <inheritdoc />
+    public override void SetValue(object resource, object? newValue)
+    {
+        AssertIsIdentifiable(newValue);
+        base.SetValue(resource, newValue);
     }
 
     public override bool Equals(object? obj)

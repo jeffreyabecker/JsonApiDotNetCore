@@ -2,7 +2,7 @@
 
 namespace JsonApiDotNetCore;
 
-internal static class ObjectExtensions
+public static class ObjectExtensions
 {
     public static IEnumerable<T> AsEnumerable<T>(this T element)
     {

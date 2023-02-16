@@ -7,7 +7,7 @@ using SysNotNull = System.Diagnostics.CodeAnalysis.NotNullAttribute;
 
 namespace JsonApiDotNetCore;
 
-internal static class ArgumentGuard
+public static class ArgumentGuard
 {
     [AssertionMethod]
     public static void NotNull<T>([NoEnumeration] [SysNotNull] T? value, [CallerArgumentExpression("value")] string? parameterName = null)

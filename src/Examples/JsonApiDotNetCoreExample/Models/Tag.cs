@@ -7,12 +7,15 @@ namespace JsonApiDotNetCoreExample.Models;
 
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 [Resource]
-public sealed class Tag : Identifiable<int>
+public sealed class Tag : Identifiable<long>
 {
     [Attr]
     [MinLength(1)]
     public string Name { get; set; } = null!;
 
-    [HasMany]
-    public ISet<TodoItem> TodoItems { get; set; } = new HashSet<TodoItem>();
+    [HasOne]
+    public RgbColor? Color { get; set; }
+
+    [HasOne]
+    public TodoItem? TodoItem { get; set; }
 }

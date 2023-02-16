@@ -3,7 +3,7 @@ using JsonApiDotNetCore.Resources.Internal;
 
 namespace JsonApiDotNetCore.Resources;
 
-internal static class IdentifiableExtensions
+public static class IdentifiableExtensions
 {
     private const string IdPropertyName = nameof(Identifiable<object>.Id);
 

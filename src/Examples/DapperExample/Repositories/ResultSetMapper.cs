@@ -1,0 +1,189 @@
+using System.Reflection;
+using JsonApiDotNetCore.Queries.Expressions;
+using JsonApiDotNetCore.Resources;
+using JsonApiDotNetCore.Resources.Annotations;
+using JsonApiDotNetCore.Resources.Internal;
+
+namespace DapperExample.Repositories;
+
+/// <summary>
+/// Maps the result set from a SQL query that includes relationships via LEFT JOINs.
+/// </summary>
+internal sealed class ResultSetMapper<TResource, TId>
+    where TResource : class, IIdentifiable<TId>
+{
+    // For each object type, we keep a map of ID/instance pairs.
+    // Note we don't do full bidirectional relationship fix-up; this just avoids duplicate instances.
+    private readonly Dictionary<Type, Dictionary<object, object>> _resourceByTypeCache = new();
+
+    // Optimization to avoid unneeded calls to expense Activator.CreateInstance() method, which is needed multiple times per row.
+    private readonly Dictionary<Type, object?> _defaultValueByTypeCache = new();
+
+    // Used to determine where in the tree of included relationships a join object belongs to.
+    private readonly Dictionary<IncludeElementExpression, int> _includeElementToJoinObjectArrayIndexLookup = new();
+
+    // The return value of the mapping process.
+    private readonly List<TResource> _leftResourcesInOrder = new();
+
+    // The included relationships for which a LEFT JOIN statement was produced, which we're mapping.
+    private readonly IncludeExpression _include;
+
+    public ResultSetMapper(IncludeExpression? include)
+    {
+        _include = include ?? IncludeExpression.Empty;
+        _resourceByTypeCache[typeof(TResource)] = new Dictionary<object, object>();
+
+        var walker = new IncludeElementWalker(_include);
+        int index = 1;
+
+        foreach (IncludeElementExpression includeElement in walker.BreadthFirstEnumerate())
+        {
+            _resourceByTypeCache[includeElement.Relationship.RightType.ClrType] = new Dictionary<object, object>();
+            _includeElementToJoinObjectArrayIndexLookup[includeElement] = index;
+
+            index++;
+        }
+    }
+
+    public object? Map(object[] joinObjects)
+    {
+        // This method executes for each row in the LEFT JOIN result set.
+
+        if (joinObjects.Length != _includeElementToJoinObjectArrayIndexLookup.Count + 1)
+        {
+            throw new InvalidOperationException("Failed to properly map INNER JOIN result set into objects.");
+        }
+
+        object?[] objectsCached = joinObjects.Select(GetCached).ToArray();
+        var leftResource = (TResource)objectsCached[0]!;
+
+        RecursiveSetRelationships(leftResource, _include.Elements, objectsCached);
+
+        _leftResourcesInOrder.Add(leftResource);
+        return null;
+    }
+
+    private object? GetCached(object? resource)
+    {
+        if (resource == null)
+        {
+            return null;
+        }
+
+        object? resourceId = GetResourceId(resource);
+
+        if (resourceId == null || HasDefaultValue(resourceId))
+        {
+            // When Id is not set, the entire object is empty (due to LEFT JOIN usage).
+            return null;
+        }
+
+        Dictionary<object, object> resourceByIdCache = _resourceByTypeCache[resource.GetType()];
+
+        if (resourceByIdCache.TryGetValue(resourceId, out object? cachedValue))
+        {
+            return cachedValue;
+        }
+
+        resourceByIdCache[resourceId] = resource;
+        return resource;
+    }
+
+    private static object? GetResourceId(object resource)
+    {
+        PropertyInfo? property = resource.GetType().GetProperty(nameof(Identifiable<object>.Id));
+
+        if (property == null)
+        {
+            throw new InvalidOperationException($"{nameof(Identifiable<object>.Id)} property not found on object of type '{resource.GetType().Name}'.");
+        }
+
+        return property.GetValue(resource);
+    }
+
+    private bool HasDefaultValue(object value)
+    {
+        object? defaultValue = GetDefaultValueCached(value.GetType());
+        return Equals(defaultValue, value);
+    }
+
+    private object? GetDefaultValueCached(Type type)
+    {
+        if (_defaultValueByTypeCache.TryGetValue(type, out object? defaultValue))
+        {
+            return defaultValue;
+        }
+
+        defaultValue = RuntimeTypeConverter.GetDefaultValue(type);
+        _defaultValueByTypeCache[type] = defaultValue;
+        return defaultValue;
+    }
+
+    private void RecursiveSetRelationships(object leftResource, IEnumerable<IncludeElementExpression> includeElements, object?[] joinObjects)
+    {
+        foreach (IncludeElementExpression element in includeElements)
+        {
+            int rightIndex = _includeElementToJoinObjectArrayIndexLookup[element];
+            object? rightResource = joinObjects[rightIndex];
+
+            SetRelationship(leftResource, element.Relationship, rightResource);
+
+            if (rightResource != null && element.Children.Any())
+            {
+                RecursiveSetRelationships(rightResource, element.Children, joinObjects);
+            }
+        }
+    }
+
+    private void SetRelationship(object leftResource, RelationshipAttribute relationship, object? rightResource)
+    {
+        if (rightResource != null)
+        {
+            if (relationship is HasManyAttribute hasManyRelationship)
+            {
+                hasManyRelationship.AddValue(leftResource, (IIdentifiable)rightResource);
+            }
+            else
+            {
+                relationship.SetValue(leftResource, rightResource);
+            }
+        }
+    }
+
+    public IReadOnlyCollection<TResource> GetResources()
+    {
+        return _leftResourcesInOrder.DistinctBy(resource => resource.Id).ToList();
+    }
+
+    private sealed class IncludeElementWalker
+    {
+        private readonly IncludeExpression? _include;
+
+        public IncludeElementWalker(IncludeExpression? include)
+        {
+            _include = include;
+        }
+
+        public IEnumerable<IncludeElementExpression> BreadthFirstEnumerate()
+        {
+            if (_include != null)
+            {
+                foreach (IncludeElementExpression next in _include.Elements.OrderBy(element => element.Relationship.PublicName)
+                    .SelectMany(RecursiveEnumerateElement))
+                {
+                    yield return next;
+                }
+            }
+        }
+
+        private IEnumerable<IncludeElementExpression> RecursiveEnumerateElement(IncludeElementExpression element)
+        {
+            yield return element;
+
+            foreach (IncludeElementExpression next in element.Children.OrderBy(child => child.Relationship.PublicName).SelectMany(RecursiveEnumerateElement))
+            {
+                yield return next;
+            }
+        }
+    }
+}
