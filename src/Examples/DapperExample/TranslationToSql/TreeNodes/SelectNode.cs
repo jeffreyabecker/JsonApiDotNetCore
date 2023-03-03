@@ -4,12 +4,12 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class SelectNode : SqlTreeNode
 {
-    public IReadOnlyDictionary<TableSourceNode, IReadOnlyList<SelectorNode>> Selectors { get; }
+    public IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> Selectors { get; }
     public FilterNode? Where { get; }
     public OrderByNode? OrderBy { get; }
     public LimitOffsetNode? LimitOffset { get; }
 
-    public SelectNode(IReadOnlyDictionary<TableSourceNode, IReadOnlyList<SelectorNode>> selectors, FilterNode? where, OrderByNode? orderBy,
+    public SelectNode(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors, FilterNode? where, OrderByNode? orderBy,
         LimitOffsetNode? limitOffset)
     {
         ArgumentGuard.NotNullNorEmpty(selectors);

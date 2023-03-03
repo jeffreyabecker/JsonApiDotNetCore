@@ -52,7 +52,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
         bool isFirstTable = true;
 
-        foreach ((TableSourceNode tableSource, IReadOnlyList<SelectorNode> selectors) in node.Selectors.Where(pair => pair.Value.Any()))
+        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectors) in node.Selectors.Where(pair => pair.Value.Any()))
         {
             if (isFirstTable)
             {
@@ -64,19 +64,19 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
                 if (isTopLevel)
                 {
-                    ColumnNode idColumn = tableSource.Table.GetIdColumn();
+                    ColumnNode idColumn = tableAccessor.Table.GetIdColumn();
                     Visit(idColumn, builder);
 
-                    builder.Append($" AS {tableSource.Table.Alias}_SplitId, ");
+                    builder.Append($" AS {tableAccessor.Table.Alias}_SplitId, ");
                 }
             }
 
             VisitSequence(selectors, builder);
         }
 
-        foreach (TableSourceNode tableSource in node.Selectors.Keys)
+        foreach (TableAccessorNode tableAccessor in node.Selectors.Keys)
         {
-            Visit(tableSource, builder);
+            Visit(tableAccessor, builder);
         }
 
         if (node.Where != null)

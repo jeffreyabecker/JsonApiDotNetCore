@@ -2,11 +2,11 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-internal abstract class TableSourceNode : SqlTreeNode
+internal abstract class TableAccessorNode : SqlTreeNode
 {
     public TableNode Table { get; }
 
-    protected TableSourceNode(TableNode table)
+    protected TableAccessorNode(TableNode table)
     {
         ArgumentGuard.NotNull(table);
 

@@ -12,13 +12,13 @@ using JsonApiDotNetCore.Serialization.Objects;
 
 namespace DapperExample.TranslationToSql.Builders;
 
-internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourceNode, SqlTreeNode>
+internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAccessorNode, SqlTreeNode>
 {
     private readonly IDataModelService _dataModelService;
     private readonly AliasGenerator _aliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
-    private readonly Dictionary<TableSourceNode, Dictionary<RelationshipAttribute, TableSourceNode>> _relatedTables = new();
-    private readonly Dictionary<TableSourceNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
+    private readonly Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>> _relatedTables = new();
+    private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
     private readonly List<FilterNode> _whereConditions = new();
     private readonly List<OrderByTermNode> _orderByTerms = new();
     private SelectShape _selectShape;
@@ -65,7 +65,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         var table = new TableNode(resourceType, _aliasGenerator.GetNext(), columnMappings);
         var from = new FromNode(table);
 
-        _relatedTables[from] = new Dictionary<RelationshipAttribute, TableSourceNode>();
+        _relatedTables[from] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
 
         _selectorsPerTable[from] = _selectShape switch
         {
@@ -104,22 +104,22 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return otherColumns;
     }
 
-    private void ConvertQueryLayer(QueryLayer queryLayer, TableSourceNode tableSource)
+    private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorNode tableAccessor)
     {
         if (queryLayer.Include != null)
         {
-            _ = Visit(queryLayer.Include, tableSource);
+            _ = Visit(queryLayer.Include, tableAccessor);
         }
 
         if (queryLayer.Filter != null)
         {
-            var filter = (FilterNode)Visit(queryLayer.Filter, tableSource);
+            var filter = (FilterNode)Visit(queryLayer.Filter, tableAccessor);
             _whereConditions.Add(filter);
         }
 
         if (queryLayer.Sort != null)
         {
-            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableSource);
+            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableAccessor);
             _orderByTerms.AddRange(orderBy.Terms);
         }
 
@@ -128,7 +128,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             // TODO: Push down into sub-select for non-top-level.
             if (_limitOffset == null)
             {
-                _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableSource);
+                _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
             }
         }
 
@@ -137,12 +137,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             foreach (ResourceType resourceType in queryLayer.Selection.GetResourceTypes())
             {
                 FieldSelectors selectors = queryLayer.Selection.GetOrCreateSelectors(resourceType);
-                ConvertSelectors(selectors, tableSource);
+                ConvertSelectors(selectors, tableAccessor);
             }
         }
     }
 
-    private void ConvertSelectors(FieldSelectors selectors, TableSourceNode tableSource)
+    private void ConvertSelectors(FieldSelectors selectors, TableAccessorNode tableAccessor)
     {
         HashSet<ColumnNode> selectedColumns = new();
 
@@ -151,14 +151,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             // If a read-only attribute is selected, its calculated value likely depends on another property, so fetch all scalar properties.
             // And only selecting relationships implicitly means to fetch all scalar properties as well.
 
-            selectedColumns = tableSource.Table.ScalarColumns.ToHashSet();
+            selectedColumns = tableAccessor.Table.ScalarColumns.ToHashSet();
         }
 
         foreach ((ResourceFieldAttribute? field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
         {
             if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = tableSource.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = tableAccessor.Table.FindScalarColumn(attribute.Property.Name);
 
                 if (column != null)
                 {
@@ -168,35 +168,35 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
             if (field is RelationshipAttribute relationship && nextLayer != null)
             {
-                TableSourceNode relatedTableSource = GetOrCreateRelatedTable(tableSource, relationship);
-                ConvertQueryLayer(nextLayer, relatedTableSource);
+                TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
+                ConvertQueryLayer(nextLayer, relatedTableAccessor);
             }
         }
 
         if (_selectShape == SelectShape.Columns)
         {
-            _selectorsPerTable[tableSource] = OrderColumnsWithIdAtFront(selectedColumns);
+            _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFront(selectedColumns);
         }
     }
 
-    private TableSourceNode GetOrCreateRelatedTable(TableSourceNode leftTableSource, RelationshipAttribute relationship)
+    private TableAccessorNode GetOrCreateRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
-        TableSourceNode? relatedTableSource = FindRelatedTable(leftTableSource, relationship);
+        TableAccessorNode? relatedTableAccessor = FindRelatedTable(leftTableAccessor, relationship);
 
-        if (relatedTableSource == null)
+        if (relatedTableAccessor == null)
         {
-            relatedTableSource = CreateJoin(leftTableSource, relationship);
-            IncludeRelatedTable(leftTableSource, relationship, relatedTableSource);
+            relatedTableAccessor = CreateJoin(leftTableAccessor, relationship);
+            IncludeRelatedTable(leftTableAccessor, relationship, relatedTableAccessor);
         }
 
-        return relatedTableSource;
+        return relatedTableAccessor;
     }
 
-    private TableSourceNode? FindRelatedTable(TableSourceNode leftTableSource, RelationshipAttribute relationship)
+    private TableAccessorNode? FindRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
-        if (_relatedTables.TryGetValue(leftTableSource, out Dictionary<RelationshipAttribute, TableSourceNode>? rightTableSources))
+        if (_relatedTables.TryGetValue(leftTableAccessor, out Dictionary<RelationshipAttribute, TableAccessorNode>? rightTableAccessors))
         {
-            if (rightTableSources.TryGetValue(relationship, out TableSourceNode? rightTable))
+            if (rightTableAccessors.TryGetValue(relationship, out TableAccessorNode? rightTable))
             {
                 return rightTable;
             }
@@ -205,16 +205,16 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return null;
     }
 
-    private void IncludeRelatedTable(TableSourceNode leftTableSource, RelationshipAttribute relationship, TableSourceNode rightTableSource)
+    private void IncludeRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship, TableAccessorNode rightTableAccessor)
     {
-        _relatedTables.TryAdd(leftTableSource, new Dictionary<RelationshipAttribute, TableSourceNode>());
-        _relatedTables[leftTableSource].Add(relationship, rightTableSource);
+        _relatedTables.TryAdd(leftTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
+        _relatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
 
-        _relatedTables[rightTableSource] = new Dictionary<RelationshipAttribute, TableSourceNode>();
-        _selectorsPerTable[rightTableSource] = new List<SelectorNode>();
+        _relatedTables[rightTableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+        _selectorsPerTable[rightTableAccessor] = new List<SelectorNode>();
     }
 
-    private JoinNode CreateJoin(TableSourceNode leftTableSource, RelationshipAttribute relationship)
+    private JoinNode CreateJoin(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
         RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
@@ -224,8 +224,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
 
         ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
-            ? leftTableSource.Table.GetForeignKeyColumn(foreignKey.ColumnName)
-            : leftTableSource.Table.GetIdColumn();
+            ? leftTableAccessor.Table.GetForeignKeyColumn(foreignKey.ColumnName)
+            : leftTableAccessor.Table.GetIdColumn();
 
         return foreignKey.IsNullable ? new LeftJoinNode(table, joinColumn, parentJoinColumn) : new InnerJoinNode(table, joinColumn, parentJoinColumn);
     }
@@ -259,27 +259,27 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return new LogicalNode(LogicalOperator.And, andTerms);
     }
 
-    public override SqlTreeNode DefaultVisit(QueryExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode DefaultVisit(QueryExpression expression, TableAccessorNode tableAccessor)
     {
         throw new NotSupportedException($"Expressions of type '{expression.GetType().Name}' are not supported.");
     }
 
-    public override SqlTreeNode VisitComparison(ComparisonExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitComparison(ComparisonExpression expression, TableAccessorNode tableAccessor)
     {
-        SqlValueNode left = VisitComparisonTerm(expression.Left, tableSource);
-        SqlValueNode right = VisitComparisonTerm(expression.Right, tableSource);
+        SqlValueNode left = VisitComparisonTerm(expression.Left, tableAccessor);
+        SqlValueNode right = VisitComparisonTerm(expression.Right, tableAccessor);
 
         return new ComparisonNode(expression.Operator, left, right);
     }
 
-    private SqlValueNode VisitComparisonTerm(QueryExpression comparisonTerm, TableSourceNode tableSource)
+    private SqlValueNode VisitComparisonTerm(QueryExpression comparisonTerm, TableAccessorNode tableAccessor)
     {
         if (comparisonTerm is NullConstantExpression)
         {
             return NullConstantNode.Instance;
         }
 
-        SqlTreeNode treeNode = Visit(comparisonTerm, tableSource);
+        SqlTreeNode treeNode = Visit(comparisonTerm, tableAccessor);
 
         if (treeNode is JoinNode join)
         {
@@ -289,19 +289,19 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return (SqlValueNode)treeNode;
     }
 
-    public override SqlTreeNode VisitResourceFieldChain(ResourceFieldChainExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitResourceFieldChain(ResourceFieldChainExpression expression, TableAccessorNode tableAccessor)
     {
-        TableSourceNode currentTableSource = tableSource;
+        TableAccessorNode currentTableAccessor = tableAccessor;
 
         foreach (ResourceFieldAttribute field in expression.Fields)
         {
             if (field is RelationshipAttribute relationship)
             {
-                currentTableSource = GetOrCreateRelatedTable(currentTableSource, relationship);
+                currentTableAccessor = GetOrCreateRelatedTable(currentTableAccessor, relationship);
             }
             else if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = currentTableSource.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = currentTableAccessor.Table.FindScalarColumn(attribute.Property.Name);
 
                 if (column == null)
                 {
@@ -316,56 +316,56 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             }
         }
 
-        return currentTableSource;
+        return currentTableAccessor;
     }
 
-    public override SqlTreeNode VisitLiteralConstant(LiteralConstantExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitLiteralConstant(LiteralConstantExpression expression, TableAccessorNode tableAccessor)
     {
         return _parameterGenerator.Create(expression.TypedValue);
     }
 
-    public override SqlTreeNode VisitNullConstant(NullConstantExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitNullConstant(NullConstantExpression expression, TableAccessorNode tableAccessor)
     {
         return _parameterGenerator.Create(null);
     }
 
-    public override SqlTreeNode VisitLogical(LogicalExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitLogical(LogicalExpression expression, TableAccessorNode tableAccessor)
     {
-        FilterNode[] terms = VisitSequence<FilterExpression, FilterNode>(expression.Terms, tableSource).ToArray();
+        FilterNode[] terms = VisitSequence<FilterExpression, FilterNode>(expression.Terms, tableAccessor).ToArray();
         return new LogicalNode(expression.Operator, terms);
     }
 
-    private IEnumerable<TOut> VisitSequence<TIn, TOut>(IEnumerable<TIn> source, TableSourceNode tableSource)
+    private IEnumerable<TOut> VisitSequence<TIn, TOut>(IEnumerable<TIn> source, TableAccessorNode tableAccessor)
         where TIn : QueryExpression
         where TOut : SqlTreeNode
     {
-        return source.Select(expression => (TOut)Visit(expression, tableSource)).ToList();
+        return source.Select(expression => (TOut)Visit(expression, tableAccessor)).ToList();
     }
 
-    public override SqlTreeNode VisitNot(NotExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitNot(NotExpression expression, TableAccessorNode tableAccessor)
     {
-        var child = (FilterNode)Visit(expression.Child, tableSource);
+        var child = (FilterNode)Visit(expression.Child, tableAccessor);
         return new NotNode(child);
     }
 
-    public override SqlTreeNode VisitHas(HasExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorNode tableAccessor)
     {
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
         {
             _selectShape = SelectShape.One
         };
 
-        return subSelectBuilder.GetExistsClause(expression, tableSource.Table);
+        return subSelectBuilder.GetExistsClause(expression, tableAccessor.Table);
     }
 
     private ExistsNode GetExistsClause(HasExpression expression, TableNode outerTable)
     {
         FromNode from = CreateFrom(outerTable.ResourceType);
-        var rightTableSource = (TableSourceNode)Visit(expression.TargetCollection, from);
+        var rightTableAccessor = (TableAccessorNode)Visit(expression.TargetCollection, from);
 
         if (expression.Filter != null)
         {
-            var filter = (FilterNode)Visit(expression.Filter, rightTableSource);
+            var filter = (FilterNode)Visit(expression.Filter, rightTableAccessor);
             _whereConditions.Add(filter);
         }
 
@@ -378,35 +378,35 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return new ExistsNode(subSelect);
     }
 
-    public override SqlTreeNode VisitIsType(IsTypeExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitIsType(IsTypeExpression expression, TableAccessorNode tableAccessor)
     {
         throw new NotSupportedException("Resource inheritance is not supported.");
     }
 
-    public override SqlTreeNode VisitSortElement(SortElementExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitSortElement(SortElementExpression expression, TableAccessorNode tableAccessor)
     {
         if (expression.Count != null)
         {
-            var count = (CountNode)Visit(expression.Count, tableSource);
+            var count = (CountNode)Visit(expression.Count, tableAccessor);
             return new OrderByCountNode(count, expression.IsAscending);
         }
 
         if (expression.TargetAttribute != null)
         {
-            var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
+            var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
             return new OrderByColumnNode(column, expression.IsAscending);
         }
 
         throw new InvalidOperationException("Internal error: Unreachable code detected.");
     }
 
-    public override SqlTreeNode VisitSort(SortExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitSort(SortExpression expression, TableAccessorNode tableAccessor)
     {
-        OrderByTermNode[] columns = VisitSequence<SortElementExpression, OrderByTermNode>(expression.Elements, tableSource).ToArray();
+        OrderByTermNode[] columns = VisitSequence<SortElementExpression, OrderByTermNode>(expression.Elements, tableAccessor).ToArray();
         return new OrderByNode(columns);
     }
 
-    public override SqlTreeNode VisitPagination(PaginationExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitPagination(PaginationExpression expression, TableAccessorNode tableAccessor)
     {
         ParameterNode limitParameter = _parameterGenerator.Create(expression.PageSize!.Value);
 
@@ -417,14 +417,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return new LimitOffsetNode(limitParameter, offsetParameter);
     }
 
-    public override SqlTreeNode VisitCount(CountExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorNode tableAccessor)
     {
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
         {
             _selectShape = SelectShape.Count
         };
 
-        return subSelectBuilder.GetCountClause(expression, tableSource.Table);
+        return subSelectBuilder.GetCountClause(expression, tableAccessor.Table);
     }
 
     private CountNode GetCountClause(CountExpression expression, TableNode outerTable)
@@ -441,43 +441,43 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         return new CountNode(subSelect);
     }
 
-    public override SqlTreeNode VisitMatchText(MatchTextExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitMatchText(MatchTextExpression expression, TableAccessorNode tableAccessor)
     {
-        var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
         return new LikeNode(column, expression.MatchKind, (string)expression.TextValue.TypedValue);
     }
 
-    public override SqlTreeNode VisitAny(AnyExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitAny(AnyExpression expression, TableAccessorNode tableAccessor)
     {
-        var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
 
         ParameterNode[] parameters =
-            VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableSource).ToArray();
+            VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableAccessor).ToArray();
 
         return parameters.Length == 1 ? new ComparisonNode(ComparisonOperator.Equals, column, parameters[0]) : new InNode(column, parameters);
     }
 
-    public override SqlTreeNode VisitInclude(IncludeExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitInclude(IncludeExpression expression, TableAccessorNode tableAccessor)
     {
         foreach (IncludeElementExpression element in expression.Elements.OrderBy(element => element.Relationship.PublicName))
         {
-            _ = Visit(element, tableSource);
+            _ = Visit(element, tableAccessor);
         }
 
         return null!;
     }
 
-    public override SqlTreeNode VisitIncludeElement(IncludeElementExpression expression, TableSourceNode tableSource)
+    public override SqlTreeNode VisitIncludeElement(IncludeElementExpression expression, TableAccessorNode tableAccessor)
     {
-        TableSourceNode relatedTableSource = GetOrCreateRelatedTable(tableSource, expression.Relationship);
+        TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, expression.Relationship);
 
-        _selectorsPerTable[relatedTableSource] = _selectShape == SelectShape.Columns
-            ? OrderColumnsWithIdAtFront(relatedTableSource.Table.ScalarColumns)
+        _selectorsPerTable[relatedTableAccessor] = _selectShape == SelectShape.Columns
+            ? OrderColumnsWithIdAtFront(relatedTableAccessor.Table.ScalarColumns)
             : new List<SelectorNode>();
 
-        _ = VisitSequence<IncludeElementExpression, TableSourceNode>(expression.Children.OrderBy(child => child.Relationship.PublicName), relatedTableSource)
-            .ToArray();
+        _ = VisitSequence<IncludeElementExpression, TableAccessorNode>(expression.Children.OrderBy(child => child.Relationship.PublicName),
+            relatedTableAccessor).ToArray();
 
-        return relatedTableSource;
+        return relatedTableAccessor;
     }
 }

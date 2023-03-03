@@ -2,7 +2,7 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-internal abstract class JoinNode : TableSourceNode
+internal abstract class JoinNode : TableAccessorNode
 {
     public TableNode JoinTable { get; }
     public ColumnNode JoinColumn { get; }
