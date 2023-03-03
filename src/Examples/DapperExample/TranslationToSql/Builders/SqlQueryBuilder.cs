@@ -33,55 +33,48 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
             using (Indent())
             {
                 builder.Append('(');
-                InnerVisitSelect(node, builder);
+                InnerVisitSelect(node, false, builder);
             }
 
             AppendOnNewLine(")", builder);
         }
         else
         {
-            InnerVisitSelect(node, builder);
+            InnerVisitSelect(node, true, builder);
         }
 
         return null;
     }
 
-    private void InnerVisitSelect(SelectNode node, StringBuilder builder)
+    private void InnerVisitSelect(SelectNode node, bool isTopLevel, StringBuilder builder)
     {
         AppendOnNewLine("SELECT ", builder);
 
-        if (node.SelectShape == SelectShape.One)
-        {
-            builder.Append('1');
-        }
-        else if (node.SelectShape == SelectShape.Count)
-        {
-            builder.Append("COUNT(*)");
-        }
-        else if (node.SelectShape == SelectShape.Columns)
-        {
-            bool isFirstTable = true;
+        bool isFirstTable = true;
 
-            foreach ((TableSourceNode tableSource, IReadOnlyList<ColumnNode> columns) in node.SelectedColumns.Where(pair => pair.Value.Any()))
+        foreach ((TableSourceNode tableSource, IReadOnlyList<SelectorNode> selectors) in node.Selectors.Where(pair => pair.Value.Any()))
+        {
+            if (isFirstTable)
             {
-                if (isFirstTable)
-                {
-                    isFirstTable = false;
-                }
-                else
+                isFirstTable = false;
+            }
+            else
+            {
+                builder.Append(", ");
+
+                if (isTopLevel)
                 {
                     ColumnNode idColumn = tableSource.Table.GetIdColumn();
-
-                    builder.Append(", ");
                     Visit(idColumn, builder);
+
                     builder.Append($" AS {tableSource.Table.Alias}_SplitId, ");
                 }
-
-                VisitSequence(columns, builder);
             }
+
+            VisitSequence(selectors, builder);
         }
 
-        foreach (TableSourceNode tableSource in node.SelectedColumns.Keys)
+        foreach (TableSourceNode tableSource in node.Selectors.Keys)
         {
             Visit(tableSource, builder);
         }
@@ -195,6 +188,24 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
         string columnName = FormatIdentifier(node.Name);
         builder.Append(columnName);
+        return null;
+    }
+
+    public override object? VisitColumnSelector(ColumnSelectorNode node, StringBuilder builder)
+    {
+        Visit(node.Column, builder);
+        return null;
+    }
+
+    public override object? VisitOneSelector(OneSelectorNode node, StringBuilder builder)
+    {
+        builder.Append('1');
+        return null;
+    }
+
+    public override object? VisitCountSelector(CountSelectorNode node, StringBuilder builder)
+    {
+        builder.Append("COUNT(*)");
         return null;
     }
 

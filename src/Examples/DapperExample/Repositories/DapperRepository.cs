@@ -90,7 +90,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         string splitOn = GetSplitOnColumns(selectNode);
         var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
-        Type[] resourceTypes = selectNode.SelectedColumns.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table.ResourceType.ClrType).ToArray();
+        Type[] resourceTypes = selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table.ResourceType.ClrType).ToArray();
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
@@ -107,7 +107,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     {
         var splitOnBuilder = new StringBuilder();
 
-        foreach (TableNode table in selectNode.SelectedColumns.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table).Skip(1))
+        foreach (TableNode table in selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table).Skip(1))
         {
             if (splitOnBuilder.Length > 0)
             {

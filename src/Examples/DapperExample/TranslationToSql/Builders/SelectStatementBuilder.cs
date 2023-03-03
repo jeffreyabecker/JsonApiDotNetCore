@@ -18,7 +18,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
     private readonly AliasGenerator _aliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
     private readonly Dictionary<TableSourceNode, Dictionary<RelationshipAttribute, TableSourceNode>> _relatedTables = new();
-    private readonly Dictionary<TableSourceNode, IReadOnlyList<ColumnNode>> _selectedColumnsPerTable = new();
+    private readonly Dictionary<TableSourceNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
     private readonly List<FilterNode> _whereConditions = new();
     private readonly List<OrderByTermNode> _orderByTerms = new();
     private SelectShape _selectShape;
@@ -48,13 +48,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         FilterNode? where = GetWhere();
         OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
 
-        return new SelectNode(selectShape, _selectedColumnsPerTable, where, orderBy, _limitOffset);
+        return new SelectNode(_selectorsPerTable, where, orderBy, _limitOffset);
     }
 
     private void ResetState()
     {
         _relatedTables.Clear();
-        _selectedColumnsPerTable.Clear();
+        _selectorsPerTable.Clear();
         _aliasGenerator.Reset();
         _parameterGenerator.Reset();
     }
@@ -66,15 +66,21 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         var from = new FromNode(table);
 
         _relatedTables[from] = new Dictionary<RelationshipAttribute, TableSourceNode>();
-        _selectedColumnsPerTable[from] = _selectShape == SelectShape.Columns ? OrderColumnsWithIdAtFront(table.ScalarColumns) : new List<ColumnNode>();
+
+        _selectorsPerTable[from] = _selectShape switch
+        {
+            SelectShape.Columns => OrderColumnsWithIdAtFront(table.ScalarColumns),
+            SelectShape.Count => CountSelectorNode.Instance.AsList(),
+            _ => OneSelectorNode.Instance.AsList()
+        };
 
         return from;
     }
 
-    private static List<ColumnNode> OrderColumnsWithIdAtFront(IEnumerable<ColumnNode> columns)
+    private static List<SelectorNode> OrderColumnsWithIdAtFront(IEnumerable<ColumnNode> columns)
     {
         ColumnNode? idColumn = null;
-        List<ColumnNode> otherColumns = new();
+        List<SelectorNode> otherColumns = new();
 
         foreach (ColumnNode column in columns.OrderBy(column => column.Name))
         {
@@ -84,13 +90,15 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             }
             else
             {
-                otherColumns.Add(column);
+                var columnSelector = new ColumnSelectorNode(column);
+                otherColumns.Add(columnSelector);
             }
         }
 
         if (idColumn != null)
         {
-            otherColumns.Insert(0, idColumn);
+            var idSelector = new ColumnSelectorNode(idColumn);
+            otherColumns.Insert(0, idSelector);
         }
 
         return otherColumns;
@@ -167,7 +175,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
         if (_selectShape == SelectShape.Columns)
         {
-            _selectedColumnsPerTable[tableSource] = OrderColumnsWithIdAtFront(selectedColumns);
+            _selectorsPerTable[tableSource] = OrderColumnsWithIdAtFront(selectedColumns);
         }
     }
 
@@ -203,7 +211,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         _relatedTables[leftTableSource].Add(relationship, rightTableSource);
 
         _relatedTables[rightTableSource] = new Dictionary<RelationshipAttribute, TableSourceNode>();
-        _selectedColumnsPerTable[rightTableSource] = new List<ColumnNode>();
+        _selectorsPerTable[rightTableSource] = new List<SelectorNode>();
     }
 
     private JoinNode CreateJoin(TableSourceNode leftTableSource, RelationshipAttribute relationship)
@@ -342,7 +350,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
     public override SqlTreeNode VisitHas(HasExpression expression, TableSourceNode tableSource)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator);
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
+        {
+            _selectShape = SelectShape.One
+        };
+
         return subSelectBuilder.GetExistsClause(expression, tableSource.Table);
     }
 
@@ -362,7 +374,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
         FilterNode? where = GetWhere();
 
-        var subSelect = new SelectNode(SelectShape.One, _selectedColumnsPerTable, where, null, null);
+        var subSelect = new SelectNode(_selectorsPerTable, where, null, null);
         return new ExistsNode(subSelect);
     }
 
@@ -407,7 +419,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
     public override SqlTreeNode VisitCount(CountExpression expression, TableSourceNode tableSource)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator);
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
+        {
+            _selectShape = SelectShape.Count
+        };
+
         return subSelectBuilder.GetCountClause(expression, tableSource.Table);
     }
 
@@ -421,7 +437,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
         FilterNode? where = GetWhere();
 
-        var subSelect = new SelectNode(SelectShape.Count, _selectedColumnsPerTable, where, null, null);
+        var subSelect = new SelectNode(_selectorsPerTable, where, null, null);
         return new CountNode(subSelect);
     }
 
@@ -455,9 +471,9 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
     {
         TableSourceNode relatedTableSource = GetOrCreateRelatedTable(tableSource, expression.Relationship);
 
-        _selectedColumnsPerTable[relatedTableSource] = _selectShape == SelectShape.Columns
+        _selectorsPerTable[relatedTableSource] = _selectShape == SelectShape.Columns
             ? OrderColumnsWithIdAtFront(relatedTableSource.Table.ScalarColumns)
-            : new List<ColumnNode>();
+            : new List<SelectorNode>();
 
         _ = VisitSequence<IncludeElementExpression, TableSourceNode>(expression.Children.OrderBy(child => child.Relationship.PublicName), relatedTableSource)
             .ToArray();

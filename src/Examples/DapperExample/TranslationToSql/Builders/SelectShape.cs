@@ -1,4 +1,4 @@
-namespace DapperExample.TranslationToSql.TreeNodes;
+namespace DapperExample.TranslationToSql.Builders;
 
 internal enum SelectShape
 {

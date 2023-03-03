@@ -1,18 +1,20 @@
+using JsonApiDotNetCore;
+
 namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class SelectNode : SqlTreeNode
 {
-    public SelectShape SelectShape { get; }
-    public IReadOnlyDictionary<TableSourceNode, IReadOnlyList<ColumnNode>> SelectedColumns { get; }
+    public IReadOnlyDictionary<TableSourceNode, IReadOnlyList<SelectorNode>> Selectors { get; }
     public FilterNode? Where { get; }
     public OrderByNode? OrderBy { get; }
     public LimitOffsetNode? LimitOffset { get; }
 
-    public SelectNode(SelectShape selectShape, IReadOnlyDictionary<TableSourceNode, IReadOnlyList<ColumnNode>> selectedColumns, FilterNode? where,
-        OrderByNode? orderBy, LimitOffsetNode? limitOffset)
+    public SelectNode(IReadOnlyDictionary<TableSourceNode, IReadOnlyList<SelectorNode>> selectors, FilterNode? where, OrderByNode? orderBy,
+        LimitOffsetNode? limitOffset)
     {
-        SelectShape = selectShape;
-        SelectedColumns = selectedColumns;
+        ArgumentGuard.NotNullNorEmpty(selectors);
+
+        Selectors = selectors;
         Where = where;
         OrderBy = orderBy;
         LimitOffset = limitOffset;
