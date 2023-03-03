@@ -2,9 +2,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class OneSelectorNode : SelectorNode
 {
-    public static readonly OneSelectorNode Instance = new();
-
-    private OneSelectorNode()
+    public OneSelectorNode(string? alias)
+        : base(alias)
     {
     }
 

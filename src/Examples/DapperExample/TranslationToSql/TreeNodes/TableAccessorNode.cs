@@ -4,12 +4,12 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal abstract class TableAccessorNode : SqlTreeNode
 {
-    public TableNode Table { get; }
+    public TableSourceNode TableSource { get; }
 
-    protected TableAccessorNode(TableNode table)
+    protected TableAccessorNode(TableSourceNode tableSource)
     {
-        ArgumentGuard.NotNull(table);
+        ArgumentGuard.NotNull(tableSource);
 
-        Table = table;
+        TableSource = tableSource;
     }
 }

@@ -48,7 +48,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         FilterNode? where = GetWhere();
         OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
 
-        return new SelectNode(_selectorsPerTable, where, orderBy, _limitOffset);
+        return new SelectNode(_selectorsPerTable, where, orderBy, _limitOffset, null);
     }
 
     private void ResetState()
@@ -62,7 +62,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private FromNode CreateFrom(ResourceType resourceType)
     {
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(resourceType);
-        var table = new TableNode(resourceType, _aliasGenerator.GetNext(), columnMappings);
+        var table = new TableNode(resourceType, columnMappings, _aliasGenerator.GetNext());
         var from = new FromNode(table);
 
         _relatedTables[from] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
@@ -70,8 +70,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _selectorsPerTable[from] = _selectShape switch
         {
             SelectShape.Columns => OrderColumnsWithIdAtFront(table.ScalarColumns),
-            SelectShape.Count => CountSelectorNode.Instance.AsList(),
-            _ => OneSelectorNode.Instance.AsList()
+            SelectShape.Count => new CountSelectorNode(null).AsList(),
+            _ => new OneSelectorNode(null).AsList()
         };
 
         return from;
@@ -90,14 +90,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
             else
             {
-                var columnSelector = new ColumnSelectorNode(column);
+                var columnSelector = new ColumnSelectorNode(column, null);
                 otherColumns.Add(columnSelector);
             }
         }
 
         if (idColumn != null)
         {
-            var idSelector = new ColumnSelectorNode(idColumn);
+            var idSelector = new ColumnSelectorNode(idColumn, null);
             otherColumns.Insert(0, idSelector);
         }
 
@@ -151,14 +151,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             // If a read-only attribute is selected, its calculated value likely depends on another property, so fetch all scalar properties.
             // And only selecting relationships implicitly means to fetch all scalar properties as well.
 
-            selectedColumns = tableAccessor.Table.ScalarColumns.ToHashSet();
+            selectedColumns = tableAccessor.TableSource.ScalarColumns.ToHashSet();
         }
 
         foreach ((ResourceFieldAttribute? field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
         {
             if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = tableAccessor.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = tableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
 
                 if (column != null)
                 {
@@ -219,13 +219,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
-        var table = new TableNode(relationship.RightType, _aliasGenerator.GetNext(), columnMappings);
+        var table = new TableNode(relationship.RightType, columnMappings, _aliasGenerator.GetNext());
 
         ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
 
         ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
-            ? leftTableAccessor.Table.GetForeignKeyColumn(foreignKey.ColumnName)
-            : leftTableAccessor.Table.GetIdColumn();
+            ? leftTableAccessor.TableSource.GetForeignKeyColumn(foreignKey.ColumnName)
+            : leftTableAccessor.TableSource.GetIdColumn();
 
         return foreignKey.IsNullable ? new LeftJoinNode(table, joinColumn, parentJoinColumn) : new InnerJoinNode(table, joinColumn, parentJoinColumn);
     }
@@ -301,7 +301,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
             else if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = currentTableAccessor.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = currentTableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
 
                 if (column == null)
                 {
@@ -355,12 +355,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             _selectShape = SelectShape.One
         };
 
-        return subSelectBuilder.GetExistsClause(expression, tableAccessor.Table);
+        return subSelectBuilder.GetExistsClause(expression, tableAccessor.TableSource);
     }
 
-    private ExistsNode GetExistsClause(HasExpression expression, TableNode outerTable)
+    private ExistsNode GetExistsClause(HasExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = CreateFrom(outerTable.ResourceType);
+        FromNode from = outerTableSource is TableNode table ? CreateFrom(table.ResourceType) : throw new NotImplementedException();
         var rightTableAccessor = (TableAccessorNode)Visit(expression.TargetCollection, from);
 
         if (expression.Filter != null)
@@ -369,12 +369,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             _whereConditions.Add(filter);
         }
 
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTable.GetIdColumn(), from.Table.GetIdColumn());
+        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTableSource.GetIdColumn(), from.TableSource.GetIdColumn());
         _whereConditions.Add(joinCondition);
 
         FilterNode? where = GetWhere();
 
-        var subSelect = new SelectNode(_selectorsPerTable, where, null, null);
+        var subSelect = new SelectNode(_selectorsPerTable, where, null, null, null);
         return new ExistsNode(subSelect);
     }
 
@@ -424,20 +424,20 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             _selectShape = SelectShape.Count
         };
 
-        return subSelectBuilder.GetCountClause(expression, tableAccessor.Table);
+        return subSelectBuilder.GetCountClause(expression, tableAccessor.TableSource);
     }
 
-    private CountNode GetCountClause(CountExpression expression, TableNode outerTable)
+    private CountNode GetCountClause(CountExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = CreateFrom(outerTable.ResourceType);
+        FromNode from = outerTableSource is TableNode table ? CreateFrom(table.ResourceType) : throw new NotImplementedException();
         _ = Visit(expression.TargetCollection, from);
 
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTable.GetIdColumn(), from.Table.GetIdColumn());
+        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTableSource.GetIdColumn(), from.TableSource.GetIdColumn());
         _whereConditions.Add(joinCondition);
 
         FilterNode? where = GetWhere();
 
-        var subSelect = new SelectNode(_selectorsPerTable, where, null, null);
+        var subSelect = new SelectNode(_selectorsPerTable, where, null, null, null);
         return new CountNode(subSelect);
     }
 
@@ -472,7 +472,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, expression.Relationship);
 
         _selectorsPerTable[relatedTableAccessor] = _selectShape == SelectShape.Columns
-            ? OrderColumnsWithIdAtFront(relatedTableAccessor.Table.ScalarColumns)
+            ? OrderColumnsWithIdAtFront(relatedTableAccessor.TableSource.ScalarColumns)
             : new List<SelectorNode>();
 
         _ = VisitSequence<IncludeElementExpression, TableAccessorNode>(expression.Children.OrderBy(child => child.Relationship.PublicName),

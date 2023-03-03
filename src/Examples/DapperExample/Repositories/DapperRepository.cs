@@ -90,7 +90,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         string splitOn = GetSplitOnColumns(selectNode);
         var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
-        Type[] resourceTypes = selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table.ResourceType.ClrType).ToArray();
+        Type[] resourceTypes = GetResourceTypesFromSelectors(selectNode.Selectors).ToArray();
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
@@ -107,17 +107,28 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     {
         var splitOnBuilder = new StringBuilder();
 
-        foreach (TableNode table in selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.Table).Skip(1))
+        foreach (TableSourceNode tableSource in selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.TableSource).Skip(1))
         {
             if (splitOnBuilder.Length > 0)
             {
                 splitOnBuilder.Append(',');
             }
 
-            splitOnBuilder.Append($"{table.Alias}_SplitId");
+            splitOnBuilder.Append($"{tableSource.Alias}_SplitId");
         }
 
         return splitOnBuilder.ToString();
+    }
+
+    private static IEnumerable<Type> GetResourceTypesFromSelectors(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors)
+    {
+        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectorsInTable) in selectors)
+        {
+            if (selectorsInTable.Any() && tableAccessor.TableSource is TableNode table)
+            {
+                yield return table.ResourceType.ClrType;
+            }
+        }
     }
 
     public async Task<int> CountAsync(FilterExpression? filter, CancellationToken cancellationToken)

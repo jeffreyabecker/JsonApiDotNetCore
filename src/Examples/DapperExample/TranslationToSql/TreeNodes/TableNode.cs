@@ -1,12 +1,11 @@
 using Humanizer;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.Configuration;
-using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-internal sealed class TableNode : SqlTreeNode
+internal sealed class TableNode : TableSourceNode
 {
     private readonly List<ColumnNode> _allColumns = new();
     private readonly List<ColumnNode> _scalarColumns = new();
@@ -14,19 +13,18 @@ internal sealed class TableNode : SqlTreeNode
 
     public ResourceType ResourceType { get; }
     public string Name => ResourceType.ClrType.Name.Pluralize();
-    public string? Alias { get; }
 
-    public IReadOnlyList<ColumnNode> AllColumns => _allColumns;
-    public IReadOnlyList<ColumnNode> ScalarColumns => _scalarColumns;
-    public IReadOnlyList<ColumnNode> ForeignKeyColumns => _foreignKeyColumns;
+    public override IReadOnlyList<ColumnNode> AllColumns => _allColumns;
+    public override IReadOnlyList<ColumnNode> ScalarColumns => _scalarColumns;
+    public override IReadOnlyList<ColumnNode> ForeignKeyColumns => _foreignKeyColumns;
 
-    public TableNode(ResourceType resourceType, string? alias, IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings)
+    public TableNode(ResourceType resourceType, IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings, string? alias)
+        : base(alias)
     {
         ArgumentGuard.NotNull(resourceType);
         ArgumentGuard.NotNull(columnMappings);
 
         ResourceType = resourceType;
-        Alias = alias;
 
         ReadColumnMappings(columnMappings);
     }
@@ -47,53 +45,6 @@ internal sealed class TableNode : SqlTreeNode
                 _scalarColumns.Add(column);
             }
         }
-    }
-
-    public ColumnNode GetIdColumn()
-    {
-        return ScalarColumns.First(column => column.Name == nameof(Identifiable<object>.Id));
-    }
-
-    public ColumnNode? FindColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        return AllColumns.FirstOrDefault(column => column.Name == columnName);
-    }
-
-    public ColumnNode GetColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        ColumnNode? column = FindColumn(columnName);
-
-        if (column == null)
-        {
-            throw new InvalidOperationException($"Column '{columnName}' does not belong to table '{Name}'.");
-        }
-
-        return column;
-    }
-
-    public ColumnNode? FindScalarColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        return ScalarColumns.FirstOrDefault(column => column.Name == columnName);
-    }
-
-    public ColumnNode GetForeignKeyColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        ColumnNode? column = ForeignKeyColumns.FirstOrDefault(column => column.Name == columnName);
-
-        if (column == null)
-        {
-            throw new InvalidOperationException($"Foreign key column '{columnName}' does not belong to table '{Name}'.");
-        }
-
-        return column;
     }
 
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)

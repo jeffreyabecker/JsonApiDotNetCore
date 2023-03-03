@@ -2,9 +2,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class CountSelectorNode : SelectorNode
 {
-    public static readonly CountSelectorNode Instance = new();
-
-    private CountSelectorNode()
+    public CountSelectorNode(string? alias)
+        : base(alias)
     {
     }
 

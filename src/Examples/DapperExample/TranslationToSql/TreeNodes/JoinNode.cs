@@ -4,18 +4,18 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal abstract class JoinNode : TableAccessorNode
 {
-    public TableNode JoinTable { get; }
+    public TableSourceNode JoinTableSource { get; }
     public ColumnNode JoinColumn { get; }
     public ColumnNode ParentJoinColumn { get; }
 
-    protected JoinNode(TableNode joinTable, ColumnNode joinColumn, ColumnNode parentJoinColumn)
-        : base(joinTable)
+    protected JoinNode(TableSourceNode joinTableSource, ColumnNode joinColumn, ColumnNode parentJoinColumn)
+        : base(joinTableSource)
     {
-        ArgumentGuard.NotNull(joinTable);
+        ArgumentGuard.NotNull(joinTableSource);
         ArgumentGuard.NotNull(joinColumn);
         ArgumentGuard.NotNull(parentJoinColumn);
 
-        JoinTable = joinTable;
+        JoinTableSource = joinTableSource;
         JoinColumn = joinColumn;
         ParentJoinColumn = parentJoinColumn;
     }

@@ -43,6 +43,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
             InnerVisitSelect(node, true, builder);
         }
 
+        VisitAlias(node.Alias, builder);
         return null;
     }
 
@@ -64,10 +65,10 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
                 if (isTopLevel)
                 {
-                    ColumnNode idColumn = tableAccessor.Table.GetIdColumn();
+                    ColumnNode idColumn = tableAccessor.TableSource.GetIdColumn();
                     Visit(idColumn, builder);
-
-                    builder.Append($" AS {tableAccessor.Table.Alias}_SplitId, ");
+                    VisitAlias($"{tableAccessor.TableSource.Alias}_SplitId", builder);
+                    builder.Append(", ");
                 }
             }
 
@@ -141,26 +142,21 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         string tableName = FormatIdentifier(node.Name);
         builder.Append(tableName);
-
-        if (node.Alias != null)
-        {
-            builder.Append($" AS {node.Alias}");
-        }
-
+        VisitAlias(node.Alias, builder);
         return null;
     }
 
     public override object? VisitFrom(FromNode node, StringBuilder builder)
     {
         AppendOnNewLine("FROM ", builder);
-        Visit(node.Table, builder);
+        Visit(node.TableSource, builder);
         return null;
     }
 
     public override object? VisitLeftJoin(LeftJoinNode node, StringBuilder builder)
     {
         AppendOnNewLine("LEFT JOIN ", builder);
-        Visit(node.Table, builder);
+        Visit(node.TableSource, builder);
         builder.Append(" ON ");
         Visit(node.ParentJoinColumn, builder);
         builder.Append(" = ");
@@ -171,7 +167,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     public override object? VisitInnerJoin(InnerJoinNode node, StringBuilder builder)
     {
         AppendOnNewLine("INNER JOIN ", builder);
-        Visit(node.Table, builder);
+        Visit(node.TableSource, builder);
         builder.Append(" ON ");
         Visit(node.ParentJoinColumn, builder);
         builder.Append(" = ");
@@ -194,18 +190,21 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     public override object? VisitColumnSelector(ColumnSelectorNode node, StringBuilder builder)
     {
         Visit(node.Column, builder);
+        VisitAlias(node.Alias, builder);
         return null;
     }
 
     public override object? VisitOneSelector(OneSelectorNode node, StringBuilder builder)
     {
         builder.Append('1');
+        VisitAlias(node.Alias, builder);
         return null;
     }
 
     public override object? VisitCountSelector(CountSelectorNode node, StringBuilder builder)
     {
         builder.Append("COUNT(*)");
+        VisitAlias(node.Alias, builder);
         return null;
     }
 
@@ -367,6 +366,14 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         builder.Append("NULL");
         return null;
+    }
+
+    private static void VisitAlias(string? alias, StringBuilder builder)
+    {
+        if (alias != null)
+        {
+            builder.Append($" AS {alias}");
+        }
     }
 
     private void VisitSequence<T>(IEnumerable<T> elements, StringBuilder builder)

@@ -26,6 +26,6 @@ internal abstract class StatementBuilder
     protected TableNode GetTable(ResourceType resourceType, string? alias)
     {
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(resourceType);
-        return new TableNode(resourceType, alias, columnMappings);
+        return new TableNode(resourceType, columnMappings, alias);
     }
 }

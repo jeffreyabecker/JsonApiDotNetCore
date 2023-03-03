@@ -6,7 +6,8 @@ internal sealed class ColumnSelectorNode : SelectorNode
 {
     public ColumnNode Column { get; }
 
-    public ColumnSelectorNode(ColumnNode column)
+    public ColumnSelectorNode(ColumnNode column, string? alias)
+        : base(alias)
     {
         ArgumentGuard.NotNull(column);
 
