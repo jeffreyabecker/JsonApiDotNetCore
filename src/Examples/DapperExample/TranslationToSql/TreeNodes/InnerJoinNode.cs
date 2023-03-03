@@ -2,8 +2,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class InnerJoinNode : JoinNode
 {
-    public InnerJoinNode(TableColumnNode joinColumn, TableColumnNode parentJoinColumn)
-        : base(joinColumn, parentJoinColumn)
+    public InnerJoinNode(TableNode joinTable, ColumnNode joinColumn, ColumnNode parentJoinColumn)
+        : base(joinTable, joinColumn, parentJoinColumn)
     {
     }
 

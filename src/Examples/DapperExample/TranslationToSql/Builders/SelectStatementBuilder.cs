@@ -6,6 +6,7 @@ using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Errors;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
+using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 using JsonApiDotNetCore.Serialization.Objects;
 
@@ -17,7 +18,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
     private readonly AliasGenerator _aliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
     private readonly Dictionary<TableSourceNode, Dictionary<RelationshipAttribute, TableSourceNode>> _relatedTables = new();
-    private readonly Dictionary<TableSourceNode, IReadOnlyList<TableColumnNode>> _selectedColumnsPerTable = new();
+    private readonly Dictionary<TableSourceNode, IReadOnlyList<ColumnNode>> _selectedColumnsPerTable = new();
     private readonly List<FilterNode> _whereConditions = new();
     private readonly List<OrderByTermNode> _orderByTerms = new();
     private SelectShape _selectShape;
@@ -65,21 +66,23 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         var from = new FromNode(table);
 
         _relatedTables[from] = new Dictionary<RelationshipAttribute, TableSourceNode>();
-        _selectedColumnsPerTable[from] = _selectShape == SelectShape.Columns ? OrderColumnsWithIdAtFront(table.ScalarColumns) : new List<TableColumnNode>();
+        _selectedColumnsPerTable[from] = _selectShape == SelectShape.Columns ? OrderColumnsWithIdAtFront(table.ScalarColumns) : new List<ColumnNode>();
 
         return from;
     }
 
-    private static List<TableColumnNode> OrderColumnsWithIdAtFront(IEnumerable<TableColumnNode> columns)
+    private static List<ColumnNode> OrderColumnsWithIdAtFront(IEnumerable<ColumnNode> columns)
     {
-        TableColumnNode? idColumn = null;
-        List<TableColumnNode> otherColumns = new();
+        ColumnNode? idColumn = null;
+        List<ColumnNode> otherColumns = new();
 
-        foreach (TableColumnNode column in columns.OrderBy(column => column.Name))
+        foreach (ColumnNode column in columns.OrderBy(column => column.Name))
         {
-            idColumn ??= column.Table.GetIdColumn();
-
-            if (column != idColumn)
+            if (column.Name == nameof(Identifiable<object>.Id))
+            {
+                idColumn = column;
+            }
+            else
             {
                 otherColumns.Add(column);
             }
@@ -133,7 +136,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
     private void ConvertSelectors(FieldSelectors selectors, TableSourceNode tableSource)
     {
-        HashSet<TableColumnNode> selectedColumns = new();
+        HashSet<ColumnNode> selectedColumns = new();
 
         if (selectors.ContainsReadOnlyAttribute || selectors.ContainsOnlyRelationships)
         {
@@ -147,7 +150,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         {
             if (field is AttrAttribute attribute)
             {
-                TableColumnNode? column = tableSource.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = tableSource.Table.FindScalarColumn(attribute.Property.Name);
 
                 if (column != null)
                 {
@@ -200,7 +203,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         _relatedTables[leftTableSource].Add(relationship, rightTableSource);
 
         _relatedTables[rightTableSource] = new Dictionary<RelationshipAttribute, TableSourceNode>();
-        _selectedColumnsPerTable[rightTableSource] = new List<TableColumnNode>();
+        _selectedColumnsPerTable[rightTableSource] = new List<ColumnNode>();
     }
 
     private JoinNode CreateJoin(TableSourceNode leftTableSource, RelationshipAttribute relationship)
@@ -210,13 +213,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
         var table = new TableNode(relationship.RightType, _aliasGenerator.GetNext(), columnMappings);
 
-        TableColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
+        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
 
-        TableColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
+        ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
             ? leftTableSource.Table.GetForeignKeyColumn(foreignKey.ColumnName)
             : leftTableSource.Table.GetIdColumn();
 
-        return foreignKey.IsNullable ? new LeftJoinNode(joinColumn, parentJoinColumn) : new InnerJoinNode(joinColumn, parentJoinColumn);
+        return foreignKey.IsNullable ? new LeftJoinNode(table, joinColumn, parentJoinColumn) : new InnerJoinNode(table, joinColumn, parentJoinColumn);
     }
 
     private FilterNode? GetWhere()
@@ -255,13 +258,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
     public override SqlTreeNode VisitComparison(ComparisonExpression expression, TableSourceNode tableSource)
     {
-        SqlTreeNode left = VisitComparisonTerm(expression.Left, tableSource);
-        SqlTreeNode right = VisitComparisonTerm(expression.Right, tableSource);
+        SqlValueNode left = VisitComparisonTerm(expression.Left, tableSource);
+        SqlValueNode right = VisitComparisonTerm(expression.Right, tableSource);
 
         return new ComparisonNode(expression.Operator, left, right);
     }
 
-    private SqlTreeNode VisitComparisonTerm(QueryExpression comparisonTerm, TableSourceNode tableSource)
+    private SqlValueNode VisitComparisonTerm(QueryExpression comparisonTerm, TableSourceNode tableSource)
     {
         if (comparisonTerm is NullConstantExpression)
         {
@@ -275,7 +278,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             return join.JoinColumn;
         }
 
-        return treeNode;
+        return (SqlValueNode)treeNode;
     }
 
     public override SqlTreeNode VisitResourceFieldChain(ResourceFieldChainExpression expression, TableSourceNode tableSource)
@@ -290,7 +293,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
             }
             else if (field is AttrAttribute attribute)
             {
-                TableColumnNode? column = currentTableSource.Table.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column = currentTableSource.Table.FindScalarColumn(attribute.Property.Name);
 
                 if (column == null)
                 {
@@ -378,7 +381,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
         if (expression.TargetAttribute != null)
         {
-            var column = (TableColumnNode)Visit(expression.TargetAttribute, tableSource);
+            var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
             return new OrderByColumnNode(column, expression.IsAscending);
         }
 
@@ -424,13 +427,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
     public override SqlTreeNode VisitMatchText(MatchTextExpression expression, TableSourceNode tableSource)
     {
-        var column = (TableColumnNode)Visit(expression.TargetAttribute, tableSource);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
         return new LikeNode(column, expression.MatchKind, (string)expression.TextValue.TypedValue);
     }
 
     public override SqlTreeNode VisitAny(AnyExpression expression, TableSourceNode tableSource)
     {
-        var column = (TableColumnNode)Visit(expression.TargetAttribute, tableSource);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableSource);
 
         ParameterNode[] parameters =
             VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableSource).ToArray();
@@ -454,7 +457,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableSourc
 
         _selectedColumnsPerTable[relatedTableSource] = _selectShape == SelectShape.Columns
             ? OrderColumnsWithIdAtFront(relatedTableSource.Table.ScalarColumns)
-            : new List<TableColumnNode>();
+            : new List<ColumnNode>();
 
         _ = VisitSequence<IncludeElementExpression, TableSourceNode>(expression.Children.OrderBy(child => child.Relationship.PublicName), relatedTableSource)
             .ToArray();

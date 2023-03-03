@@ -3,12 +3,12 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 internal sealed class SelectNode : SqlTreeNode
 {
     public SelectShape SelectShape { get; }
-    public IReadOnlyDictionary<TableSourceNode, IReadOnlyList<TableColumnNode>> SelectedColumns { get; }
+    public IReadOnlyDictionary<TableSourceNode, IReadOnlyList<ColumnNode>> SelectedColumns { get; }
     public FilterNode? Where { get; }
     public OrderByNode? OrderBy { get; }
     public LimitOffsetNode? LimitOffset { get; }
 
-    public SelectNode(SelectShape selectShape, IReadOnlyDictionary<TableSourceNode, IReadOnlyList<TableColumnNode>> selectedColumns, FilterNode? where,
+    public SelectNode(SelectShape selectShape, IReadOnlyDictionary<TableSourceNode, IReadOnlyList<ColumnNode>> selectedColumns, FilterNode? where,
         OrderByNode? orderBy, LimitOffsetNode? limitOffset)
     {
         SelectShape = selectShape;

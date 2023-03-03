@@ -22,13 +22,13 @@ internal sealed class DeleteResourceStatementBuilder : StatementBuilder
 
         TableNode table = GetTable(resourceType, null);
 
-        TableColumnNode idColumn = table.GetIdColumn();
+        ColumnNode idColumn = table.GetIdColumn();
         FilterNode where = GetWhere(idColumn, idValues);
 
         return new DeleteNode(table, where);
     }
 
-    private FilterNode GetWhere(TableColumnNode idColumn, IEnumerable<object> idValues)
+    private FilterNode GetWhere(ColumnNode idColumn, IEnumerable<object> idValues)
     {
         List<ParameterNode> parameters = idValues.Select(idValue => ParameterGenerator.Create(idValue)).ToList();
         return parameters.Count == 1 ? new ComparisonNode(ComparisonOperator.Equals, idColumn, parameters[0]) : new InNode(idColumn, parameters);

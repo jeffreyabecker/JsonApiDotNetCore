@@ -4,10 +4,10 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class InNode : FilterNode
 {
-    public TableColumnNode Column { get; }
+    public ColumnNode Column { get; }
     public IReadOnlyList<SqlValueNode> Values { get; }
 
-    public InNode(TableColumnNode column, IReadOnlyList<SqlValueNode> values)
+    public InNode(ColumnNode column, IReadOnlyList<SqlValueNode> values)
     {
         ArgumentGuard.NotNull(column);
         ArgumentGuard.NotNullNorEmpty(values);

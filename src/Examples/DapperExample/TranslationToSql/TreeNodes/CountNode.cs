@@ -2,7 +2,7 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-internal sealed class CountNode : FilterNode
+internal sealed class CountNode : SqlValueNode
 {
     public SelectNode SubSelect { get; }
 

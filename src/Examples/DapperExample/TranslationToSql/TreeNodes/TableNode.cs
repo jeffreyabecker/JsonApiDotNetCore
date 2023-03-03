@@ -8,17 +8,17 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class TableNode : SqlTreeNode
 {
-    private readonly List<TableColumnNode> _allColumns = new();
-    private readonly List<TableColumnNode> _scalarColumns = new();
-    private readonly List<TableColumnNode> _foreignKeyColumns = new();
+    private readonly List<ColumnNode> _allColumns = new();
+    private readonly List<ColumnNode> _scalarColumns = new();
+    private readonly List<ColumnNode> _foreignKeyColumns = new();
 
     public ResourceType ResourceType { get; }
     public string Name => ResourceType.ClrType.Name.Pluralize();
     public string? Alias { get; }
 
-    public IReadOnlyList<TableColumnNode> AllColumns => _allColumns;
-    public IReadOnlyList<TableColumnNode> ScalarColumns => _scalarColumns;
-    public IReadOnlyList<TableColumnNode> ForeignKeyColumns => _foreignKeyColumns;
+    public IReadOnlyList<ColumnNode> AllColumns => _allColumns;
+    public IReadOnlyList<ColumnNode> ScalarColumns => _scalarColumns;
+    public IReadOnlyList<ColumnNode> ForeignKeyColumns => _foreignKeyColumns;
 
     public TableNode(ResourceType resourceType, string? alias, IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings)
     {
@@ -35,7 +35,7 @@ internal sealed class TableNode : SqlTreeNode
     {
         foreach ((string columnName, ResourceFieldAttribute? field) in columnMappings)
         {
-            var column = new TableColumnNode(this, columnName);
+            var column = new ColumnNode(columnName, Alias);
             _allColumns.Add(column);
 
             if (field is RelationshipAttribute)
@@ -49,23 +49,23 @@ internal sealed class TableNode : SqlTreeNode
         }
     }
 
-    public TableColumnNode GetIdColumn()
+    public ColumnNode GetIdColumn()
     {
         return ScalarColumns.First(column => column.Name == nameof(Identifiable<object>.Id));
     }
 
-    public TableColumnNode? FindColumn(string columnName)
+    public ColumnNode? FindColumn(string columnName)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
         return AllColumns.FirstOrDefault(column => column.Name == columnName);
     }
 
-    public TableColumnNode GetColumn(string columnName)
+    public ColumnNode GetColumn(string columnName)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        TableColumnNode? column = FindColumn(columnName);
+        ColumnNode? column = FindColumn(columnName);
 
         if (column == null)
         {
@@ -75,18 +75,18 @@ internal sealed class TableNode : SqlTreeNode
         return column;
     }
 
-    public TableColumnNode? FindScalarColumn(string columnName)
+    public ColumnNode? FindScalarColumn(string columnName)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
         return ScalarColumns.FirstOrDefault(column => column.Name == columnName);
     }
 
-    public TableColumnNode GetForeignKeyColumn(string columnName)
+    public ColumnNode GetForeignKeyColumn(string columnName)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        TableColumnNode? column = ForeignKeyColumns.FirstOrDefault(column => column.Name == columnName);
+        ColumnNode? column = ForeignKeyColumns.FirstOrDefault(column => column.Name == columnName);
 
         if (column == null)
         {

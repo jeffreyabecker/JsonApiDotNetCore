@@ -2,22 +2,21 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-internal sealed class TableColumnNode : SqlValueNode
+internal sealed class ColumnNode : SqlValueNode
 {
-    public TableNode Table { get; }
     public string Name { get; }
+    public string? TableAlias { get; }
 
-    public TableColumnNode(TableNode table, string name)
+    public ColumnNode(string name, string? tableAlias)
     {
-        ArgumentGuard.NotNull(table);
         ArgumentGuard.NotNullNorEmpty(name);
 
-        Table = table;
         Name = name;
+        TableAlias = tableAlias;
     }
 
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)
     {
-        return visitor.VisitTableColumn(this, argument);
+        return visitor.VisitColumn(this, argument);
     }
 }

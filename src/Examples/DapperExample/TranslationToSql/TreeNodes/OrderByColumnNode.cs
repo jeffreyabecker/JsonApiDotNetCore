@@ -4,9 +4,9 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class OrderByColumnNode : OrderByTermNode
 {
-    public TableColumnNode Column { get; }
+    public ColumnNode Column { get; }
 
-    public OrderByColumnNode(TableColumnNode column, bool isAscending)
+    public OrderByColumnNode(ColumnNode column, bool isAscending)
         : base(isAscending)
     {
         ArgumentGuard.NotNull(column);

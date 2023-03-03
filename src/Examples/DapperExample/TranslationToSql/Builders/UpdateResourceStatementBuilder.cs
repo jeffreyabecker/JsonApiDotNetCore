@@ -24,7 +24,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
         TableNode table = GetTable(resourceType, null);
         List<ColumnAssignmentNode> assignments = GetColumnAssignments(columnsToUpdate, table);
 
-        TableColumnNode idColumn = table.GetIdColumn();
+        ColumnNode idColumn = table.GetIdColumn();
         FilterNode where = GetWhere(idColumn, idValues);
 
         return new UpdateNode(table, assignments, where);
@@ -36,7 +36,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
 
         foreach ((string? columnName, object? columnValue) in columnsToUpdate)
         {
-            TableColumnNode column = table.GetColumn(columnName);
+            ColumnNode column = table.GetColumn(columnName);
             ParameterNode parameter = ParameterGenerator.Create(columnValue);
 
             var assignment = new ColumnAssignmentNode(column, parameter);
@@ -46,7 +46,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
         return assignments;
     }
 
-    private FilterNode GetWhere(TableColumnNode idColumn, IEnumerable<object> idValues)
+    private FilterNode GetWhere(ColumnNode idColumn, IEnumerable<object> idValues)
     {
         List<ParameterNode> parameters = idValues.Select(idValue => ParameterGenerator.Create(idValue)).ToList();
         return parameters.Count == 1 ? new ComparisonNode(ComparisonOperator.Equals, idColumn, parameters[0]) : new InNode(idColumn, parameters);

@@ -6,10 +6,10 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 internal sealed class ComparisonNode : FilterNode
 {
     public ComparisonOperator Operator { get; }
-    public SqlTreeNode Left { get; }
-    public SqlTreeNode Right { get; }
+    public SqlValueNode Left { get; }
+    public SqlValueNode Right { get; }
 
-    public ComparisonNode(ComparisonOperator @operator, SqlTreeNode left, SqlTreeNode right)
+    public ComparisonNode(ComparisonOperator @operator, SqlValueNode left, SqlValueNode right)
     {
         ArgumentGuard.NotNull(left);
         ArgumentGuard.NotNull(right);

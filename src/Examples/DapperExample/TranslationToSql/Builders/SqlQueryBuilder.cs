@@ -28,6 +28,26 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
     public override object? VisitSelect(SelectNode node, StringBuilder builder)
     {
+        if (builder.Length > 0)
+        {
+            using (Indent())
+            {
+                builder.Append('(');
+                InnerVisitSelect(node, builder);
+            }
+
+            AppendOnNewLine(")", builder);
+        }
+        else
+        {
+            InnerVisitSelect(node, builder);
+        }
+
+        return null;
+    }
+
+    private void InnerVisitSelect(SelectNode node, StringBuilder builder)
+    {
         AppendOnNewLine("SELECT ", builder);
 
         if (node.SelectShape == SelectShape.One)
@@ -42,7 +62,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         {
             bool isFirstTable = true;
 
-            foreach ((TableSourceNode tableSource, IReadOnlyList<TableColumnNode> columns) in node.SelectedColumns.Where(pair => pair.Value.Any()))
+            foreach ((TableSourceNode tableSource, IReadOnlyList<ColumnNode> columns) in node.SelectedColumns.Where(pair => pair.Value.Any()))
             {
                 if (isFirstTable)
                 {
@@ -50,7 +70,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
                 }
                 else
                 {
-                    TableColumnNode idColumn = tableSource.Table.GetIdColumn();
+                    ColumnNode idColumn = tableSource.Table.GetIdColumn();
 
                     builder.Append(", ");
                     Visit(idColumn, builder);
@@ -81,8 +101,6 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         {
             Visit(node.LimitOffset, builder);
         }
-
-        return null;
     }
 
     public override object? VisitInsert(InsertNode node, StringBuilder builder)
@@ -97,7 +115,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         VisitSequence(node.Assignments.Select(assignment => assignment.Value), builder);
         builder.Append(')');
 
-        TableColumnNode idColumn = node.Table.GetIdColumn();
+        ColumnNode idColumn = node.Table.GetIdColumn();
         AppendOnNewLine("RETURNING ", builder);
         Visit(idColumn, builder);
         return null;
@@ -168,11 +186,11 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    public override object? VisitTableColumn(TableColumnNode node, StringBuilder builder)
+    public override object? VisitColumn(ColumnNode node, StringBuilder builder)
     {
-        if (node.Table.Alias != null)
+        if (node.TableAlias != null)
         {
-            builder.Append($"{node.Table.Alias}.");
+            builder.Append($"{node.TableAlias}.");
         }
 
         string columnName = FormatIdentifier(node.Name);
@@ -262,27 +280,14 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
     public override object? VisitExists(ExistsNode node, StringBuilder builder)
     {
-        builder.Append("EXISTS (");
-
-        using (Indent())
-        {
-            Visit(node.SubSelect, builder);
-        }
-
-        AppendOnNewLine(")", builder);
+        builder.Append("EXISTS ");
+        Visit(node.SubSelect, builder);
         return null;
     }
 
     public override object? VisitCount(CountNode node, StringBuilder builder)
     {
-        builder.Append('(');
-
-        using (Indent())
-        {
-            Visit(node.SubSelect, builder);
-        }
-
-        AppendOnNewLine(")", builder);
+        Visit(node.SubSelect, builder);
         return null;
     }
 
