@@ -90,12 +90,11 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         string splitOn = GetSplitOnColumns(selectNode);
         var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
-        Type[] resourceTypes = GetResourceTypesFromSelectors(selectNode.Selectors).ToArray();
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
             // https://github.com/DapperLib/Dapper/issues/1181
-            _ = await connection.QueryAsync(sqlCommand.CommandText, resourceTypes, mapper.Map, sqlCommand.Parameters, splitOn: splitOn);
+            _ = await connection.QueryAsync(sqlCommand.CommandText, mapper.ResourceClrTypes, mapper.Map, sqlCommand.Parameters, splitOn: splitOn);
 
             return mapper.GetResources();
         }, cancellationToken);
@@ -118,17 +117,6 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         }
 
         return splitOnBuilder.ToString();
-    }
-
-    private static IEnumerable<Type> GetResourceTypesFromSelectors(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors)
-    {
-        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectorsInTable) in selectors)
-        {
-            if (selectorsInTable.Any() && tableAccessor.TableSource is TableNode table)
-            {
-                yield return table.ResourceType.ClrType;
-            }
-        }
     }
 
     public async Task<int> CountAsync(FilterExpression? filter, CancellationToken cancellationToken)

@@ -153,20 +153,16 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    public override object? VisitLeftJoin(LeftJoinNode node, StringBuilder builder)
+    public override object? VisitJoin(JoinNode node, StringBuilder builder)
     {
-        AppendOnNewLine("LEFT JOIN ", builder);
-        Visit(node.TableSource, builder);
-        builder.Append(" ON ");
-        Visit(node.ParentJoinColumn, builder);
-        builder.Append(" = ");
-        Visit(node.JoinColumn, builder);
-        return null;
-    }
+        string joinTypeText = node.JoinType switch
+        {
+            JoinType.InnerJoin => "INNER JOIN ",
+            JoinType.LeftJoin => "LEFT JOIN ",
+            _ => throw new NotSupportedException($"Unknown join type '{node.JoinType}'.")
+        };
 
-    public override object? VisitInnerJoin(InnerJoinNode node, StringBuilder builder)
-    {
-        AppendOnNewLine("INNER JOIN ", builder);
+        AppendOnNewLine(joinTypeText, builder);
         Visit(node.TableSource, builder);
         builder.Append(" ON ");
         Visit(node.ParentJoinColumn, builder);
@@ -204,6 +200,26 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     public override object? VisitCountSelector(CountSelectorNode node, StringBuilder builder)
     {
         builder.Append("COUNT(*)");
+        VisitAlias(node.Alias, builder);
+        return null;
+    }
+
+    public override object? VisitRowNumber(RowNumberNode node, StringBuilder builder)
+    {
+        builder.Append("ROW_NUMBER() OVER (");
+
+        using (Indent())
+        {
+            if (node.PartitionBy != null)
+            {
+                AppendOnNewLine("PARTITION BY ", builder);
+                Visit(node.PartitionBy, builder);
+            }
+
+            VisitOrderBy(node.OrderBy, builder);
+        }
+
+        AppendOnNewLine(")", builder);
         VisitAlias(node.Alias, builder);
         return null;
     }

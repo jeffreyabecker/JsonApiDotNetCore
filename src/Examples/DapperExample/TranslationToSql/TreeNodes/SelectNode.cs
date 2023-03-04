@@ -31,6 +31,11 @@ internal sealed class SelectNode : TableSourceNode
         ReadSelectorColumns(selectors);
     }
 
+    public override TableSourceNode Clone(string? alias)
+    {
+        return new SelectNode(Selectors, Where, OrderBy, LimitOffset, alias);
+    }
+
     private void ReadSelectorColumns(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors)
     {
         foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectorsInTable) in selectors)

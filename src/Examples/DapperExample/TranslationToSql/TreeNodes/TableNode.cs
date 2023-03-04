@@ -7,12 +7,13 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class TableNode : TableSourceNode
 {
+    private readonly ResourceType _resourceType;
+    private readonly IReadOnlyDictionary<string, ResourceFieldAttribute?> _columnMappings;
     private readonly List<ColumnNode> _allColumns = new();
     private readonly List<ColumnNode> _scalarColumns = new();
     private readonly List<ColumnNode> _foreignKeyColumns = new();
 
-    public ResourceType ResourceType { get; }
-    public string Name => ResourceType.ClrType.Name.Pluralize();
+    public string Name => _resourceType.ClrType.Name.Pluralize();
 
     public override IReadOnlyList<ColumnNode> AllColumns => _allColumns;
     public override IReadOnlyList<ColumnNode> ScalarColumns => _scalarColumns;
@@ -24,14 +25,20 @@ internal sealed class TableNode : TableSourceNode
         ArgumentGuard.NotNull(resourceType);
         ArgumentGuard.NotNull(columnMappings);
 
-        ResourceType = resourceType;
+        _resourceType = resourceType;
 
-        ReadColumnMappings(columnMappings);
+        _columnMappings = columnMappings;
+        ReadColumnMappings();
     }
 
-    private void ReadColumnMappings(IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings)
+    public override TableSourceNode Clone(string? alias)
     {
-        foreach ((string columnName, ResourceFieldAttribute? field) in columnMappings)
+        return new TableNode(_resourceType, _columnMappings, alias);
+    }
+
+    private void ReadColumnMappings()
+    {
+        foreach ((string columnName, ResourceFieldAttribute? field) in _columnMappings)
         {
             var column = new ColumnNode(columnName, Alias);
             _allColumns.Add(column);

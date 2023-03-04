@@ -69,7 +69,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
             options.IncludeTotalResourceCount = true;
             options.SerializerOptions.WriteIndented = true;
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-            options.DefaultPageSize = null;
+            //options.DefaultPageSize = null;
 
 #if DEBUG
             options.IncludeExceptionStackTraceInErrors = true;

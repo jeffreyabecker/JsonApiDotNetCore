@@ -7,11 +7,13 @@ using JsonApiDotNetCore.Resources.Internal;
 namespace DapperExample.Repositories;
 
 /// <summary>
-/// Maps the result set from a SQL query that includes relationships via LEFT JOINs.
+/// Maps the result set from a SQL query that includes relationships via INNER/LEFT JOINs.
 /// </summary>
 internal sealed class ResultSetMapper<TResource, TId>
     where TResource : class, IIdentifiable<TId>
 {
+    private readonly List<Type> _joinObjectTypes = new();
+
     // For each object type, we keep a map of ID/instance pairs.
     // Note we don't do full bidirectional relationship fix-up; this just avoids duplicate instances.
     private readonly Dictionary<Type, Dictionary<object, object>> _resourceByTypeCache = new();
@@ -25,12 +27,15 @@ internal sealed class ResultSetMapper<TResource, TId>
     // The return value of the mapping process.
     private readonly List<TResource> _leftResourcesInOrder = new();
 
-    // The included relationships for which a LEFT JOIN statement was produced, which we're mapping.
+    // The included relationships for which an INNER/LEFT JOIN statement was produced, which we're mapping.
     private readonly IncludeExpression _include;
+
+    public Type[] ResourceClrTypes => _joinObjectTypes.ToArray();
 
     public ResultSetMapper(IncludeExpression? include)
     {
         _include = include ?? IncludeExpression.Empty;
+        _joinObjectTypes.Add(typeof(TResource));
         _resourceByTypeCache[typeof(TResource)] = new Dictionary<object, object>();
 
         var walker = new IncludeElementWalker(_include);
@@ -38,6 +43,7 @@ internal sealed class ResultSetMapper<TResource, TId>
 
         foreach (IncludeElementExpression includeElement in walker.BreadthFirstEnumerate())
         {
+            _joinObjectTypes.Add(includeElement.Relationship.RightType.ClrType);
             _resourceByTypeCache[includeElement.Relationship.RightType.ClrType] = new Dictionary<object, object>();
             _includeElementToJoinObjectArrayIndexLookup[includeElement] = index;
 
@@ -47,11 +53,11 @@ internal sealed class ResultSetMapper<TResource, TId>
 
     public object? Map(object[] joinObjects)
     {
-        // This method executes for each row in the LEFT JOIN result set.
+        // This method executes for each row in the SQL result set.
 
         if (joinObjects.Length != _includeElementToJoinObjectArrayIndexLookup.Count + 1)
         {
-            throw new InvalidOperationException("Failed to properly map INNER JOIN result set into objects.");
+            throw new InvalidOperationException("Failed to properly map SQL result set into objects.");
         }
 
         object?[] objectsCached = joinObjects.Select(GetCached).ToArray();

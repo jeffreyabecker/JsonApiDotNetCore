@@ -123,6 +123,243 @@ LIMIT @p1");
         });
     }
 
+    [Fact(Skip = "TODO")]
+    public async Task Can_get_primary_resources_with_single_include()
+    {
+        // Arrange
+        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        store.Clear();
+
+        Person owner = _fakers.Person.Generate();
+
+        List<TodoItem> todoItems = _fakers.TodoItem.Generate(2);
+        todoItems.ForEach(todoItem => todoItem.Owner = owner);
+        todoItems.ForEach(todoItem => todoItem.Assignee = owner);
+
+        todoItems[0].Priority = TodoItemPriority.High;
+        todoItems[1].Priority = TodoItemPriority.Low;
+
+        await RunOnDatabaseAsync(async dbContext =>
+        {
+            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            dbContext.TodoItems.AddRange(todoItems);
+            await dbContext.SaveChangesAsync();
+        });
+
+        const string route = "/todoItems?include=owner,assignee";
+
+        // Act
+        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+
+        // Assert
+        httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
+
+        responseDocument.Data.ManyValue.ShouldHaveCount(2);
+        responseDocument.Data.ManyValue[0].ShouldNotBeNull();
+        responseDocument.Data.ManyValue[0].Type.Should().Be("todoItems");
+        responseDocument.Data.ManyValue[0].Id.Should().Be(todoItems[0].StringId);
+
+        responseDocument.Data.ManyValue[0].Relationships.With(relationships =>
+        {
+            relationships.ShouldContainKey("owner").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.SingleValue.ShouldNotBeNull();
+                value.Data.SingleValue.Type.Should().Be("people");
+                value.Data.SingleValue.Id.Should().Be(todoItems[0].Owner.StringId);
+            });
+
+            relationships.ShouldContainKey("assignee").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.SingleValue.ShouldNotBeNull();
+                value.Data.SingleValue.Type.Should().Be("people");
+                value.Data.SingleValue.Id.Should().Be(todoItems[0].Owner.StringId);
+            });
+            /*
+            relationships.ShouldContainKey("tags").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.ManyValue.ShouldHaveCount(2);
+                value.Data.ManyValue[0].Type.Should().Be("tags");
+                value.Data.ManyValue[0].Id.Should().Be(todoItems[0].Tags.ElementAt(0).StringId);
+                value.Data.ManyValue[1].Type.Should().Be("tags");
+                value.Data.ManyValue[1].Id.Should().Be(todoItems[0].Tags.ElementAt(1).StringId);
+            });*/
+        });
+
+        responseDocument.Data.ManyValue[1].ShouldNotBeNull();
+        responseDocument.Data.ManyValue[1].Type.Should().Be("todoItems");
+        responseDocument.Data.ManyValue[1].Id.Should().Be(todoItems[1].StringId);
+
+        responseDocument.Data.ManyValue[1].Relationships.With(relationships =>
+        {
+            relationships.ShouldContainKey("owner").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.SingleValue.ShouldNotBeNull();
+                value.Data.SingleValue.Type.Should().Be("people");
+                value.Data.SingleValue.Id.Should().Be(todoItems[1].Owner.StringId);
+            });
+
+            relationships.ShouldContainKey("assignee").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.SingleValue.ShouldNotBeNull();
+                value.Data.SingleValue.Type.Should().Be("people");
+                value.Data.SingleValue.Id.Should().Be(todoItems[1].Assignee!.StringId);
+            });
+            /*
+            relationships.ShouldContainKey("tags").With(value =>
+            {
+                value.ShouldNotBeNull();
+                value.Data.ManyValue.ShouldHaveCount(2);
+                value.Data.ManyValue[0].Type.Should().Be("tags");
+                value.Data.ManyValue[0].Id.Should().Be(todoItems[1].Tags.ElementAt(0).StringId);
+                value.Data.ManyValue[1].Type.Should().Be("tags");
+                value.Data.ManyValue[1].Id.Should().Be(todoItems[1].Tags.ElementAt(1).StringId);
+            });*/
+        });
+
+        //responseDocument.Meta.Should().ContainTotal(2);
+
+        responseDocument.Included.ShouldHaveCount(1);
+
+        responseDocument.Included[0].Type.Should().Be("people");
+        responseDocument.Included[0].Id.Should().Be(owner.StringId);
+        responseDocument.Included[0].Attributes.ShouldContainKey("firstName").With(value => value.Should().Be(owner.FirstName));
+        responseDocument.Included[0].Attributes.ShouldContainKey("lastName").With(value => value.Should().Be(owner.LastName));
+
+        /*responseDocument.Included[1].Type.Should().Be("tags");
+        responseDocument.Included[1].Id.Should().Be(todoItems[0].Tags.ElementAt(0).StringId);
+        responseDocument.Included[1].Attributes.ShouldContainKey("name").With(value => value.Should().Be(todoItems[0].Tags.ElementAt(0).Name));
+
+        responseDocument.Included[2].Type.Should().Be("tags");
+        responseDocument.Included[2].Id.Should().Be(todoItems[0].Tags.ElementAt(1).StringId);
+        responseDocument.Included[2].Attributes.ShouldContainKey("name").With(value => value.Should().Be(todoItems[0].Tags.ElementAt(1).Name));
+        
+        responseDocument.Included[3].Type.Should().Be("people");
+        responseDocument.Included[3].Id.Should().Be(todoItems[1].Assignee!.StringId);
+        responseDocument.Included[3].Attributes.ShouldContainKey("firstName").With(value => value.Should().Be(todoItems[1].Assignee!.FirstName));
+        responseDocument.Included[3].Attributes.ShouldContainKey("lastName").With(value => value.Should().Be(todoItems[1].Assignee!.LastName));
+        
+        responseDocument.Included[4].Type.Should().Be("tags");
+        responseDocument.Included[4].Id.Should().Be(todoItems[1].Tags.ElementAt(0).StringId);
+        responseDocument.Included[4].Attributes.ShouldContainKey("name").With(value => value.Should().Be(todoItems[1].Tags.ElementAt(0).Name));
+
+        responseDocument.Included[5].Type.Should().Be("tags");
+        responseDocument.Included[5].Id.Should().Be(todoItems[1].Tags.ElementAt(1).StringId);
+        responseDocument.Included[5].Attributes.ShouldContainKey("name").With(value => value.Should().Be(todoItems[1].Tags.ElementAt(1).Name));
+        */
+        store.SqlCommands.ShouldHaveCount(1);
+        /*
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1");
+
+            command.Parameters.Should().BeEmpty();
+        });*/
+
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(
+                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t3.""Id"" AS t3_SplitId, t3.""Id"", t3.""FirstName"", t3.""LastName"", t5.""Id"" AS t5_SplitId, t5.""Id"", t5.""FirstName"", t5.""LastName""
+FROM ""TodoItems"" AS t1
+LEFT JOIN (
+    SELECT t2.""Id"", t2.""AccountId"", t2.""FirstName"", t2.""LastName""
+    FROM ""People"" AS t2
+) AS t3 ON t1.""AssigneeId"" = t3.""Id""
+INNER JOIN (
+    SELECT t4.""Id"", t4.""AccountId"", t4.""FirstName"", t4.""LastName""
+    FROM ""People"" AS t4
+) AS t5 ON t1.""OwnerId"" = t5.""Id""
+ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
+LIMIT @p1");
+
+            command.Parameters.ShouldHaveCount(1);
+            command.Parameters.Should().Contain("@p1", 10);
+        });
+    }
+
+    [Fact(Skip = "TODO")]
+    public async Task Can_get_primary_resources_with_single_ToMany_include()
+    {
+        // Arrange
+        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        store.Clear();
+
+        List<TodoItem> todoItems = _fakers.TodoItem.Generate(25);
+        todoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        todoItems.ForEach(todoItem => todoItem.Tags = _fakers.Tag.Generate(15).ToHashSet());
+
+        await RunOnDatabaseAsync(async dbContext =>
+        {
+            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            dbContext.TodoItems.AddRange(todoItems);
+            await dbContext.SaveChangesAsync();
+        });
+
+        const string route = "/todoItems?include=tags";
+
+        // Act
+        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+
+        // Assert
+        httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
+
+        responseDocument.Data.ManyValue.ShouldHaveCount(10);
+
+        responseDocument.Data.ManyValue.ToList().ForEach(resource =>
+        {
+            resource.ShouldNotBeNull();
+            resource.Type.Should().Be("todoItems");
+            resource.Attributes.ShouldOnlyContainKeys("description", "priority", "durationInHours", "createdAt", "lastModifiedAt");
+            resource.Relationships.ShouldOnlyContainKeys("owner", "assignee", "tags");
+        });
+
+        responseDocument.Meta.Should().ContainTotal(25);
+
+        responseDocument.Included.ShouldHaveCount(10);
+
+        responseDocument.Included.ToList().ForEach(resource =>
+        {
+            resource.Type.Should().Be("tags");
+            resource.Attributes.ShouldOnlyContainKeys("name");
+            resource.Relationships.ShouldOnlyContainKeys("color", "todoItem");
+        });
+
+        store.SqlCommands.ShouldHaveCount(1);
+        /*
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1");
+
+            command.Parameters.Should().BeEmpty();
+        });*/
+
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(
+                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t3.""Id"" AS t3_SplitId, t3.""Id"", t3.""FirstName"", t3.""LastName"", t5.""Id"" AS t5_SplitId, t5.""Id"", t5.""FirstName"", t5.""LastName""
+FROM ""TodoItems"" AS t1
+LEFT JOIN (
+    SELECT t2.""Id"", t2.""AccountId"", t2.""FirstName"", t2.""LastName""
+    FROM ""People"" AS t2
+) AS t3 ON t1.""AssigneeId"" = t3.""Id""
+INNER JOIN (
+    SELECT t4.""Id"", t4.""AccountId"", t4.""FirstName"", t4.""LastName""
+    FROM ""People"" AS t4
+) AS t5 ON t1.""OwnerId"" = t5.""Id""
+ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
+LIMIT @p1");
+
+            command.Parameters.ShouldHaveCount(1);
+            command.Parameters.Should().Contain("@p1", 10);
+        });
+    }
+
     [Fact]
     public async Task Can_get_primary_resources_with_include()
     {

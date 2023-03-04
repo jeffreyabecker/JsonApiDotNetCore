@@ -44,12 +44,7 @@ internal abstract class SqlTreeNodeVisitor<TArgument, TResult>
         return DefaultVisit(node, argument);
     }
 
-    public virtual TResult VisitLeftJoin(LeftJoinNode node, TArgument argument)
-    {
-        return DefaultVisit(node, argument);
-    }
-
-    public virtual TResult VisitInnerJoin(InnerJoinNode node, TArgument argument)
+    public virtual TResult VisitJoin(JoinNode node, TArgument argument)
     {
         return DefaultVisit(node, argument);
     }
@@ -70,6 +65,11 @@ internal abstract class SqlTreeNodeVisitor<TArgument, TResult>
     }
 
     public virtual TResult VisitCountSelector(CountSelectorNode node, TArgument argument)
+    {
+        return DefaultVisit(node, argument);
+    }
+
+    public virtual TResult VisitRowNumber(RowNumberNode node, TArgument argument)
     {
         return DefaultVisit(node, argument);
     }

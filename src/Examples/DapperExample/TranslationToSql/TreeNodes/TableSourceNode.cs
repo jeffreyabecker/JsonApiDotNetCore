@@ -16,6 +16,8 @@ internal abstract class TableSourceNode : SqlTreeNode
         Alias = alias;
     }
 
+    public abstract TableSourceNode Clone(string? alias);
+
     public ColumnNode GetIdColumn()
     {
         return ScalarColumns.First(column => column.Name == nameof(Identifiable<object>.Id));
@@ -25,7 +27,7 @@ internal abstract class TableSourceNode : SqlTreeNode
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        ColumnNode? column = AllColumns.FirstOrDefault(column1 => column1.Name == columnName);
+        ColumnNode? column = AllColumns.FirstOrDefault(column => column.Name == columnName);
 
         if (column == null)
         {

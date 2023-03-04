@@ -65,16 +65,29 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         var table = new TableNode(resourceType, columnMappings, _aliasGenerator.GetNext());
         var from = new FromNode(table);
 
-        _relatedTables[from] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+        IncludePrimaryTable(from);
+        return from;
+    }
 
-        _selectorsPerTable[from] = _selectShape switch
+    private FromNode CreateFrom(TableSourceNode tableSource)
+    {
+        TableSourceNode clone = tableSource.Clone(_aliasGenerator.GetNext());
+        var from = new FromNode(clone);
+
+        IncludePrimaryTable(from);
+        return from;
+    }
+
+    private void IncludePrimaryTable(TableAccessorNode tableAccessor)
+    {
+        _relatedTables[tableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+
+        _selectorsPerTable[tableAccessor] = _selectShape switch
         {
-            SelectShape.Columns => OrderColumnsWithIdAtFront(table.ScalarColumns),
+            SelectShape.Columns => OrderColumnsWithIdAtFront(tableAccessor.TableSource.ScalarColumns),
             SelectShape.Count => new CountSelectorNode(null).AsList(),
             _ => new OneSelectorNode(null).AsList()
         };
-
-        return from;
     }
 
     private static List<SelectorNode> OrderColumnsWithIdAtFront(IEnumerable<ColumnNode> columns)
@@ -227,7 +240,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             ? leftTableAccessor.TableSource.GetForeignKeyColumn(foreignKey.ColumnName)
             : leftTableAccessor.TableSource.GetIdColumn();
 
-        return foreignKey.IsNullable ? new LeftJoinNode(table, joinColumn, parentJoinColumn) : new InnerJoinNode(table, joinColumn, parentJoinColumn);
+        return new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
     }
 
     private FilterNode? GetWhere()
@@ -360,7 +373,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private ExistsNode GetExistsClause(HasExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = outerTableSource is TableNode table ? CreateFrom(table.ResourceType) : throw new NotImplementedException();
+        FromNode from = CreateFrom(outerTableSource);
         var rightTableAccessor = (TableAccessorNode)Visit(expression.TargetCollection, from);
 
         if (expression.Filter != null)
@@ -410,7 +423,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         ParameterNode limitParameter = _parameterGenerator.Create(expression.PageSize!.Value);
 
-        ParameterNode? offsetParameter = expression.PageNumber.OneBasedValue != 1
+        ParameterNode? offsetParameter = !expression.PageNumber.Equals(PageNumber.ValueOne)
             ? _parameterGenerator.Create(expression.PageSize.Value * (expression.PageNumber.OneBasedValue - 1))
             : null;
 
@@ -429,7 +442,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private CountNode GetCountClause(CountExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = outerTableSource is TableNode table ? CreateFrom(table.ResourceType) : throw new NotImplementedException();
+        FromNode from = CreateFrom(outerTableSource);
         _ = Visit(expression.TargetCollection, from);
 
         var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTableSource.GetIdColumn(), from.TableSource.GetIdColumn());
