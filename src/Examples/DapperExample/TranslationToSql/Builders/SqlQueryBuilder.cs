@@ -33,47 +33,26 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
             using (Indent())
             {
                 builder.Append('(');
-                InnerVisitSelect(node, false, builder);
+                InnerVisitSelect(node, builder);
             }
 
             AppendOnNewLine(")", builder);
         }
         else
         {
-            InnerVisitSelect(node, true, builder);
+            InnerVisitSelect(node, builder);
         }
 
         VisitAlias(node.Alias, builder);
         return null;
     }
 
-    private void InnerVisitSelect(SelectNode node, bool isTopLevel, StringBuilder builder)
+    private void InnerVisitSelect(SelectNode node, StringBuilder builder)
     {
         AppendOnNewLine("SELECT ", builder);
 
-        bool isFirstTable = true;
-
-        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectors) in node.Selectors.Where(pair => pair.Value.Any()))
-        {
-            if (isFirstTable)
-            {
-                isFirstTable = false;
-            }
-            else
-            {
-                builder.Append(", ");
-
-                if (isTopLevel)
-                {
-                    ColumnNode idColumn = tableAccessor.TableSource.GetIdColumn();
-                    Visit(idColumn, builder);
-                    VisitAlias($"{tableAccessor.TableSource.Alias}_SplitId", builder);
-                    builder.Append(", ");
-                }
-            }
-
-            VisitSequence(selectors, builder);
-        }
+        IEnumerable<SelectorNode> selectors = node.Selectors.SelectMany(pair => pair.Value);
+        VisitSequence(selectors, builder);
 
         foreach (TableAccessorNode tableAccessor in node.Selectors.Keys)
         {

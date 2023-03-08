@@ -61,7 +61,12 @@ internal sealed class ResultSetMapper<TResource, TId>
         }
 
         object?[] objectsCached = joinObjects.Select(GetCached).ToArray();
-        var leftResource = (TResource)objectsCached[0]!;
+        var leftResource = (TResource?)objectsCached[0];
+
+        if (leftResource == null)
+        {
+            throw new InvalidOperationException("Failed to properly map SQL result set into objects.");
+        }
 
         RecursiveSetRelationships(leftResource, _include.Elements, objectsCached);
 

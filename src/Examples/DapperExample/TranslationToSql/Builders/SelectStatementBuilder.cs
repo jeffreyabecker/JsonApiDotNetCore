@@ -48,7 +48,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         FilterNode? where = GetWhere();
         OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
 
-        return new SelectNode(_selectorsPerTable, where, orderBy, _limitOffset, null);
+        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable = ToMappableSelectors(_selectorsPerTable);
+        return new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, null);
     }
 
     private void ResetState()
@@ -81,40 +82,65 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private void IncludePrimaryTable(TableAccessorNode tableAccessor)
     {
         _relatedTables[tableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+        SetSelectorsForTableAccessor(tableAccessor, tableAccessor.TableSource.ScalarColumns);
+    }
+
+    private void SetSelectorsForTableAccessor(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
+    {
+        Dictionary<string, int> usedColumnNames = new();
+
+        if (_selectShape == SelectShape.Columns)
+        {
+            foreach (string columnName in _selectorsPerTable.SelectMany(pair => pair.Value).OfType<ColumnSelectorNode>()
+                .Select(selector => selector.Column.Name))
+            {
+                usedColumnNames[columnName] = usedColumnNames.ContainsKey(columnName) ? usedColumnNames[columnName] + 1 : 1;
+            }
+        }
 
         _selectorsPerTable[tableAccessor] = _selectShape switch
         {
-            SelectShape.Columns => OrderColumnsWithIdAtFront(tableAccessor.TableSource.ScalarColumns),
+            SelectShape.Columns => OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns, usedColumnNames),
             SelectShape.Count => new CountSelectorNode(null).AsList(),
             _ => new OneSelectorNode(null).AsList()
         };
     }
 
-    private static List<SelectorNode> OrderColumnsWithIdAtFront(IEnumerable<ColumnNode> columns)
+    private static List<SelectorNode> OrderColumnsWithIdAtFrontEnsuringUniqueNames(IEnumerable<ColumnNode> columns, IDictionary<string, int> usedColumnNames)
     {
-        ColumnNode? idColumn = null;
-        List<SelectorNode> otherColumns = new();
+        Dictionary<string, List<SelectorNode>> selectorsPerTable = new();
 
-        foreach (ColumnNode column in columns.OrderBy(column => column.Name))
+        foreach (ColumnNode column in columns.OrderBy(column => column.TableAlias).ThenBy(column => column.Name))
         {
-            if (column.Name == nameof(Identifiable<object>.Id))
+            string tableAlias = column.TableAlias ?? "!";
+            selectorsPerTable.TryAdd(tableAlias, new List<SelectorNode>());
+            string? selectorAlias;
+
+            if (usedColumnNames.TryGetValue(column.Name, out int offset))
             {
-                idColumn = column;
+                offset++;
+                selectorAlias = column.Name + offset;
+                usedColumnNames[column.Name] = offset;
             }
             else
             {
-                var columnSelector = new ColumnSelectorNode(column, null);
-                otherColumns.Add(columnSelector);
+                selectorAlias = null;
+                usedColumnNames[column.Name] = 1;
+            }
+
+            var columnSelector = new ColumnSelectorNode(column, selectorAlias);
+
+            if (column.Name == nameof(Identifiable<object>.Id))
+            {
+                selectorsPerTable[tableAlias].Insert(0, columnSelector);
+            }
+            else
+            {
+                selectorsPerTable[tableAlias].Add(columnSelector);
             }
         }
 
-        if (idColumn != null)
-        {
-            var idSelector = new ColumnSelectorNode(idColumn, null);
-            otherColumns.Insert(0, idSelector);
-        }
-
-        return otherColumns;
+        return selectorsPerTable.SelectMany(pair => pair.Value).ToList();
     }
 
     private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorNode tableAccessor)
@@ -188,7 +214,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (_selectShape == SelectShape.Columns)
         {
-            _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFront(selectedColumns);
+            SetSelectorsForTableAccessor(tableAccessor, selectedColumns);
         }
     }
 
@@ -270,6 +296,41 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         }
 
         return new LogicalNode(LogicalOperator.And, andTerms);
+    }
+
+    private static Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> ToMappableSelectors(
+        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable)
+    {
+        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> mappableSelectors = new();
+        bool isFirstNonEmptyTable = true;
+
+        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> currentTableSelectors) in selectorsPerTable)
+        {
+            var newTableSelectors = new List<SelectorNode>();
+
+            if (currentTableSelectors.Any())
+            {
+                if (isFirstNonEmptyTable)
+                {
+                    isFirstNonEmptyTable = false;
+                }
+                else
+                {
+                    ColumnNode idColumn = tableAccessor.TableSource.GetIdColumn();
+                    newTableSelectors.Add(new ColumnSelectorNode(idColumn, $"{tableAccessor.TableSource.Alias}_SplitId"));
+                }
+            }
+
+            newTableSelectors.AddRange(currentTableSelectors.Select(RemoveColumnAlias));
+            mappableSelectors[tableAccessor] = newTableSelectors;
+        }
+
+        return mappableSelectors;
+    }
+
+    private static SelectorNode RemoveColumnAlias(SelectorNode selector)
+    {
+        return selector is ColumnSelectorNode { Alias: { } } columnSelectorNode ? new ColumnSelectorNode(columnSelectorNode.Column, null) : selector;
     }
 
     public override SqlTreeNode DefaultVisit(QueryExpression expression, TableAccessorNode tableAccessor)
@@ -484,9 +545,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, expression.Relationship);
 
-        _selectorsPerTable[relatedTableAccessor] = _selectShape == SelectShape.Columns
-            ? OrderColumnsWithIdAtFront(relatedTableAccessor.TableSource.ScalarColumns)
-            : new List<SelectorNode>();
+        SetSelectorsForTableAccessor(relatedTableAccessor, relatedTableAccessor.TableSource.ScalarColumns);
 
         _ = VisitSequence<IncludeElementExpression, TableAccessorNode>(expression.Children.OrderBy(child => child.Relationship.PublicName),
             relatedTableAccessor).ToArray();
