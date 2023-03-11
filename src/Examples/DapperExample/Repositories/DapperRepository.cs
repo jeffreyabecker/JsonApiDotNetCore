@@ -1,4 +1,3 @@
-using System.Data;
 using System.Data.Common;
 using System.Text;
 using Dapper;
@@ -640,11 +639,11 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         return $"Executing SQL: {Environment.NewLine}{statement}";
     }
 
-    private async Task<TResult> ExecuteQueryAsync<TResult>(Func<IDbConnection, Task<TResult>> asyncAction, CancellationToken cancellationToken)
+    private async Task<TResult> ExecuteQueryAsync<TResult>(Func<DbConnection, Task<TResult>> asyncAction, CancellationToken cancellationToken)
     {
         if (_transactionFactory.AmbientTransaction != null)
         {
-            NpgsqlConnection connection = _transactionFactory.AmbientTransaction.Current.Connection!;
+            DbConnection connection = _transactionFactory.AmbientTransaction.Current.Connection!;
             return await asyncAction(connection);
         }
 
@@ -654,7 +653,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         return await asyncAction(dbConnection);
     }
 
-    private async Task ExecuteInTransactionAsync(Func<IDbTransaction, Task> asyncAction, CancellationToken cancellationToken)
+    private async Task ExecuteInTransactionAsync(Func<DbTransaction, Task> asyncAction, CancellationToken cancellationToken)
     {
         try
         {

@@ -1,6 +1,6 @@
+using System.Data.Common;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.AtomicOperations;
-using Npgsql;
 
 namespace DapperExample.AtomicOperations;
 
@@ -11,12 +11,12 @@ public sealed class DapperTransaction : IOperationsTransaction
 {
     private readonly DapperTransactionFactory _owner;
 
-    internal NpgsqlTransaction Current { get; }
+    internal DbTransaction Current { get; }
 
     /// <inheritdoc />
     public string TransactionId { get; }
 
-    internal DapperTransaction(DapperTransactionFactory owner, NpgsqlTransaction current, Guid transactionId)
+    internal DapperTransaction(DapperTransactionFactory owner, DbTransaction current, Guid transactionId)
     {
         ArgumentGuard.NotNull(owner);
         ArgumentGuard.NotNull(current);
@@ -47,7 +47,7 @@ public sealed class DapperTransaction : IOperationsTransaction
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
-        NpgsqlConnection? connection = Current.Connection;
+        DbConnection? connection = Current.Connection;
 
         await Current.DisposeAsync();
 
