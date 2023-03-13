@@ -54,7 +54,7 @@ public sealed partial class SqlTests
         store.SqlCommands[0].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE t1.""Id"" = @p1");
@@ -119,7 +119,7 @@ WHERE ""Id"" IN (@p2, @p3)");
         store.SqlCommands[0].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE t1.""Id"" = @p1");
@@ -198,7 +198,7 @@ WHERE ""Id"" IN (@p1, @p2)");
         store.SqlCommands[0].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE t1.""Id"" = @p1");
@@ -274,7 +274,7 @@ WHERE ""Id"" IN (@p2, @p3)");
         store.SqlCommands[0].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE t1.""Id"" = @p1");
@@ -360,7 +360,7 @@ WHERE ""Id"" = @p2");
         store.SqlCommands[0].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE t1.""Id"" = @p1");

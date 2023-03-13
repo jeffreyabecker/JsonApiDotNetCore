@@ -190,7 +190,7 @@ WHERE t2.""Id"" = @p1");
         store.SqlCommands[1].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority"", t3.""Id"" AS t3_SplitId, t3.""Id"", t3.""Name""
+                @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority"", t3.""Id"", t3.""Name""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 LEFT JOIN ""Tags"" AS t3 ON t2.""Id"" = t3.""TodoItemId""

@@ -187,7 +187,7 @@ WHERE (t2.""Id"" = @p1) AND (t3.""Id"" IS NULL)");
         store.SqlCommands[1].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 LEFT JOIN ""People"" AS t3 ON t2.""AssigneeId"" = t3.""Id""
@@ -248,7 +248,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""DurationInHours"" IS NULL)");
         store.SqlCommands[1].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE (t1.""Id"" = @p1) AND (t2.""DurationInHours"" IS NULL)
@@ -374,7 +374,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""Description"" = @p2)");
         store.SqlCommands[1].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Description"" = @p2)
@@ -499,7 +499,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""Priority"" = @p2)");
         store.SqlCommands[1].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Priority"" = @p2)

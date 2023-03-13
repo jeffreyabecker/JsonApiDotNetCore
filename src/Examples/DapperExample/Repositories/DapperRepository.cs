@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Text;
 using Dapper;
 using DapperExample.AtomicOperations;
 using DapperExample.TranslationToSql;
@@ -87,35 +86,17 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         CommandDefinition sqlCommand = GetSqlCommand(selectNode, cancellationToken);
         LogSqlCommand(sqlCommand);
 
-        string splitOn = GetSplitOnColumns(selectNode);
         var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
-            // https://github.com/DapperLib/Dapper/issues/1181
-            _ = await connection.QueryAsync(sqlCommand.CommandText, mapper.ResourceClrTypes, mapper.Map, sqlCommand.Parameters, splitOn: splitOn);
+            // Unfortunately, there's no CancellationToken support. See https://github.com/DapperLib/Dapper/issues/1181.
+            _ = await connection.QueryAsync(sqlCommand.CommandText, mapper.ResourceClrTypes, mapper.Map, sqlCommand.Parameters);
 
             return mapper.GetResources();
         }, cancellationToken);
 
         return resources;
-    }
-
-    private static string GetSplitOnColumns(SelectNode selectNode)
-    {
-        var splitOnBuilder = new StringBuilder();
-
-        foreach (TableSourceNode tableSource in selectNode.Selectors.Where(pair => pair.Value.Any()).Select(pair => pair.Key.TableSource).Skip(1))
-        {
-            if (splitOnBuilder.Length > 0)
-            {
-                splitOnBuilder.Append(',');
-            }
-
-            splitOnBuilder.Append($"{tableSource.Alias}_SplitId");
-        }
-
-        return splitOnBuilder.ToString();
     }
 
     public async Task<int> CountAsync(FilterExpression? filter, CancellationToken cancellationToken)

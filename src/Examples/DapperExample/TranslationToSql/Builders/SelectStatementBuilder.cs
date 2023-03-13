@@ -15,7 +15,7 @@ namespace DapperExample.TranslationToSql.Builders;
 internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAccessorNode, SqlTreeNode>
 {
     private readonly IDataModelService _dataModelService;
-    private readonly AliasGenerator _aliasGenerator;
+    private readonly TableAliasGenerator _tableAliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
     private readonly Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>> _relatedTables = new();
     private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
@@ -25,20 +25,22 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private LimitOffsetNode? _limitOffset;
 
     public SelectStatementBuilder(IDataModelService dataModelService)
-        : this(dataModelService, new AliasGenerator(), new ParameterGenerator())
+        : this(dataModelService, new TableAliasGenerator(), new ParameterGenerator())
     {
         ArgumentGuard.NotNull(dataModelService);
     }
 
-    private SelectStatementBuilder(IDataModelService dataModelService, AliasGenerator aliasGenerator, ParameterGenerator parameterGenerator)
+    private SelectStatementBuilder(IDataModelService dataModelService, TableAliasGenerator tableAliasGenerator, ParameterGenerator parameterGenerator)
     {
         _dataModelService = dataModelService;
-        _aliasGenerator = aliasGenerator;
+        _tableAliasGenerator = tableAliasGenerator;
         _parameterGenerator = parameterGenerator;
     }
 
     public SelectNode Build(QueryLayer queryLayer, SelectShape selectShape)
     {
+        ArgumentGuard.NotNull(queryLayer);
+
         ResetState();
         _selectShape = selectShape;
 
@@ -56,14 +58,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         _relatedTables.Clear();
         _selectorsPerTable.Clear();
-        _aliasGenerator.Reset();
+        _tableAliasGenerator.Reset();
         _parameterGenerator.Reset();
     }
 
     private FromNode CreateFrom(ResourceType resourceType)
     {
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(resourceType);
-        var table = new TableNode(resourceType, columnMappings, _aliasGenerator.GetNext());
+        var table = new TableNode(resourceType, columnMappings, _tableAliasGenerator.GetNext());
         var from = new FromNode(table);
 
         IncludePrimaryTable(from);
@@ -72,7 +74,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private FromNode CreateFrom(TableSourceNode tableSource)
     {
-        TableSourceNode clone = tableSource.Clone(_aliasGenerator.GetNext());
+        TableSourceNode clone = tableSource.Clone(_tableAliasGenerator.GetNext());
         var from = new FromNode(clone);
 
         IncludePrimaryTable(from);
@@ -258,7 +260,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
-        var table = new TableNode(relationship.RightType, columnMappings, _aliasGenerator.GetNext());
+        var table = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
 
         ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
 
@@ -302,27 +304,10 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable)
     {
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> mappableSelectors = new();
-        bool isFirstNonEmptyTable = true;
 
-        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> currentTableSelectors) in selectorsPerTable)
+        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> tableSelectors) in selectorsPerTable)
         {
-            var newTableSelectors = new List<SelectorNode>();
-
-            if (currentTableSelectors.Any())
-            {
-                if (isFirstNonEmptyTable)
-                {
-                    isFirstNonEmptyTable = false;
-                }
-                else
-                {
-                    ColumnNode idColumn = tableAccessor.TableSource.GetIdColumn();
-                    newTableSelectors.Add(new ColumnSelectorNode(idColumn, $"{tableAccessor.TableSource.Alias}_SplitId"));
-                }
-            }
-
-            newTableSelectors.AddRange(currentTableSelectors.Select(RemoveColumnAlias));
-            mappableSelectors[tableAccessor] = newTableSelectors;
+            mappableSelectors[tableAccessor] = tableSelectors.Select(RemoveColumnAlias).ToList();
         }
 
         return mappableSelectors;
@@ -330,7 +315,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private static SelectorNode RemoveColumnAlias(SelectorNode selector)
     {
-        return selector is ColumnSelectorNode { Alias: { } } columnSelectorNode ? new ColumnSelectorNode(columnSelectorNode.Column, null) : selector;
+        return selector is ColumnSelectorNode { Alias: not null } columnSelectorNode ? new ColumnSelectorNode(columnSelectorNode.Column, null) : selector;
     }
 
     public override SqlTreeNode DefaultVisit(QueryExpression expression, TableAccessorNode tableAccessor)
@@ -424,7 +409,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorNode tableAccessor)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator)
         {
             _selectShape = SelectShape.One
         };
@@ -493,7 +478,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorNode tableAccessor)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _aliasGenerator, _parameterGenerator)
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator)
         {
             _selectShape = SelectShape.Count
         };

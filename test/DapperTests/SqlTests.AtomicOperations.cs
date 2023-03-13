@@ -319,7 +319,7 @@ WHERE t1.""Id"" = @p1");
         store.SqlCommands[8].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""FirstName"", t2.""LastName""
+                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
 WHERE t1.""Id"" = @p1");
@@ -342,7 +342,7 @@ WHERE ""Id"" = @p2");
         store.SqlCommands[10].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""Name""
+                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""Name""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""Tags"" AS t2 ON t1.""Id"" = t2.""TodoItemId""
 WHERE t1.""Id"" = @p1");
@@ -500,7 +500,7 @@ WHERE t1.""Id"" = @p1");
         store.SqlCommands[2].With(command =>
         {
             command.Statement.Should().Be(
-                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS t2_SplitId, t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE t1.""Id"" = @p1");

@@ -31,11 +31,6 @@ internal sealed class SelectNode : TableSourceNode
         ReadSelectorColumns(selectors);
     }
 
-    public override TableSourceNode Clone(string? alias)
-    {
-        return new SelectNode(Selectors, Where, OrderBy, LimitOffset, alias);
-    }
-
     private void ReadSelectorColumns(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors)
     {
         foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> selectorsInTable) in selectors)
@@ -67,6 +62,11 @@ internal sealed class SelectNode : TableSourceNode
                 _scalarColumns.Add(column);
             }
         }
+    }
+
+    public override TableSourceNode Clone(string? alias)
+    {
+        return new SelectNode(Selectors, Where, OrderBy, LimitOffset, alias);
     }
 
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)

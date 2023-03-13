@@ -72,7 +72,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id""
+            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
@@ -167,7 +167,7 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id"" AS t2_SplitId, t2.""Id""
+            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
