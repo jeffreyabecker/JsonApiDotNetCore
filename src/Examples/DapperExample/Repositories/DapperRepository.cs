@@ -42,7 +42,6 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     private readonly IResourceFactory _resourceFactory;
     private readonly ILogger<DapperRepository<TResource, TId>> _logger;
     private readonly IResourceDefinitionAccessor _resourceDefinitionAccessor;
-    private readonly IJsonApiOptions _options;
     private readonly DapperTransactionFactory _transactionFactory;
     private readonly IDataModelService _dataModelService;
     private readonly SqlCaptureStore _captureStore;
@@ -52,15 +51,14 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     public string? TransactionId => _transactionFactory.AmbientTransaction?.TransactionId;
 
     public DapperRepository(ITargetedFields targetedFields, IResourceGraph resourceGraph, IResourceFactory resourceFactory, ILoggerFactory loggerFactory,
-        IResourceDefinitionAccessor resourceDefinitionAccessor, IJsonApiOptions options, DapperTransactionFactory transactionFactory,
-        IDataModelService dataModelService, SqlCaptureStore captureStore)
+        IResourceDefinitionAccessor resourceDefinitionAccessor, DapperTransactionFactory transactionFactory, IDataModelService dataModelService,
+        SqlCaptureStore captureStore)
     {
         ArgumentGuard.NotNull(targetedFields);
         ArgumentGuard.NotNull(resourceGraph);
         ArgumentGuard.NotNull(resourceFactory);
         ArgumentGuard.NotNull(loggerFactory);
         ArgumentGuard.NotNull(resourceDefinitionAccessor);
-        ArgumentGuard.NotNull(options);
         ArgumentGuard.NotNull(transactionFactory);
         ArgumentGuard.NotNull(dataModelService);
         ArgumentGuard.NotNull(captureStore);
@@ -71,7 +69,6 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         _resourceFactory = resourceFactory;
         _logger = loggerFactory.CreateLogger<DapperRepository<TResource, TId>>();
         _resourceDefinitionAccessor = resourceDefinitionAccessor;
-        _options = options;
         _transactionFactory = transactionFactory;
         _dataModelService = dataModelService;
         _captureStore = captureStore;
