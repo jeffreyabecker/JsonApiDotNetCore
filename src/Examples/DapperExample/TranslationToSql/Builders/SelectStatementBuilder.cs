@@ -1,4 +1,5 @@
 using System.Net;
+using DapperExample.Repositories;
 using DapperExample.TranslationToSql.DataModel;
 using DapperExample.TranslationToSql.TreeNodes;
 using JsonApiDotNetCore;
@@ -41,8 +42,10 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         ArgumentGuard.NotNull(queryLayer);
 
-        ResetState();
-        _selectShape = selectShape;
+        var includeConverter = new QueryLayerIncludeConverter(queryLayer);
+        includeConverter.ConvertIncludesToSelections();
+
+        ResetState(selectShape, true);
 
         FromNode from = CreateFrom(queryLayer.ResourceType);
         ConvertQueryLayer(queryLayer, from);
@@ -54,12 +57,20 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         return new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, null);
     }
 
-    private void ResetState()
+    private void ResetState(SelectShape selectShape, bool resetGenerators)
     {
         _relatedTables.Clear();
         _selectorsPerTable.Clear();
-        _tableAliasGenerator.Reset();
-        _parameterGenerator.Reset();
+        _whereConditions.Clear();
+        _orderByTerms.Clear();
+        _selectShape = selectShape;
+        _limitOffset = null;
+
+        if (resetGenerators)
+        {
+            _tableAliasGenerator.Reset();
+            _parameterGenerator.Reset();
+        }
     }
 
     private FromNode CreateFrom(ResourceType resourceType)
@@ -84,28 +95,154 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private void IncludePrimaryTable(TableAccessorNode tableAccessor)
     {
         _relatedTables[tableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
-        SetSelectorsForTableAccessor(tableAccessor, tableAccessor.TableSource.ScalarColumns);
-    }
-
-    private void SetSelectorsForTableAccessor(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
-    {
-        Dictionary<string, int> usedColumnNames = new();
-
-        if (_selectShape == SelectShape.Columns)
-        {
-            foreach (string columnName in _selectorsPerTable.SelectMany(pair => pair.Value).OfType<ColumnSelectorNode>()
-                .Select(selector => selector.Column.Name))
-            {
-                usedColumnNames[columnName] = usedColumnNames.ContainsKey(columnName) ? usedColumnNames[columnName] + 1 : 1;
-            }
-        }
 
         _selectorsPerTable[tableAccessor] = _selectShape switch
         {
-            SelectShape.Columns => OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns, usedColumnNames),
-            SelectShape.Count => new CountSelectorNode(null).AsList(),
-            _ => new OneSelectorNode(null).AsList()
+            SelectShape.Columns => Array.Empty<SelectorNode>(),
+            SelectShape.Count => new CountSelectorNode(null).AsArray(),
+            _ => new OneSelectorNode(null).AsArray()
         };
+    }
+
+    private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorNode tableAccessor)
+    {
+        if (queryLayer.Filter != null)
+        {
+            var filter = (FilterNode)Visit(queryLayer.Filter, tableAccessor);
+            _whereConditions.Add(filter);
+        }
+
+        if (queryLayer.Sort != null)
+        {
+            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableAccessor);
+            _orderByTerms.AddRange(orderBy.Terms);
+        }
+
+        if (queryLayer.Pagination is { PageSize: not null })
+        {
+            // TODO: Push down into sub-select for non-top-level.
+            if (_limitOffset == null)
+            {
+                _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
+            }
+        }
+
+        if (queryLayer.Selection != null)
+        {
+            foreach (ResourceType resourceType in queryLayer.Selection.GetResourceTypes())
+            {
+                FieldSelectors selectors = queryLayer.Selection.GetOrCreateSelectors(resourceType);
+                ConvertSelectors(selectors, tableAccessor);
+            }
+        }
+    }
+
+    private void ConvertSelectors(FieldSelectors selectors, TableAccessorNode tableAccessor)
+    {
+        HashSet<ColumnNode> selectedColumns = new();
+
+        if (selectors.ContainsReadOnlyAttribute || selectors.ContainsOnlyRelationships || selectors.IsEmpty)
+        {
+            // If a read-only attribute is selected, its calculated value likely depends on another property, so fetch all scalar properties.
+            // And only selecting relationships implicitly means to fetch all scalar properties as well.
+            // Additionally, empty selectors (originating from eliminated includes) indicate to fetch all scalar properties too.
+
+            selectedColumns = tableAccessor.TableSource.ScalarColumns.ToHashSet();
+        }
+
+        foreach ((ResourceFieldAttribute field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
+        {
+            if (field is AttrAttribute attribute)
+            {
+                ColumnNode? column = tableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
+
+                if (column != null)
+                {
+                    selectedColumns.Add(column);
+                }
+            }
+
+            if (field is RelationshipAttribute relationship && nextLayer != null)
+            {
+                TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
+                ConvertQueryLayer(nextLayer, relatedTableAccessor);
+            }
+        }
+
+        if (_selectShape == SelectShape.Columns)
+        {
+            SetColumnSelectorsForTableAccessor(tableAccessor, selectedColumns);
+        }
+    }
+
+    private TableAccessorNode GetOrCreateRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
+    {
+        TableAccessorNode? relatedTableAccessor = FindRelatedTable(leftTableAccessor, relationship);
+
+        if (relatedTableAccessor == null)
+        {
+            relatedTableAccessor = CreateJoin(leftTableAccessor, relationship);
+            IncludeRelatedTable(leftTableAccessor, relationship, relatedTableAccessor);
+        }
+
+        return relatedTableAccessor;
+    }
+
+    private TableAccessorNode? FindRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
+    {
+        if (_relatedTables.TryGetValue(leftTableAccessor, out Dictionary<RelationshipAttribute, TableAccessorNode>? rightTableAccessors))
+        {
+            if (rightTableAccessors.TryGetValue(relationship, out TableAccessorNode? rightTable))
+            {
+                return rightTable;
+            }
+        }
+
+        return null;
+    }
+
+    private void IncludeRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship, TableAccessorNode rightTableAccessor)
+    {
+        _relatedTables.TryAdd(leftTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
+        _relatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
+
+        _relatedTables[rightTableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+        _selectorsPerTable[rightTableAccessor] = Array.Empty<SelectorNode>();
+    }
+
+    private JoinNode CreateJoin(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
+    {
+        RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
+
+        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
+        var table = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
+
+        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
+
+        ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
+            ? leftTableAccessor.TableSource.GetForeignKeyColumn(foreignKey.ColumnName)
+            : leftTableAccessor.TableSource.GetIdColumn();
+
+        return new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
+    }
+
+    private void SetColumnSelectorsForTableAccessor(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
+    {
+        IDictionary<string, int> usedColumnNames = GetUsedColumnNamesInSelectors();
+        _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns, usedColumnNames);
+    }
+
+    private IDictionary<string, int> GetUsedColumnNamesInSelectors()
+    {
+        Dictionary<string, int> usedColumnNames = new();
+
+        foreach (string columnName in _selectorsPerTable.SelectMany(selector => selector.Value).OfType<ColumnSelectorNode>()
+            .Select(selector => selector.Column.Name))
+        {
+            usedColumnNames[columnName] = usedColumnNames.TryGetValue(columnName, out int lastUsedOffset) ? lastUsedOffset + 1 : 1;
+        }
+
+        return usedColumnNames;
     }
 
     private static List<SelectorNode> OrderColumnsWithIdAtFrontEnsuringUniqueNames(IEnumerable<ColumnNode> columns, IDictionary<string, int> usedColumnNames)
@@ -142,133 +279,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
         }
 
-        return selectorsPerTable.SelectMany(pair => pair.Value).ToList();
-    }
-
-    private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorNode tableAccessor)
-    {
-        if (queryLayer.Include != null)
-        {
-            _ = Visit(queryLayer.Include, tableAccessor);
-        }
-
-        if (queryLayer.Filter != null)
-        {
-            var filter = (FilterNode)Visit(queryLayer.Filter, tableAccessor);
-            _whereConditions.Add(filter);
-        }
-
-        if (queryLayer.Sort != null)
-        {
-            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableAccessor);
-            _orderByTerms.AddRange(orderBy.Terms);
-        }
-
-        if (queryLayer.Pagination is { PageSize: { } })
-        {
-            // TODO: Push down into sub-select for non-top-level.
-            if (_limitOffset == null)
-            {
-                _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
-            }
-        }
-
-        if (queryLayer.Selection != null)
-        {
-            foreach (ResourceType resourceType in queryLayer.Selection.GetResourceTypes())
-            {
-                FieldSelectors selectors = queryLayer.Selection.GetOrCreateSelectors(resourceType);
-                ConvertSelectors(selectors, tableAccessor);
-            }
-        }
-    }
-
-    private void ConvertSelectors(FieldSelectors selectors, TableAccessorNode tableAccessor)
-    {
-        HashSet<ColumnNode> selectedColumns = new();
-
-        if (selectors.ContainsReadOnlyAttribute || selectors.ContainsOnlyRelationships)
-        {
-            // If a read-only attribute is selected, its calculated value likely depends on another property, so fetch all scalar properties.
-            // And only selecting relationships implicitly means to fetch all scalar properties as well.
-
-            selectedColumns = tableAccessor.TableSource.ScalarColumns.ToHashSet();
-        }
-
-        foreach ((ResourceFieldAttribute? field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
-        {
-            if (field is AttrAttribute attribute)
-            {
-                ColumnNode? column = tableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
-
-                if (column != null)
-                {
-                    selectedColumns.Add(column);
-                }
-            }
-
-            if (field is RelationshipAttribute relationship && nextLayer != null)
-            {
-                TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
-                ConvertQueryLayer(nextLayer, relatedTableAccessor);
-            }
-        }
-
-        if (_selectShape == SelectShape.Columns)
-        {
-            SetSelectorsForTableAccessor(tableAccessor, selectedColumns);
-        }
-    }
-
-    private TableAccessorNode GetOrCreateRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
-    {
-        TableAccessorNode? relatedTableAccessor = FindRelatedTable(leftTableAccessor, relationship);
-
-        if (relatedTableAccessor == null)
-        {
-            relatedTableAccessor = CreateJoin(leftTableAccessor, relationship);
-            IncludeRelatedTable(leftTableAccessor, relationship, relatedTableAccessor);
-        }
-
-        return relatedTableAccessor;
-    }
-
-    private TableAccessorNode? FindRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
-    {
-        if (_relatedTables.TryGetValue(leftTableAccessor, out Dictionary<RelationshipAttribute, TableAccessorNode>? rightTableAccessors))
-        {
-            if (rightTableAccessors.TryGetValue(relationship, out TableAccessorNode? rightTable))
-            {
-                return rightTable;
-            }
-        }
-
-        return null;
-    }
-
-    private void IncludeRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship, TableAccessorNode rightTableAccessor)
-    {
-        _relatedTables.TryAdd(leftTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
-        _relatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
-
-        _relatedTables[rightTableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
-        _selectorsPerTable[rightTableAccessor] = new List<SelectorNode>();
-    }
-
-    private JoinNode CreateJoin(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
-    {
-        RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
-
-        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
-        var table = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
-
-        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
-
-        ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
-            ? leftTableAccessor.TableSource.GetForeignKeyColumn(foreignKey.ColumnName)
-            : leftTableAccessor.TableSource.GetIdColumn();
-
-        return new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
+        return selectorsPerTable.SelectMany(selector => selector.Value).ToList();
     }
 
     private FilterNode? GetWhere()
@@ -409,10 +420,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorNode tableAccessor)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator)
-        {
-            _selectShape = SelectShape.One
-        };
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
+        subSelectBuilder.ResetState(SelectShape.One, false);
 
         return subSelectBuilder.GetExistsClause(expression, tableAccessor.TableSource);
     }
@@ -478,10 +487,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorNode tableAccessor)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator)
-        {
-            _selectShape = SelectShape.Count
-        };
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
+        subSelectBuilder.ResetState(SelectShape.Count, false);
 
         return subSelectBuilder.GetCountClause(expression, tableAccessor.TableSource);
     }
@@ -514,27 +521,5 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableAccessor).ToArray();
 
         return parameters.Length == 1 ? new ComparisonNode(ComparisonOperator.Equals, column, parameters[0]) : new InNode(column, parameters);
-    }
-
-    public override SqlTreeNode VisitInclude(IncludeExpression expression, TableAccessorNode tableAccessor)
-    {
-        foreach (IncludeElementExpression element in expression.Elements.OrderBy(element => element.Relationship.PublicName))
-        {
-            _ = Visit(element, tableAccessor);
-        }
-
-        return null!;
-    }
-
-    public override SqlTreeNode VisitIncludeElement(IncludeElementExpression expression, TableAccessorNode tableAccessor)
-    {
-        TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, expression.Relationship);
-
-        SetSelectorsForTableAccessor(relatedTableAccessor, relatedTableAccessor.TableSource.ScalarColumns);
-
-        _ = VisitSequence<IncludeElementExpression, TableAccessorNode>(expression.Children.OrderBy(child => child.Relationship.PublicName),
-            relatedTableAccessor).ToArray();
-
-        return relatedTableAccessor;
     }
 }

@@ -16,9 +16,9 @@ public sealed class SqlCaptureStore
         _sqlCommands.Clear();
     }
 
-    internal void Add(string statement, IDictionary<string, object?> parameters)
+    internal void Add(string statement, IDictionary<string, object?>? parameters)
     {
-        var sqlCommand = new SqlCommand(statement, parameters);
+        var sqlCommand = new SqlCommand(statement, parameters ?? new Dictionary<string, object?>());
         _sqlCommands.Add(sqlCommand);
     }
 }

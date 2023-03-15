@@ -101,7 +101,7 @@ internal sealed class ResourceChangeDetector
         }
     }
 
-    public IReadOnlyDictionary<HasOneAttribute, (object? currentRightId, object newRightId)> GetChangedOneToOneRelationshipsToNotNull()
+    public IReadOnlyDictionary<HasOneAttribute, (object? currentRightId, object newRightId)> GetOneToOneRelationshipsChangedToNotNull()
     {
         Dictionary<HasOneAttribute, (object? currentRightId, object newRightId)> changes = new();
 

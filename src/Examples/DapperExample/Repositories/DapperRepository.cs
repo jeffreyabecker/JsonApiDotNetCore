@@ -78,12 +78,12 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     {
         ArgumentGuard.NotNull(queryLayer);
 
+        var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
+
         var selectBuilder = new SelectStatementBuilder(_dataModelService);
         SelectNode selectNode = selectBuilder.Build(queryLayer, SelectShape.Columns);
         CommandDefinition sqlCommand = GetSqlCommand(selectNode, cancellationToken);
         LogSqlCommand(sqlCommand);
-
-        var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
@@ -134,7 +134,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         changeDetector.CaptureNewValues(resourceForDatabase);
 
-        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForChangedOneToOneRelationshipsToNotNull(changeDetector, cancellationToken);
+        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForOneToOneRelationshipsChangedToNotNull(changeDetector, cancellationToken);
 
         CommandDefinition insertCommand = BuildSqlCommandForCreate(changeDetector, cancellationToken);
 
@@ -221,7 +221,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         changeDetector.CaptureNewValues(resourceFromDatabase);
         changeDetector.AssertIsNotClearingAnyRequiredToOneRelationships(ResourceType.PublicName);
 
-        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForChangedOneToOneRelationshipsToNotNull(changeDetector, cancellationToken);
+        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForOneToOneRelationshipsChangedToNotNull(changeDetector, cancellationToken);
 
         CommandDefinition? updateCommand = BuildSqlCommandForUpdate(changeDetector, resourceFromDatabase.Id, cancellationToken);
 
@@ -314,7 +314,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         changeDetector.CaptureNewValues(leftResource);
         changeDetector.AssertIsNotClearingAnyRequiredToOneRelationships(ResourceType.PublicName);
 
-        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForChangedOneToOneRelationshipsToNotNull(changeDetector, cancellationToken);
+        IReadOnlyCollection<CommandDefinition> preSqlCommands = BuildSqlCommandsForOneToOneRelationshipsChangedToNotNull(changeDetector, cancellationToken);
 
         CommandDefinition? updateCommand = BuildSqlCommandForUpdate(changeDetector, leftResource.Id, cancellationToken);
 
@@ -363,12 +363,12 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         }
     }
 
-    private IReadOnlyCollection<CommandDefinition> BuildSqlCommandsForChangedOneToOneRelationshipsToNotNull(ResourceChangeDetector changeDetector,
+    private IReadOnlyCollection<CommandDefinition> BuildSqlCommandsForOneToOneRelationshipsChangedToNotNull(ResourceChangeDetector changeDetector,
         CancellationToken cancellationToken)
     {
         List<CommandDefinition> sqlCommands = new();
 
-        foreach ((HasOneAttribute relationship, (object? currentRightId, object newRightId)) in changeDetector.GetChangedOneToOneRelationshipsToNotNull())
+        foreach ((HasOneAttribute relationship, (object? currentRightId, object newRightId)) in changeDetector.GetOneToOneRelationshipsChangedToNotNull())
         {
             // To prevent a unique constraint violation on the foreign key, first detach/delete the other row pointing to us, if any.
             // See https://github.com/json-api-dotnet/JsonApiDotNetCore/issues/502.
@@ -587,7 +587,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         return GetSqlCommand(updateNode, cancellationToken);
     }
 
-    private CommandDefinition GetSqlCommand(SqlTreeNode node, CancellationToken cancellationToken)
+    private static CommandDefinition GetSqlCommand(SqlTreeNode node, CancellationToken cancellationToken)
     {
         var queryBuilder = new SqlQueryBuilder();
         string statement = queryBuilder.GetCommand(node);
@@ -598,7 +598,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
     private void LogSqlCommand(CommandDefinition command)
     {
-        var parameters = (IDictionary<string, object?>)command.Parameters;
+        var parameters = (IDictionary<string, object?>?)command.Parameters;
 
         _captureStore.Add(command.CommandText, parameters);
 
@@ -606,9 +606,9 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         _logger.LogInformation(message);
     }
 
-    private string GetLogText(string statement, IDictionary<string, object?> parameters)
+    private string GetLogText(string statement, IDictionary<string, object?>? parameters)
     {
-        if (parameters.Any())
+        if (parameters?.Any() == true)
         {
             string parametersText = string.Join(", ", parameters.Select(parameter => _parameterFormatter.Format(parameter.Key, parameter.Value)));
             return $"Executing SQL with parameters: {parametersText}{Environment.NewLine}{statement}";

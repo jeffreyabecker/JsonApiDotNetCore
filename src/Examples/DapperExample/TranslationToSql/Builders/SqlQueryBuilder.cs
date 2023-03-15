@@ -51,7 +51,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         AppendOnNewLine("SELECT ", builder);
 
-        IEnumerable<SelectorNode> selectors = node.Selectors.SelectMany(pair => pair.Value);
+        IEnumerable<SelectorNode> selectors = node.Selectors.SelectMany(selector => selector.Value);
         VisitSequence(selectors, builder);
 
         foreach (TableAccessorNode tableAccessor in node.Selectors.Keys)
