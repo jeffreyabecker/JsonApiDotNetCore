@@ -331,7 +331,7 @@ LIMIT @p2");
 
         Person person = _fakers.Person.Generate();
         person.AssignedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
-        person.AssignedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        person.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         person.AssignedTodoItems.ElementAt(1).Description = "Take exam";
 
@@ -660,7 +660,7 @@ LIMIT @p3");
         todoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         todoItems[1].Owner.AssignedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
-        todoItems[1].Owner.AssignedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        todoItems[1].Owner.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         await RunOnDatabaseAsync(async dbContext =>
         {
@@ -736,7 +736,7 @@ LIMIT @p2");
 
         todoItems[1].Owner.AssignedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
 
-        todoItems[1].Owner.AssignedTodoItems.ToList().ForEach(todoItem =>
+        todoItems[1].Owner.AssignedTodoItems.ForEach(todoItem =>
         {
             todoItem.Description = "Homework";
             todoItem.Owner = _fakers.Person.Generate();

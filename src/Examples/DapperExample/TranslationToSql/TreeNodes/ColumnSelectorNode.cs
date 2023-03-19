@@ -6,6 +6,8 @@ internal sealed class ColumnSelectorNode : SelectorNode
 {
     public ColumnNode Column { get; }
 
+    public string Identity => Alias ?? Column.Name;
+
     public ColumnSelectorNode(ColumnNode column, string? alias)
         : base(alias)
     {

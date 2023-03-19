@@ -9,15 +9,15 @@ internal sealed class TableNode : TableSourceNode
 {
     private readonly ResourceType _resourceType;
     private readonly IReadOnlyDictionary<string, ResourceFieldAttribute?> _columnMappings;
-    private readonly List<ColumnNode> _allColumns = new();
-    private readonly List<ColumnNode> _scalarColumns = new();
-    private readonly List<ColumnNode> _foreignKeyColumns = new();
+    private readonly List<ColumnInTableNode> _allColumns = new();
+    private readonly List<ColumnInTableNode> _scalarColumns = new();
+    private readonly List<ColumnInTableNode> _foreignKeyColumns = new();
 
     public string Name => _resourceType.ClrType.Name.Pluralize();
 
-    public override IReadOnlyList<ColumnNode> AllColumns => _allColumns;
-    public override IReadOnlyList<ColumnNode> ScalarColumns => _scalarColumns;
-    public override IReadOnlyList<ColumnNode> ForeignKeyColumns => _foreignKeyColumns;
+    public override IReadOnlyList<ColumnInTableNode> AllColumns => _allColumns;
+    public override IReadOnlyList<ColumnInTableNode> ScalarColumns => _scalarColumns;
+    public override IReadOnlyList<ColumnInTableNode> ForeignKeyColumns => _foreignKeyColumns;
 
     public TableNode(ResourceType resourceType, IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings, string? alias)
         : base(alias)
@@ -40,7 +40,7 @@ internal sealed class TableNode : TableSourceNode
     {
         foreach ((string columnName, ResourceFieldAttribute? field) in _columnMappings)
         {
-            var column = new ColumnNode(columnName, Alias);
+            var column = new ColumnInTableNode(columnName, Alias);
             _allColumns.Add(column);
 
             if (field is RelationshipAttribute)
@@ -57,5 +57,10 @@ internal sealed class TableNode : TableSourceNode
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)
     {
         return visitor.VisitTable(this, argument);
+    }
+
+    protected override ColumnNode? FindColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias)
+    {
+        return tableAlias != Alias ? null : source.FirstOrDefault(column => column.Name == columnName);
     }
 }

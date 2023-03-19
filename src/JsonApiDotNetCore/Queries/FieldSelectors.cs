@@ -68,4 +68,15 @@ public sealed class FieldSelectors : Dictionary<ResourceFieldAttribute, QueryLay
             Remove(field);
         }
     }
+
+    public IEnumerable<QueryLayer> GetChildren()
+    {
+        foreach ((ResourceFieldAttribute field, QueryLayer? nextLayer) in this)
+        {
+            if (field is RelationshipAttribute && nextLayer != null)
+            {
+                yield return nextLayer;
+            }
+        }
+    }
 }

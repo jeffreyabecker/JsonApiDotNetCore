@@ -23,10 +23,10 @@ internal sealed class UpdateClearOneToOneStatementBuilder : StatementBuilder
 
         TableNode table = GetTable(resourceType, null);
 
-        ColumnNode setColumn = table.GetColumn(setColumnName);
+        ColumnNode setColumn = table.GetColumn(setColumnName, table.Alias);
         ColumnAssignmentNode columnAssignment = GetColumnAssignment(setColumn);
 
-        ColumnNode whereColumn = table.GetColumn(whereColumnName);
+        ColumnNode whereColumn = table.GetColumn(whereColumnName, table.Alias);
         FilterNode where = GetWhere(whereColumn, whereValue);
 
         return new UpdateNode(table, columnAssignment.AsList(), where);

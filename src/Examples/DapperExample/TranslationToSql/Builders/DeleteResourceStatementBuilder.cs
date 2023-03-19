@@ -22,7 +22,7 @@ internal sealed class DeleteResourceStatementBuilder : StatementBuilder
 
         TableNode table = GetTable(resourceType, null);
 
-        ColumnNode idColumn = table.GetIdColumn();
+        ColumnNode idColumn = table.GetIdColumn(table.Alias);
         FilterNode where = GetWhere(idColumn, idValues);
 
         return new DeleteNode(table, where);

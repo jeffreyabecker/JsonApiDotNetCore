@@ -13,13 +13,14 @@ using JsonApiDotNetCore.Serialization.Objects;
 
 namespace DapperExample.TranslationToSql.Builders;
 
-internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAccessorNode, SqlTreeNode>
+internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAccessorReference, SqlTreeNode>
 {
     private readonly IDataModelService _dataModelService;
     private readonly TableAliasGenerator _tableAliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
-    private readonly Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>> _relatedTables = new();
+    private readonly Dictionary<TableAccessorReference, Dictionary<RelationshipAttribute, TableAccessorReference>> _relatedTables = new();
     private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
+    private readonly HashSet<string> _selectorNamesUsed = new();
     private readonly List<FilterNode> _whereConditions = new();
     private readonly List<OrderByTermNode> _orderByTerms = new();
     private SelectShape _selectShape;
@@ -47,20 +48,17 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         ResetState(selectShape, true);
 
-        FromNode from = CreateFrom(queryLayer.ResourceType);
-        ConvertQueryLayer(queryLayer, from);
+        TableAccessorReference tableReference = CreateFrom(queryLayer.ResourceType);
+        ConvertQueryLayer(queryLayer, tableReference);
 
-        FilterNode? where = GetWhere();
-        OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
-
-        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable = ToMappableSelectors(_selectorsPerTable);
-        return new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, null);
+        return ToSelectNode(true, null, false);
     }
 
     private void ResetState(SelectShape selectShape, bool resetGenerators)
     {
         _relatedTables.Clear();
         _selectorsPerTable.Clear();
+        _selectorNamesUsed.Clear();
         _whereConditions.Clear();
         _orderByTerms.Clear();
         _selectShape = selectShape;
@@ -73,30 +71,163 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         }
     }
 
-    private FromNode CreateFrom(ResourceType resourceType)
+    private SelectNode ToSelectNode(bool aliasSelectorsToTableColumnNames, string? alias, bool requireUniqueColumnNames)
+    {
+        FilterNode? where = GetWhere();
+        OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
+
+        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable =
+            aliasSelectorsToTableColumnNames ? AliasSelectorsToTableColumnNames(_selectorsPerTable) : _selectorsPerTable;
+
+        var selectNode = new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, alias);
+
+        if (requireUniqueColumnNames)
+        {
+            AssertUniqueColumnNames(selectNode);
+        }
+
+        return selectNode;
+    }
+
+    private static void AssertUniqueColumnNames(SelectNode selectNode)
+    {
+        string? firstDuplicate = selectNode.AllColumns.GroupBy(column => column.Name).Where(group => group.Count() > 1).Select(group => group.Key)
+            .FirstOrDefault();
+
+        if (firstDuplicate != null)
+        {
+            throw new InvalidOperationException($"Found duplicate column '{firstDuplicate}' in select.");
+        }
+    }
+
+    private void PushDownIntoSubQuery()
+    {
+        TableAccessorReference[] referencesToUpdate = _relatedTables.Keys.ToArray();
+
+        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
+        CopySelfTo(subSelectBuilder);
+
+        var selectorsToKeep = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(subSelectBuilder._selectorsPerTable);
+        subSelectBuilder.SelectAllColumnsInAllTables(selectorsToKeep.Keys);
+
+        var subQuery = subSelectBuilder.ToSelectNode(false, null, true);
+
+        ResetState(_selectShape, false);
+
+        TableAccessorReference outerTableReference = CreateFrom(subQuery);
+        var aliasedSubQuery = (SelectNode)outerTableReference.Value.TableSource;
+
+        _selectorsPerTable[outerTableReference.Value] = MapSelectorsFromSubQuery(selectorsToKeep.SelectMany(selector => selector.Value), aliasedSubQuery);
+        _orderByTerms.AddRange(MapOrderByFromSubQuery(aliasedSubQuery));
+
+        foreach (TableAccessorReference tableReference in referencesToUpdate)
+        {
+            tableReference.Value = outerTableReference.Value;
+        }
+    }
+
+    private void SelectAllColumnsInAllTables(IEnumerable<TableAccessorNode> tableAccessors)
+    {
+        _selectorsPerTable.Clear();
+        _selectorNamesUsed.Clear();
+
+        foreach (TableAccessorNode tableAccessor in tableAccessors)
+        {
+            SetColumnSelectors(tableAccessor, tableAccessor.TableSource.AllColumns);
+        }
+    }
+
+    private void CopySelfTo(SelectStatementBuilder builder)
+    {
+        foreach ((TableAccessorReference tableReference, Dictionary<RelationshipAttribute, TableAccessorReference> relatedTableReferences) in _relatedTables)
+        {
+            builder._relatedTables[tableReference] = relatedTableReferences;
+        }
+
+        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> tableSelectors) in _selectorsPerTable)
+        {
+            builder._selectorsPerTable[tableAccessor] = tableSelectors;
+        }
+
+        foreach (string name in _selectorNamesUsed)
+        {
+            builder._selectorNamesUsed.Add(name);
+        }
+
+        builder._whereConditions.AddRange(_whereConditions);
+        builder._orderByTerms.AddRange(_orderByTerms);
+        builder._selectShape = _selectShape;
+        builder._limitOffset = _limitOffset;
+    }
+
+    private IReadOnlyList<SelectorNode> MapSelectorsFromSubQuery(IEnumerable<SelectorNode> innerSelectorsToKeep, SelectNode select)
+    {
+        List<ColumnNode> outerColumnsToKeep = new();
+
+        foreach (SelectorNode innerSelector in innerSelectorsToKeep)
+        {
+            if (innerSelector is ColumnSelectorNode innerColumnSelector)
+            {
+                // t2."Id" AS Id0 => t3.Id0
+                ColumnNode innerColumn = innerColumnSelector.Column;
+                ColumnNode outerColumn = select.AllColumns.Single(outerColumn => outerColumn.Selector.Column == innerColumn);
+                outerColumnsToKeep.Add(outerColumn);
+            }
+            else
+            {
+                // TODO: If there's an alias, we should use it. Otherwise we could fallback to ordinal selector.
+                throw new NotImplementedException("Mapping non-column selectors is not implemented.");
+            }
+        }
+
+        return PreserveColumnOrderEnsuringUniqueNames(outerColumnsToKeep);
+    }
+
+    private static IEnumerable<OrderByTermNode> MapOrderByFromSubQuery(SelectNode select)
+    {
+        if (select.OrderBy != null)
+        {
+            foreach (OrderByTermNode term in select.OrderBy.Terms)
+            {
+                if (term is OrderByColumnNode orderByColumn)
+                {
+                    ColumnNode outerColumn = select.AllColumns.Single(outerColumn => outerColumn.Selector.Column == orderByColumn.Column);
+                    yield return new OrderByColumnNode(outerColumn, term.IsAscending);
+                }
+                else
+                {
+                    yield return term;
+                }
+            }
+        }
+    }
+
+    private TableAccessorReference CreateFrom(ResourceType resourceType)
     {
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(resourceType);
         var table = new TableNode(resourceType, columnMappings, _tableAliasGenerator.GetNext());
         var from = new FromNode(table);
+        var reference = new TableAccessorReference(from);
 
-        IncludePrimaryTable(from);
-        return from;
+        IncludePrimaryTable(reference);
+        return reference;
     }
 
-    private FromNode CreateFrom(TableSourceNode tableSource)
+    private TableAccessorReference CreateFrom(TableSourceNode tableSource)
     {
         TableSourceNode clone = tableSource.Clone(_tableAliasGenerator.GetNext());
         var from = new FromNode(clone);
+        var reference = new TableAccessorReference(from);
 
-        IncludePrimaryTable(from);
-        return from;
+        IncludePrimaryTable(reference);
+        return reference;
     }
 
-    private void IncludePrimaryTable(TableAccessorNode tableAccessor)
+    private void IncludePrimaryTable(TableAccessorReference tableReference)
     {
-        _relatedTables[tableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
+        _relatedTables[tableReference] = new Dictionary<RelationshipAttribute, TableAccessorReference>();
 
-        _selectorsPerTable[tableAccessor] = _selectShape switch
+        _selectorsPerTable[tableReference.Value] = _selectShape switch
         {
             SelectShape.Columns => Array.Empty<SelectorNode>(),
             SelectShape.Count => new CountSelectorNode(null).AsArray(),
@@ -104,27 +235,24 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         };
     }
 
-    private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorNode tableAccessor)
+    private void ConvertQueryLayer(QueryLayer queryLayer, TableAccessorReference tableReference)
     {
         if (queryLayer.Filter != null)
         {
-            var filter = (FilterNode)Visit(queryLayer.Filter, tableAccessor);
+            var filter = (FilterNode)Visit(queryLayer.Filter, tableReference);
             _whereConditions.Add(filter);
         }
 
         if (queryLayer.Sort != null)
         {
-            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableAccessor);
+            var orderBy = (OrderByNode)Visit(queryLayer.Sort, tableReference);
             _orderByTerms.AddRange(orderBy.Terms);
         }
 
         if (queryLayer.Pagination is { PageSize: not null })
         {
-            // TODO: Push down into sub-select for non-top-level.
-            if (_limitOffset == null)
-            {
-                _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
-            }
+            // TODO: Assumption: The caller has ensured we'll never find more than one pagination in the query layer tree.
+            _limitOffset ??= (LimitOffsetNode)Visit(queryLayer.Pagination, tableReference);
         }
 
         if (queryLayer.Selection != null)
@@ -132,14 +260,16 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             foreach (ResourceType resourceType in queryLayer.Selection.GetResourceTypes())
             {
                 FieldSelectors selectors = queryLayer.Selection.GetOrCreateSelectors(resourceType);
-                ConvertSelectors(selectors, tableAccessor);
+                ConvertFieldSelectors(selectors, tableReference);
             }
         }
     }
 
-    private void ConvertSelectors(FieldSelectors selectors, TableAccessorNode tableAccessor)
+    private void ConvertFieldSelectors(FieldSelectors selectors, TableAccessorReference tableReference)
     {
         HashSet<ColumnNode> selectedColumns = new();
+        Dictionary<RelationshipAttribute, QueryLayer> nextToOneLayers = new();
+        Dictionary<RelationshipAttribute, QueryLayer> nextToManyLayers = new();
 
         if (selectors.ContainsReadOnlyAttribute || selectors.ContainsOnlyRelationships || selectors.IsEmpty)
         {
@@ -147,14 +277,15 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             // And only selecting relationships implicitly means to fetch all scalar properties as well.
             // Additionally, empty selectors (originating from eliminated includes) indicate to fetch all scalar properties too.
 
-            selectedColumns = tableAccessor.TableSource.ScalarColumns.ToHashSet();
+            selectedColumns = tableReference.Value.TableSource.ScalarColumns.ToHashSet();
         }
 
         foreach ((ResourceFieldAttribute field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
         {
             if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = tableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column =
+                    tableReference.Value.TableSource.FindScalarColumn(attribute.Property.Name, tableReference.TableAliasBeforePushDownIntoSubQuery);
 
                 if (column != null)
                 {
@@ -164,112 +295,135 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
             if (field is RelationshipAttribute relationship && nextLayer != null)
             {
-                TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
-                ConvertQueryLayer(nextLayer, relatedTableAccessor);
+                if (relationship is HasOneAttribute)
+                {
+                    nextToOneLayers.Add(relationship, nextLayer);
+                }
+                else
+                {
+                    nextToManyLayers.Add(relationship, nextLayer);
+                }
             }
         }
 
         if (_selectShape == SelectShape.Columns)
         {
-            SetColumnSelectorsForTableAccessor(tableAccessor, selectedColumns);
+            SetColumnSelectors(tableReference.Value, selectedColumns);
+        }
+
+        foreach ((RelationshipAttribute relationship, QueryLayer nextLayer) in nextToOneLayers)
+        {
+            TableAccessorReference relatedTableReference = GetOrCreateRelatedTable(tableReference, relationship);
+            ConvertQueryLayer(nextLayer, relatedTableReference);
+        }
+
+        foreach ((RelationshipAttribute relationship, QueryLayer nextLayer) in nextToManyLayers)
+        {
+            TableAccessorReference relatedTableReference = GetOrCreateRelatedTable(tableReference, relationship);
+            ConvertQueryLayer(nextLayer, relatedTableReference);
         }
     }
 
-    private TableAccessorNode GetOrCreateRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
+    private TableAccessorReference GetOrCreateRelatedTable(TableAccessorReference leftTableReference, RelationshipAttribute relationship)
     {
-        TableAccessorNode? relatedTableAccessor = FindRelatedTable(leftTableAccessor, relationship);
+        TableAccessorReference? relatedTableReference = FindRelatedTable(leftTableReference, relationship);
 
-        if (relatedTableAccessor == null)
+        if (relatedTableReference == null)
         {
-            relatedTableAccessor = CreateJoin(leftTableAccessor, relationship);
-            IncludeRelatedTable(leftTableAccessor, relationship, relatedTableAccessor);
-        }
-
-        return relatedTableAccessor;
-    }
-
-    private TableAccessorNode? FindRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
-    {
-        if (_relatedTables.TryGetValue(leftTableAccessor, out Dictionary<RelationshipAttribute, TableAccessorNode>? rightTableAccessors))
-        {
-            if (rightTableAccessors.TryGetValue(relationship, out TableAccessorNode? rightTable))
+            if (relationship is HasManyAttribute && _limitOffset != null)
             {
-                return rightTable;
+                PushDownIntoSubQuery();
+            }
+
+            relatedTableReference = CreateJoin(leftTableReference, relationship);
+            IncludeRelatedTable(leftTableReference, relationship, relatedTableReference);
+        }
+
+        return relatedTableReference;
+    }
+
+    private TableAccessorReference? FindRelatedTable(TableAccessorReference leftTableReference, RelationshipAttribute relationship)
+    {
+        if (_relatedTables.TryGetValue(leftTableReference, out Dictionary<RelationshipAttribute, TableAccessorReference>? rightTableReferences))
+        {
+            if (rightTableReferences.TryGetValue(relationship, out TableAccessorReference? rightTableReference))
+            {
+                return rightTableReference;
             }
         }
 
         return null;
     }
 
-    private void IncludeRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship, TableAccessorNode rightTableAccessor)
+    private void IncludeRelatedTable(TableAccessorReference leftTableReference, RelationshipAttribute relationship, TableAccessorReference rightTableReference)
     {
-        _relatedTables.TryAdd(leftTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
-        _relatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
+        _relatedTables.TryAdd(leftTableReference, new Dictionary<RelationshipAttribute, TableAccessorReference>());
+        _relatedTables[leftTableReference].Add(relationship, rightTableReference);
 
-        _relatedTables[rightTableAccessor] = new Dictionary<RelationshipAttribute, TableAccessorNode>();
-        _selectorsPerTable[rightTableAccessor] = Array.Empty<SelectorNode>();
+        _relatedTables[rightTableReference] = new Dictionary<RelationshipAttribute, TableAccessorReference>();
+        _selectorsPerTable[rightTableReference.Value] = Array.Empty<SelectorNode>();
     }
 
-    private JoinNode CreateJoin(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
+    private TableAccessorReference CreateJoin(TableAccessorReference leftTableReference, RelationshipAttribute relationship)
     {
         RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
         var table = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
 
-        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn() : table.GetForeignKeyColumn(foreignKey.ColumnName);
+        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn(table.Alias) : table.GetForeignKeyColumn(foreignKey.ColumnName, table.Alias);
 
         ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
-            ? leftTableAccessor.TableSource.GetForeignKeyColumn(foreignKey.ColumnName)
-            : leftTableAccessor.TableSource.GetIdColumn();
+            ? leftTableReference.Value.TableSource.GetForeignKeyColumn(foreignKey.ColumnName, leftTableReference.TableAliasBeforePushDownIntoSubQuery)
+            : leftTableReference.Value.TableSource.GetIdColumn(leftTableReference.TableAliasBeforePushDownIntoSubQuery);
 
-        return new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
+        var join = new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
+        return new TableAccessorReference(join);
     }
 
-    private void SetColumnSelectorsForTableAccessor(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
+    private void SetColumnSelectors(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
     {
-        IDictionary<string, int> usedColumnNames = GetUsedColumnNamesInSelectors();
-        _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns, usedColumnNames);
-    }
+        bool preserveOrder = tableAccessor.TableSource is SelectNode;
 
-    private IDictionary<string, int> GetUsedColumnNamesInSelectors()
-    {
-        Dictionary<string, int> usedColumnNames = new();
-
-        foreach (string columnName in _selectorsPerTable.SelectMany(selector => selector.Value).OfType<ColumnSelectorNode>()
-            .Select(selector => selector.Column.Name))
+        if (preserveOrder)
         {
-            usedColumnNames[columnName] = usedColumnNames.TryGetValue(columnName, out int lastUsedOffset) ? lastUsedOffset + 1 : 1;
+            _selectorsPerTable[tableAccessor] = PreserveColumnOrderEnsuringUniqueNames(columns);
+        }
+        else
+        {
+            _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns);
+        }
+    }
+
+    private List<SelectorNode> PreserveColumnOrderEnsuringUniqueNames(IEnumerable<ColumnNode> columns)
+    {
+        List<SelectorNode> selectors = new();
+
+        foreach (ColumnNode column in columns)
+        {
+            string uniqueName = GetUniqueName(column.Name);
+            string? selectorAlias = uniqueName != column.Name ? uniqueName : null;
+            var columnSelector = new ColumnSelectorNode(column, selectorAlias);
+            selectors.Add(columnSelector);
         }
 
-        return usedColumnNames;
+        return selectors;
     }
 
-    private static List<SelectorNode> OrderColumnsWithIdAtFrontEnsuringUniqueNames(IEnumerable<ColumnNode> columns, IDictionary<string, int> usedColumnNames)
+    private List<SelectorNode> OrderColumnsWithIdAtFrontEnsuringUniqueNames(IEnumerable<ColumnNode> columns)
     {
         Dictionary<string, List<SelectorNode>> selectorsPerTable = new();
 
-        foreach (ColumnNode column in columns.OrderBy(column => column.TableAlias).ThenBy(column => column.Name))
+        foreach (ColumnNode column in columns.OrderBy(column => column.GetTableAliasIndex()).ThenBy(column => column.Name))
         {
             string tableAlias = column.TableAlias ?? "!";
             selectorsPerTable.TryAdd(tableAlias, new List<SelectorNode>());
-            string? selectorAlias;
 
-            if (usedColumnNames.TryGetValue(column.Name, out int offset))
-            {
-                offset++;
-                selectorAlias = column.Name + offset;
-                usedColumnNames[column.Name] = offset;
-            }
-            else
-            {
-                selectorAlias = null;
-                usedColumnNames[column.Name] = 1;
-            }
-
+            string uniqueName = GetUniqueName(column.Name);
+            string? selectorAlias = uniqueName != column.Name ? uniqueName : null;
             var columnSelector = new ColumnSelectorNode(column, selectorAlias);
 
-            if (column.Name == nameof(Identifiable<object>.Id))
+            if (column.Name == TableSourceNode.IdColumnName)
             {
                 selectorsPerTable[tableAlias].Insert(0, columnSelector);
             }
@@ -280,6 +434,19 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         }
 
         return selectorsPerTable.SelectMany(selector => selector.Value).ToList();
+    }
+
+    private string GetUniqueName(string columnName)
+    {
+        string uniqueName = columnName;
+
+        while (_selectorNamesUsed.Contains(uniqueName))
+        {
+            uniqueName += "0";
+        }
+
+        _selectorNamesUsed.Add(uniqueName);
+        return uniqueName;
     }
 
     private FilterNode? GetWhere()
@@ -311,47 +478,69 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         return new LogicalNode(LogicalOperator.And, andTerms);
     }
 
-    private static Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> ToMappableSelectors(
+    private static Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> AliasSelectorsToTableColumnNames(
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable)
     {
-        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> mappableSelectors = new();
+        // TODO: Remove unreferenced selectors in sub-queries.
 
-        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> tableSelectors) in selectorsPerTable)
+        Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> aliasedSelectors = new();
+
+        foreach ((TableAccessorNode tableReference, IReadOnlyList<SelectorNode> tableSelectors) in selectorsPerTable)
         {
-            mappableSelectors[tableAccessor] = tableSelectors.Select(RemoveColumnAlias).ToList();
+            aliasedSelectors[tableReference] = tableSelectors.Select(AliasToTableColumnName).ToList();
         }
 
-        return mappableSelectors;
+        return aliasedSelectors;
     }
 
-    private static SelectorNode RemoveColumnAlias(SelectorNode selector)
+    private static SelectorNode AliasToTableColumnName(SelectorNode selector)
     {
-        return selector is ColumnSelectorNode { Alias: not null } columnSelectorNode ? new ColumnSelectorNode(columnSelectorNode.Column, null) : selector;
+        if (selector is ColumnSelectorNode columnSelector)
+        {
+            if (columnSelector.Column is ColumnInSelectNode columnInSelect)
+            {
+                string underlyingTableColumnName = columnInSelect.GetUnderlyingTableColumnName();
+
+                if (columnInSelect.Name != underlyingTableColumnName)
+                {
+                    // t1.Id0 => t1.Id0 AS Id
+                    return new ColumnSelectorNode(columnInSelect, underlyingTableColumnName);
+                }
+            }
+
+            if (columnSelector.Alias != null)
+            {
+                // t1."Id" AS Id0 => t1."Id"
+                return new ColumnSelectorNode(columnSelector.Column, null);
+            }
+        }
+
+        return selector;
     }
 
-    public override SqlTreeNode DefaultVisit(QueryExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode DefaultVisit(QueryExpression expression, TableAccessorReference tableReference)
     {
         throw new NotSupportedException($"Expressions of type '{expression.GetType().Name}' are not supported.");
     }
 
-    public override SqlTreeNode VisitComparison(ComparisonExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitComparison(ComparisonExpression expression, TableAccessorReference tableReference)
     {
-        SqlValueNode left = VisitComparisonTerm(expression.Left, tableAccessor);
-        SqlValueNode right = VisitComparisonTerm(expression.Right, tableAccessor);
+        SqlValueNode left = VisitComparisonTerm(expression.Left, tableReference);
+        SqlValueNode right = VisitComparisonTerm(expression.Right, tableReference);
 
         return new ComparisonNode(expression.Operator, left, right);
     }
 
-    private SqlValueNode VisitComparisonTerm(QueryExpression comparisonTerm, TableAccessorNode tableAccessor)
+    private SqlValueNode VisitComparisonTerm(QueryExpression comparisonTerm, TableAccessorReference tableReference)
     {
         if (comparisonTerm is NullConstantExpression)
         {
             return NullConstantNode.Instance;
         }
 
-        SqlTreeNode treeNode = Visit(comparisonTerm, tableAccessor);
+        SqlTreeNode treeNode = Visit(comparisonTerm, tableReference);
 
-        if (treeNode is JoinNode join)
+        if (treeNode is TableAccessorReference { Value: JoinNode join })
         {
             return join.JoinColumn;
         }
@@ -359,19 +548,21 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         return (SqlValueNode)treeNode;
     }
 
-    public override SqlTreeNode VisitResourceFieldChain(ResourceFieldChainExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitResourceFieldChain(ResourceFieldChainExpression expression, TableAccessorReference tableReference)
     {
-        TableAccessorNode currentTableAccessor = tableAccessor;
+        TableAccessorReference currentTableReference = tableReference;
 
         foreach (ResourceFieldAttribute field in expression.Fields)
         {
             if (field is RelationshipAttribute relationship)
             {
-                currentTableAccessor = GetOrCreateRelatedTable(currentTableAccessor, relationship);
+                currentTableReference = GetOrCreateRelatedTable(currentTableReference, relationship);
             }
             else if (field is AttrAttribute attribute)
             {
-                ColumnNode? column = currentTableAccessor.TableSource.FindScalarColumn(attribute.Property.Name);
+                ColumnNode? column =
+                    currentTableReference.Value.TableSource.FindScalarColumn(attribute.Property.Name,
+                        currentTableReference.TableAliasBeforePushDownIntoSubQuery);
 
                 if (column == null)
                 {
@@ -386,95 +577,95 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
         }
 
-        return currentTableAccessor;
+        return currentTableReference;
     }
 
-    public override SqlTreeNode VisitLiteralConstant(LiteralConstantExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitLiteralConstant(LiteralConstantExpression expression, TableAccessorReference tableReference)
     {
         return _parameterGenerator.Create(expression.TypedValue);
     }
 
-    public override SqlTreeNode VisitNullConstant(NullConstantExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitNullConstant(NullConstantExpression expression, TableAccessorReference tableReference)
     {
         return _parameterGenerator.Create(null);
     }
 
-    public override SqlTreeNode VisitLogical(LogicalExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitLogical(LogicalExpression expression, TableAccessorReference tableReference)
     {
-        FilterNode[] terms = VisitSequence<FilterExpression, FilterNode>(expression.Terms, tableAccessor).ToArray();
+        FilterNode[] terms = VisitSequence<FilterExpression, FilterNode>(expression.Terms, tableReference).ToArray();
         return new LogicalNode(expression.Operator, terms);
     }
 
-    private IEnumerable<TOut> VisitSequence<TIn, TOut>(IEnumerable<TIn> source, TableAccessorNode tableAccessor)
+    private IEnumerable<TOut> VisitSequence<TIn, TOut>(IEnumerable<TIn> source, TableAccessorReference tableReference)
         where TIn : QueryExpression
         where TOut : SqlTreeNode
     {
-        return source.Select(expression => (TOut)Visit(expression, tableAccessor)).ToList();
+        return source.Select(expression => (TOut)Visit(expression, tableReference)).ToList();
     }
 
-    public override SqlTreeNode VisitNot(NotExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitNot(NotExpression expression, TableAccessorReference tableReference)
     {
-        var child = (FilterNode)Visit(expression.Child, tableAccessor);
+        var child = (FilterNode)Visit(expression.Child, tableReference);
         return new NotNode(child);
     }
 
-    public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorReference tableReference)
     {
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
         subSelectBuilder.ResetState(SelectShape.One, false);
 
-        return subSelectBuilder.GetExistsClause(expression, tableAccessor.TableSource);
+        return subSelectBuilder.GetExistsClause(expression, tableReference.Value.TableSource);
     }
 
     private ExistsNode GetExistsClause(HasExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = CreateFrom(outerTableSource);
-        var rightTableAccessor = (TableAccessorNode)Visit(expression.TargetCollection, from);
+        TableAccessorReference outerTableReference = CreateFrom(outerTableSource);
+        var rightTableReference = (TableAccessorReference)Visit(expression.TargetCollection, outerTableReference);
 
         if (expression.Filter != null)
         {
-            var filter = (FilterNode)Visit(expression.Filter, rightTableAccessor);
+            var filter = (FilterNode)Visit(expression.Filter, rightTableReference);
             _whereConditions.Add(filter);
         }
 
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTableSource.GetIdColumn(), from.TableSource.GetIdColumn());
+        ColumnNode leftIdColumn = outerTableSource.GetIdColumn(outerTableSource.Alias);
+        ColumnNode rightIdColumn = outerTableReference.Value.TableSource.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
+        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, leftIdColumn, rightIdColumn);
         _whereConditions.Add(joinCondition);
 
-        FilterNode? where = GetWhere();
-
-        var subSelect = new SelectNode(_selectorsPerTable, where, null, null, null);
-        return new ExistsNode(subSelect);
+        SelectNode select = ToSelectNode(false, null, false);
+        return new ExistsNode(select);
     }
 
-    public override SqlTreeNode VisitIsType(IsTypeExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitIsType(IsTypeExpression expression, TableAccessorReference tableReference)
     {
         throw new NotSupportedException("Resource inheritance is not supported.");
     }
 
-    public override SqlTreeNode VisitSortElement(SortElementExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitSortElement(SortElementExpression expression, TableAccessorReference tableReference)
     {
         if (expression.Count != null)
         {
-            var count = (CountNode)Visit(expression.Count, tableAccessor);
+            var count = (CountNode)Visit(expression.Count, tableReference);
             return new OrderByCountNode(count, expression.IsAscending);
         }
 
         if (expression.TargetAttribute != null)
         {
-            var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
+            var column = (ColumnNode)Visit(expression.TargetAttribute, tableReference);
             return new OrderByColumnNode(column, expression.IsAscending);
         }
 
         throw new InvalidOperationException("Internal error: Unreachable code detected.");
     }
 
-    public override SqlTreeNode VisitSort(SortExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitSort(SortExpression expression, TableAccessorReference tableReference)
     {
-        OrderByTermNode[] columns = VisitSequence<SortElementExpression, OrderByTermNode>(expression.Elements, tableAccessor).ToArray();
-        return new OrderByNode(columns);
+        OrderByTermNode[] terms = VisitSequence<SortElementExpression, OrderByTermNode>(expression.Elements, tableReference).ToArray();
+        return new OrderByNode(terms);
     }
 
-    public override SqlTreeNode VisitPagination(PaginationExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitPagination(PaginationExpression expression, TableAccessorReference tableReference)
     {
         ParameterNode limitParameter = _parameterGenerator.Create(expression.PageSize!.Value);
 
@@ -485,40 +676,40 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         return new LimitOffsetNode(limitParameter, offsetParameter);
     }
 
-    public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorReference tableReference)
     {
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
         subSelectBuilder.ResetState(SelectShape.Count, false);
 
-        return subSelectBuilder.GetCountClause(expression, tableAccessor.TableSource);
+        return subSelectBuilder.GetCountClause(expression, tableReference.Value.TableSource);
     }
 
     private CountNode GetCountClause(CountExpression expression, TableSourceNode outerTableSource)
     {
-        FromNode from = CreateFrom(outerTableSource);
-        _ = Visit(expression.TargetCollection, from);
+        TableAccessorReference outerTableReference = CreateFrom(outerTableSource);
+        _ = Visit(expression.TargetCollection, outerTableReference);
 
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerTableSource.GetIdColumn(), from.TableSource.GetIdColumn());
+        ColumnNode leftIdColumn = outerTableSource.GetIdColumn(outerTableSource.Alias);
+        ColumnNode rightIdColumn = outerTableReference.Value.TableSource.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
+        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, leftIdColumn, rightIdColumn);
         _whereConditions.Add(joinCondition);
 
-        FilterNode? where = GetWhere();
-
-        var subSelect = new SelectNode(_selectorsPerTable, where, null, null, null);
-        return new CountNode(subSelect);
+        SelectNode select = ToSelectNode(false, null, false);
+        return new CountNode(select);
     }
 
-    public override SqlTreeNode VisitMatchText(MatchTextExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitMatchText(MatchTextExpression expression, TableAccessorReference tableReference)
     {
-        var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableReference);
         return new LikeNode(column, expression.MatchKind, (string)expression.TextValue.TypedValue);
     }
 
-    public override SqlTreeNode VisitAny(AnyExpression expression, TableAccessorNode tableAccessor)
+    public override SqlTreeNode VisitAny(AnyExpression expression, TableAccessorReference tableReference)
     {
-        var column = (ColumnNode)Visit(expression.TargetAttribute, tableAccessor);
+        var column = (ColumnNode)Visit(expression.TargetAttribute, tableReference);
 
         ParameterNode[] parameters =
-            VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableAccessor).ToArray();
+            VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableReference).ToArray();
 
         return parameters.Length == 1 ? new ComparisonNode(ComparisonOperator.Equals, column, parameters[0]) : new InNode(column, parameters);
     }

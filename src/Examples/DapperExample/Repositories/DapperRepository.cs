@@ -37,6 +37,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     private readonly ParameterFormatter _parameterFormatter = new();
 
     private readonly string _connectionString;
+    private readonly IJsonApiRequest _request;
     private readonly ITargetedFields _targetedFields;
     private readonly IResourceGraph _resourceGraph;
     private readonly IResourceFactory _resourceFactory;
@@ -50,10 +51,11 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
     public string? TransactionId => _transactionFactory.AmbientTransaction?.TransactionId;
 
-    public DapperRepository(ITargetedFields targetedFields, IResourceGraph resourceGraph, IResourceFactory resourceFactory, ILoggerFactory loggerFactory,
-        IResourceDefinitionAccessor resourceDefinitionAccessor, DapperTransactionFactory transactionFactory, IDataModelService dataModelService,
-        SqlCaptureStore captureStore)
+    public DapperRepository(IJsonApiRequest request, ITargetedFields targetedFields, IResourceGraph resourceGraph, IResourceFactory resourceFactory,
+        ILoggerFactory loggerFactory, IResourceDefinitionAccessor resourceDefinitionAccessor, DapperTransactionFactory transactionFactory,
+        IDataModelService dataModelService, SqlCaptureStore captureStore)
     {
+        ArgumentGuard.NotNull(request);
         ArgumentGuard.NotNull(targetedFields);
         ArgumentGuard.NotNull(resourceGraph);
         ArgumentGuard.NotNull(resourceFactory);
@@ -64,6 +66,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         ArgumentGuard.NotNull(captureStore);
 
         _connectionString = dataModelService.GetConnectionString();
+        _request = request;
         _targetedFields = targetedFields;
         _resourceGraph = resourceGraph;
         _resourceFactory = resourceFactory;
@@ -80,6 +83,8 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         var mapper = new ResultSetMapper<TResource, TId>(queryLayer.Include);
 
+        EnsureAtMostOnePagination(queryLayer);
+
         var selectBuilder = new SelectStatementBuilder(_dataModelService);
         SelectNode selectNode = selectBuilder.Build(queryLayer, SelectShape.Columns);
         CommandDefinition sqlCommand = GetSqlCommand(selectNode, cancellationToken);
@@ -94,6 +99,72 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         }, cancellationToken);
 
         return resources;
+    }
+
+    private void EnsureAtMostOnePagination(QueryLayer topLayer)
+    {
+        // Producing SQL for multiple levels of pagination is pretty complicated, therefore not implemented.
+        // Instead we silently remove all pagination, except for the most useful one (if applicable).
+
+        if (_request.PrimaryId != null || _request.Kind is EndpointKind.Secondary or EndpointKind.Relationship)
+        {
+            QueryLayer? singleQueryLayer = FindSingleNestedQueryLayer(topLayer);
+            PaginationExpression? existingPagination = singleQueryLayer?.Pagination;
+
+            RecursiveClearPagination(topLayer);
+
+            if (singleQueryLayer != null)
+            {
+                singleQueryLayer.Pagination = existingPagination;
+            }
+        }
+        else
+        {
+            PaginationExpression? existingPagination = topLayer.Pagination;
+
+            RecursiveClearPagination(topLayer);
+
+            topLayer.Pagination = existingPagination;
+        }
+    }
+
+    private static QueryLayer? FindSingleNestedQueryLayer(QueryLayer topLayer)
+    {
+        List<QueryLayer> candidates = new();
+
+        if (topLayer.Selection != null)
+        {
+            foreach (FieldSelectors selectors in topLayer.Selection.GetResourceTypes()
+                .Select(resourceType => topLayer.Selection.GetOrCreateSelectors(resourceType)))
+            {
+                IEnumerable<QueryLayer> nextLayers = selectors.GetChildren();
+                candidates.AddRange(nextLayers);
+            }
+        }
+
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    private void RecursiveClearPagination(QueryLayer queryLayer)
+    {
+        queryLayer.Pagination = null;
+
+        if (queryLayer.Selection != null)
+        {
+            foreach (ResourceType resourceType in queryLayer.Selection.GetResourceTypes())
+            {
+                FieldSelectors selectors = queryLayer.Selection.GetOrCreateSelectors(resourceType);
+                RecursiveClearPagination(selectors);
+            }
+        }
+    }
+
+    private void RecursiveClearPagination(FieldSelectors selectors)
+    {
+        foreach (QueryLayer nextLayer in selectors.GetChildren())
+        {
+            RecursiveClearPagination(nextLayer);
+        }
     }
 
     public async Task<int> CountAsync(FilterExpression? filter, CancellationToken cancellationToken)
@@ -376,7 +447,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
             ResourceType resourceType = foreignKey.IsAtLeftSide ? relationship.LeftType : relationship.RightType;
-            string whereColumnName = foreignKey.IsAtLeftSide ? foreignKey.ColumnName : nameof(Identifiable<object>.Id);
+            string whereColumnName = foreignKey.IsAtLeftSide ? foreignKey.ColumnName : TableSourceNode.IdColumnName;
             object? whereValue = foreignKey.IsAtLeftSide ? newRightId : currentRightId;
 
             if (whereValue == null)

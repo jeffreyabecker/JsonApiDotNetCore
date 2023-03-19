@@ -49,7 +49,12 @@ internal abstract class SqlTreeNodeVisitor<TArgument, TResult>
         return DefaultVisit(node, argument);
     }
 
-    public virtual TResult VisitColumn(ColumnNode node, TArgument argument)
+    public virtual TResult VisitColumnInTable(ColumnInTableNode node, TArgument argument)
+    {
+        return DefaultVisit(node, argument);
+    }
+
+    public virtual TResult VisitColumnInSelect(ColumnInSelectNode node, TArgument argument)
     {
         return DefaultVisit(node, argument);
     }

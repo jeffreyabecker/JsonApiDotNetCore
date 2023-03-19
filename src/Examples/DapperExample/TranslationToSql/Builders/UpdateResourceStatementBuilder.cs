@@ -24,7 +24,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
         TableNode table = GetTable(resourceType, null);
         List<ColumnAssignmentNode> assignments = GetColumnAssignments(columnsToUpdate, table);
 
-        ColumnNode idColumn = table.GetIdColumn();
+        ColumnNode idColumn = table.GetIdColumn(table.Alias);
         FilterNode where = GetWhere(idColumn, idValues);
 
         return new UpdateNode(table, assignments, where);
@@ -36,7 +36,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
 
         foreach ((string? columnName, object? columnValue) in columnsToUpdate)
         {
-            ColumnNode column = table.GetColumn(columnName);
+            ColumnNode column = table.GetColumn(columnName, table.Alias);
             ParameterNode parameter = ParameterGenerator.Create(columnValue);
 
             var assignment = new ColumnAssignmentNode(column, parameter);

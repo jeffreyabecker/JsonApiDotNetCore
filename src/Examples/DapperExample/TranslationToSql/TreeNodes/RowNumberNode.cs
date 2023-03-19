@@ -2,6 +2,7 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
+// TODO: Keep this?
 internal sealed class RowNumberNode : SelectorNode
 {
     // https://www.sqlservertutorial.net/sql-server-window-functions/sql-server-row_number-function/

@@ -1,4 +1,5 @@
 using System.Reflection;
+using DapperExample.TranslationToSql.TreeNodes;
 using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
@@ -102,11 +103,11 @@ internal sealed class ResultSetMapper<TResource, TId>
 
     private static object? GetResourceId(object resource)
     {
-        PropertyInfo? property = resource.GetType().GetProperty(nameof(Identifiable<object>.Id));
+        PropertyInfo? property = resource.GetType().GetProperty(TableSourceNode.IdColumnName);
 
         if (property == null)
         {
-            throw new InvalidOperationException($"{nameof(Identifiable<object>.Id)} property not found on object of type '{resource.GetType().Name}'.");
+            throw new InvalidOperationException($"{TableSourceNode.IdColumnName} property not found on object of type '{resource.GetType().Name}'.");
         }
 
         return property.GetValue(resource);

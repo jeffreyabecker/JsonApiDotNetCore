@@ -29,7 +29,7 @@ internal sealed class InsertStatementBuilder : StatementBuilder
     private List<ColumnAssignmentNode> GetColumnAssignments(IReadOnlyDictionary<string, object?> columnsToSet, TableNode table)
     {
         List<ColumnAssignmentNode> assignments = new();
-        ColumnNode idColumn = table.GetIdColumn();
+        ColumnNode idColumn = table.GetIdColumn(table.Alias);
 
         foreach ((string? columnName, object? columnValue) in columnsToSet)
         {
@@ -43,7 +43,7 @@ internal sealed class InsertStatementBuilder : StatementBuilder
                 }
             }
 
-            ColumnNode column = table.GetColumn(columnName);
+            ColumnNode column = table.GetColumn(columnName, table.Alias);
             ParameterNode parameter = ParameterGenerator.Create(columnValue);
 
             var assignment = new ColumnAssignmentNode(column, parameter);

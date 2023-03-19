@@ -43,7 +43,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
             InnerVisitSelect(node, builder);
         }
 
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
@@ -88,7 +88,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         VisitSequence(node.Assignments.Select(assignment => assignment.Value), builder);
         builder.Append(')');
 
-        ColumnNode idColumn = node.Table.GetIdColumn();
+        ColumnNode idColumn = node.Table.GetIdColumn(node.Table.Alias);
         AppendOnNewLine("RETURNING ", builder);
         Visit(idColumn, builder);
         return null;
@@ -121,7 +121,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         string tableName = FormatIdentifier(node.Name);
         builder.Append(tableName);
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
@@ -150,36 +150,44 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    public override object? VisitColumn(ColumnNode node, StringBuilder builder)
+    public override object? VisitColumnInTable(ColumnInTableNode node, StringBuilder builder)
     {
-        if (node.TableAlias != null)
-        {
-            builder.Append($"{node.TableAlias}.");
-        }
-
-        string columnName = FormatIdentifier(node.Name);
-        builder.Append(columnName);
+        WriteColumn(node, false, builder);
         return null;
+    }
+
+    public override object? VisitColumnInSelect(ColumnInSelectNode node, StringBuilder builder)
+    {
+        WriteColumn(node, node.IsVirtual, builder);
+        return null;
+    }
+
+    private static void WriteColumn(ColumnNode column, bool isVirtualColumn, StringBuilder builder)
+    {
+        WriteReferenceAlias(column.TableAlias, builder);
+
+        string name = isVirtualColumn ? column.Name : FormatIdentifier(column.Name);
+        builder.Append(name);
     }
 
     public override object? VisitColumnSelector(ColumnSelectorNode node, StringBuilder builder)
     {
         Visit(node.Column, builder);
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
     public override object? VisitOneSelector(OneSelectorNode node, StringBuilder builder)
     {
         builder.Append('1');
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
     public override object? VisitCountSelector(CountSelectorNode node, StringBuilder builder)
     {
         builder.Append("COUNT(*)");
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
@@ -199,7 +207,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         }
 
         AppendOnNewLine(")", builder);
-        VisitAlias(node.Alias, builder);
+        WriteDeclareAlias(node.Alias, builder);
         return null;
     }
 
@@ -363,11 +371,19 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    private static void VisitAlias(string? alias, StringBuilder builder)
+    private static void WriteDeclareAlias(string? alias, StringBuilder builder)
     {
         if (alias != null)
         {
             builder.Append($" AS {alias}");
+        }
+    }
+
+    private static void WriteReferenceAlias(string? alias, StringBuilder builder)
+    {
+        if (alias != null)
+        {
+            builder.Append($"{alias}.");
         }
     }
 

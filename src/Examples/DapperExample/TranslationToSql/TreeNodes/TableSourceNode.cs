@@ -5,6 +5,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal abstract class TableSourceNode : SqlTreeNode
 {
+    public const string IdColumnName = nameof(Identifiable<object>.Id);
+
     public abstract IReadOnlyList<ColumnNode> AllColumns { get; }
     public abstract IReadOnlyList<ColumnNode> ScalarColumns { get; }
     public abstract IReadOnlyList<ColumnNode> ForeignKeyColumns { get; }
@@ -18,41 +20,43 @@ internal abstract class TableSourceNode : SqlTreeNode
 
     public abstract TableSourceNode Clone(string? alias);
 
-    public ColumnNode GetIdColumn()
+    public ColumnNode GetIdColumn(string? tableAlias)
     {
-        return ScalarColumns.First(column => column.Name == nameof(Identifiable<object>.Id));
+        return GetColumnByUnderlyingTableColumnName(ScalarColumns, IdColumnName, tableAlias);
     }
 
-    public ColumnNode GetColumn(string columnName)
+    // TODO: Redesign these for improved handling of sub-query push down.
+
+    public ColumnNode GetColumn(string columnName, string? tableAlias)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        ColumnNode? column = AllColumns.FirstOrDefault(column => column.Name == columnName);
+        return GetColumnByUnderlyingTableColumnName(AllColumns, columnName, tableAlias);
+    }
+
+    public ColumnNode? FindScalarColumn(string columnName, string? tableAlias)
+    {
+        ArgumentGuard.NotNullNorEmpty(columnName);
+
+        return FindColumnByUnderlyingTableColumnName(ScalarColumns, columnName, tableAlias);
+    }
+
+    public ColumnNode GetForeignKeyColumn(string columnName, string? tableAlias)
+    {
+        ArgumentGuard.NotNullNorEmpty(columnName);
+
+        return GetColumnByUnderlyingTableColumnName(ForeignKeyColumns, columnName, tableAlias);
+    }
+
+    protected abstract ColumnNode? FindColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias);
+
+    private ColumnNode GetColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias)
+    {
+        ColumnNode? column = FindColumnByUnderlyingTableColumnName(source, columnName, tableAlias);
 
         if (column == null)
         {
             throw new InvalidOperationException($"Column '{columnName}' not found.");
-        }
-
-        return column;
-    }
-
-    public ColumnNode? FindScalarColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        return ScalarColumns.FirstOrDefault(column => column.Name == columnName);
-    }
-
-    public ColumnNode GetForeignKeyColumn(string columnName)
-    {
-        ArgumentGuard.NotNullNorEmpty(columnName);
-
-        ColumnNode? column = ForeignKeyColumns.FirstOrDefault(column => column.Name == columnName);
-
-        if (column == null)
-        {
-            throw new InvalidOperationException($"Foreign key column '{columnName}' not found.");
         }
 
         return column;

@@ -20,7 +20,7 @@ public sealed partial class SqlTests
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.AssignedTodoItems = _fakers.TodoItem.Generate(3).ToHashSet();
-        existingPerson.AssignedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingPerson.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         await RunOnDatabaseAsync(async dbContext =>
         {

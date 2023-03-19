@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
+using DapperExample.TranslationToSql.TreeNodes;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Resources;
@@ -127,7 +128,7 @@ public abstract class BaseDataModelService : IDataModelService
                 return null;
             }
 
-            PropertyInfo rightKeyProperty = rightResource.GetType().GetProperty(nameof(Identifiable<object>.Id))!;
+            PropertyInfo rightKeyProperty = rightResource.GetType().GetProperty(TableSourceNode.IdColumnName)!;
             return rightKeyProperty.GetValue(rightResource);
         }
 

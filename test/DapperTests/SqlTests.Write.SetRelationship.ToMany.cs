@@ -19,7 +19,7 @@ public sealed partial class SqlTests
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.AssignedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
-        existingPerson.AssignedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingPerson.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         await RunOnDatabaseAsync(async dbContext =>
         {
@@ -84,7 +84,7 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.OwnedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
-        existingPerson.OwnedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingPerson.OwnedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         await RunOnDatabaseAsync(async dbContext =>
         {
@@ -148,7 +148,7 @@ WHERE ""Id"" IN (@p1, @p2)");
         Person existingPerson = _fakers.Person.Generate();
 
         List<TodoItem> existingTodoItems = _fakers.TodoItem.Generate(2);
-        existingTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         await RunOnDatabaseAsync(async dbContext =>
         {
@@ -228,7 +228,7 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.AssignedTodoItems = _fakers.TodoItem.Generate(1).ToHashSet();
-        existingPerson.AssignedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingPerson.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
         existingTodoItem.Owner = _fakers.Person.Generate();
@@ -314,7 +314,7 @@ WHERE ""Id"" = @p2");
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.OwnedTodoItems = _fakers.TodoItem.Generate(1).ToHashSet();
-        existingPerson.OwnedTodoItems.ToList().ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+        existingPerson.OwnedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
         existingTodoItem.Owner = _fakers.Person.Generate();
