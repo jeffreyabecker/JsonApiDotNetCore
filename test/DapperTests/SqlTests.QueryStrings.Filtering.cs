@@ -689,14 +689,13 @@ LIMIT @p3");
         {
             command.Statement.Should().Be(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
-INNER JOIN ""People"" AS t5 ON t1.""OwnerId"" = t5.""Id""
+INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
 WHERE ((
     SELECT COUNT(*)
-    FROM ""TodoItems"" AS t2
-    INNER JOIN ""People"" AS t3 ON t2.""OwnerId"" = t3.""Id""
-    LEFT JOIN ""TodoItems"" AS t4 ON t3.""Id"" = t4.""AssigneeId""
-    WHERE t1.""Id"" = t2.""Id""
-) > @p1) AND (NOT (t5.""Id"" IS NULL))");
+    FROM ""People"" AS t2
+    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    WHERE t1.""OwnerId"" = t2.""Id""
+) > @p1) AND (NOT (t4.""Id"" IS NULL))");
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 1);
@@ -707,14 +706,13 @@ WHERE ((
             command.Statement.Should().Be(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
-INNER JOIN ""People"" AS t5 ON t1.""OwnerId"" = t5.""Id""
+INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
 WHERE ((
     SELECT COUNT(*)
-    FROM ""TodoItems"" AS t2
-    INNER JOIN ""People"" AS t3 ON t2.""OwnerId"" = t3.""Id""
-    LEFT JOIN ""TodoItems"" AS t4 ON t3.""Id"" = t4.""AssigneeId""
-    WHERE t1.""Id"" = t2.""Id""
-) > @p1) AND (NOT (t5.""Id"" IS NULL))
+    FROM ""People"" AS t2
+    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    WHERE t1.""OwnerId"" = t2.""Id""
+) > @p1) AND (NOT (t4.""Id"" IS NULL))
 ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
 LIMIT @p2");
 
@@ -776,16 +774,14 @@ LIMIT @p2");
 FROM ""TodoItems"" AS t1
 WHERE EXISTS (
     SELECT 1
-    FROM ""TodoItems"" AS t2
-    INNER JOIN ""People"" AS t3 ON t2.""OwnerId"" = t3.""Id""
-    LEFT JOIN ""TodoItems"" AS t4 ON t3.""Id"" = t4.""AssigneeId""
-    INNER JOIN ""People"" AS t7 ON t4.""OwnerId"" = t7.""Id""
-    WHERE (EXISTS (
+    FROM ""People"" AS t2
+    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""People"" AS t5 ON t3.""OwnerId"" = t5.""Id""
+    WHERE (t1.""OwnerId"" = t2.""Id"") AND (EXISTS (
         SELECT 1
-        FROM ""TodoItems"" AS t5
-        LEFT JOIN ""Tags"" AS t6 ON t5.""Id"" = t6.""TodoItemId""
-        WHERE (t6.""Name"" = @p1) AND (t4.""Id"" = t5.""Id"")
-    )) AND (t7.""LastName"" = @p2) AND (t4.""Description"" = @p3) AND (t1.""Id"" = t2.""Id"")
+        FROM ""Tags"" AS t4
+        WHERE (t3.""Id"" = t4.""TodoItemId"") AND (t4.""Name"" = @p1)
+    )) AND (t5.""LastName"" = @p2) AND (t3.""Description"" = @p3)
 )");
 
             command.Parameters.ShouldHaveCount(3);
@@ -801,16 +797,14 @@ WHERE EXISTS (
 FROM ""TodoItems"" AS t1
 WHERE EXISTS (
     SELECT 1
-    FROM ""TodoItems"" AS t2
-    INNER JOIN ""People"" AS t3 ON t2.""OwnerId"" = t3.""Id""
-    LEFT JOIN ""TodoItems"" AS t4 ON t3.""Id"" = t4.""AssigneeId""
-    INNER JOIN ""People"" AS t7 ON t4.""OwnerId"" = t7.""Id""
-    WHERE (EXISTS (
+    FROM ""People"" AS t2
+    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""People"" AS t5 ON t3.""OwnerId"" = t5.""Id""
+    WHERE (t1.""OwnerId"" = t2.""Id"") AND (EXISTS (
         SELECT 1
-        FROM ""TodoItems"" AS t5
-        LEFT JOIN ""Tags"" AS t6 ON t5.""Id"" = t6.""TodoItemId""
-        WHERE (t6.""Name"" = @p1) AND (t4.""Id"" = t5.""Id"")
-    )) AND (t7.""LastName"" = @p2) AND (t4.""Description"" = @p3) AND (t1.""Id"" = t2.""Id"")
+        FROM ""Tags"" AS t4
+        WHERE (t3.""Id"" = t4.""TodoItemId"") AND (t4.""Name"" = @p1)
+    )) AND (t5.""LastName"" = @p2) AND (t3.""Description"" = @p3)
 )
 ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
 LIMIT @p4");

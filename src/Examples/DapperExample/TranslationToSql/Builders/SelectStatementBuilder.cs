@@ -7,7 +7,6 @@ using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Errors;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
-using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 using JsonApiDotNetCore.Serialization.Objects;
 
@@ -330,13 +329,20 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (relatedTableReference == null)
         {
-            if (relationship is HasManyAttribute && _limitOffset != null)
+            if (_relatedTables.Count == 0)
             {
-                PushDownIntoSubQuery();
+                relatedTableReference = CreateFromWithIdentityCondition(leftTableReference, relationship);
             }
+            else
+            {
+                if (relationship is HasManyAttribute && _limitOffset != null)
+                {
+                    PushDownIntoSubQuery();
+                }
 
-            relatedTableReference = CreateJoin(leftTableReference, relationship);
-            IncludeRelatedTable(leftTableReference, relationship, relatedTableReference);
+                relatedTableReference = CreateJoin(leftTableReference, relationship);
+                IncludeRelatedTable(leftTableReference, relationship, relatedTableReference);
+            }
         }
 
         return relatedTableReference;
@@ -379,6 +385,29 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         var join = new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
         return new TableAccessorReference(join);
+    }
+
+    private TableAccessorReference CreateFromWithIdentityCondition(TableAccessorReference outerTableReference, RelationshipAttribute relationship)
+    {
+        TableSourceNode outerTable = outerTableReference.Value.TableSource;
+
+        TableAccessorReference innerTableReference = CreateFrom(relationship.RightType);
+        TableSourceNode innerTable = innerTableReference.Value.TableSource;
+
+        RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
+
+        ColumnNode innerColumn = foreignKey.IsAtLeftSide
+            ? innerTable.GetIdColumn(innerTable.Alias)
+            : innerTable.GetForeignKeyColumn(foreignKey.ColumnName, innerTable.Alias);
+
+        ColumnNode outerColumn = foreignKey.IsAtLeftSide
+            ? outerTable.GetForeignKeyColumn(foreignKey.ColumnName, outerTableReference.TableAliasBeforePushDownIntoSubQuery)
+            : outerTable.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
+
+        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerColumn, innerColumn);
+        _whereConditions.Add(joinCondition);
+
+        return innerTableReference;
     }
 
     private void SetColumnSelectors(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
@@ -614,12 +643,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
         subSelectBuilder.ResetState(SelectShape.One, false);
 
-        return subSelectBuilder.GetExistsClause(expression, tableReference.Value.TableSource);
+        return subSelectBuilder.GetExistsClause(expression, tableReference);
     }
 
-    private ExistsNode GetExistsClause(HasExpression expression, TableSourceNode outerTableSource)
+    private ExistsNode GetExistsClause(HasExpression expression, TableAccessorReference outerTableReference)
     {
-        TableAccessorReference outerTableReference = CreateFrom(outerTableSource);
         var rightTableReference = (TableAccessorReference)Visit(expression.TargetCollection, outerTableReference);
 
         if (expression.Filter != null)
@@ -627,11 +655,6 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             var filter = (FilterNode)Visit(expression.Filter, rightTableReference);
             _whereConditions.Add(filter);
         }
-
-        ColumnNode leftIdColumn = outerTableSource.GetIdColumn(outerTableSource.Alias);
-        ColumnNode rightIdColumn = outerTableReference.Value.TableSource.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, leftIdColumn, rightIdColumn);
-        _whereConditions.Add(joinCondition);
 
         SelectNode select = ToSelectNode(false, null, false);
         return new ExistsNode(select);
@@ -681,18 +704,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
         subSelectBuilder.ResetState(SelectShape.Count, false);
 
-        return subSelectBuilder.GetCountClause(expression, tableReference.Value.TableSource);
+        return subSelectBuilder.GetCountClause(expression, tableReference);
     }
 
-    private CountNode GetCountClause(CountExpression expression, TableSourceNode outerTableSource)
+    private CountNode GetCountClause(CountExpression expression, TableAccessorReference outerTableReference)
     {
-        TableAccessorReference outerTableReference = CreateFrom(outerTableSource);
         _ = Visit(expression.TargetCollection, outerTableReference);
-
-        ColumnNode leftIdColumn = outerTableSource.GetIdColumn(outerTableSource.Alias);
-        ColumnNode rightIdColumn = outerTableReference.Value.TableSource.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, leftIdColumn, rightIdColumn);
-        _whereConditions.Add(joinCondition);
 
         SelectNode select = ToSelectNode(false, null, false);
         return new CountNode(select);
