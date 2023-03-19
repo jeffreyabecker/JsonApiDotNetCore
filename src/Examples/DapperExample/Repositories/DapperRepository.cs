@@ -27,7 +27,7 @@ namespace DapperExample.Repositories;
 // - No resource constructor injection (materialization by Dapper)
 // - Simplified change detection: includes scalar properties, but relationships only one level deep
 // - Mapping of table/column/key names based on hardcoded conventions
-// - Self-referencing resources and relationship cycles
+// - Untested with self-referencing resources and relationship cycles
 // - No support for IResourceDefinition.OnRegisterQueryableHandlersForQueryStringParameters(), obviously
 
 public sealed class DapperRepository<TResource, TId> : IResourceRepository<TResource, TId>, IRepositorySupportsTransaction
