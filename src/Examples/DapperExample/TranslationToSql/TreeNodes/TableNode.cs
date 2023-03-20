@@ -50,8 +50,13 @@ internal sealed class TableNode : TableSourceNode
         return visitor.VisitTable(this, argument);
     }
 
-    protected override ColumnNode? FindColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias)
+    public override ColumnNode? FindColumn(string persistedColumnName, ColumnType? type, string? innerTableAlias)
     {
-        return tableAlias != Alias ? null : source.FirstOrDefault(column => column.Name == columnName);
+        if (innerTableAlias != Alias)
+        {
+            return null;
+        }
+
+        return Columns.FirstOrDefault(column => column.Name == persistedColumnName && (type == null || column.Type == type));
     }
 }

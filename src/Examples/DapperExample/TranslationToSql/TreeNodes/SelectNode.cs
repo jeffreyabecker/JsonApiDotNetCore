@@ -41,15 +41,21 @@ internal sealed class SelectNode : TableSourceNode
         return new SelectNode(Selectors, Where, OrderBy, LimitOffset, alias);
     }
 
-    protected override ColumnNode? FindColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias)
+    public override ColumnNode? FindColumn(string persistedColumnName, ColumnType? type, string? innerTableAlias)
     {
-        foreach (ColumnInSelectNode column in source.OfType<ColumnInSelectNode>().Where(column => column.Selector.Column.TableAlias == tableAlias))
+        if (innerTableAlias == Alias)
         {
-            string underlyingTableColumnName = column.GetUnderlyingTableColumnName();
+            return Columns.FirstOrDefault(column => column.GetPersistedColumnName() == persistedColumnName && (type == null || column.Type == type));
+        }
 
-            if (underlyingTableColumnName == columnName)
+        foreach (TableSourceNode tableSource in Selectors.Keys.Select(tableAccessor => tableAccessor.TableSource))
+        {
+            ColumnNode? innerColumn = tableSource.FindColumn(persistedColumnName, type, innerTableAlias);
+
+            if (innerColumn != null)
             {
-                return column;
+                ColumnInSelectNode outerColumn = Columns.Single(column => column.Selector.Column == innerColumn);
+                return outerColumn;
             }
         }
 

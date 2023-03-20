@@ -43,7 +43,7 @@ internal sealed class InsertStatementBuilder : StatementBuilder
                 }
             }
 
-            ColumnNode column = table.GetColumn(columnName, table.Alias);
+            ColumnNode column = table.GetColumn(columnName, null, table.Alias);
             ParameterNode parameter = ParameterGenerator.Create(columnValue);
 
             var assignment = new ColumnAssignmentNode(column, parameter);

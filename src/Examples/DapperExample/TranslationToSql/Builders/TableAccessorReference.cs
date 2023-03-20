@@ -3,17 +3,16 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql.Builders;
 
+// TODO: Remove this type.
 internal sealed class TableAccessorReference : SqlValueNode
 {
-    public TableAccessorNode Value { get; set; }
-    public string? TableAliasBeforePushDownIntoSubQuery { get; }
+    public TableAccessorNode Value { get; }
 
     public TableAccessorReference(TableAccessorNode value)
     {
         ArgumentGuard.NotNull(value);
 
         Value = value;
-        TableAliasBeforePushDownIntoSubQuery = value.TableSource.Alias;
     }
 
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)

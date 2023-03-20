@@ -22,7 +22,7 @@ internal sealed class DeleteOneToOneStatementBuilder : StatementBuilder
 
         TableNode table = GetTable(resourceType, null);
 
-        ColumnNode column = table.GetColumn(whereColumnName, table.Alias);
+        ColumnNode column = table.GetColumn(whereColumnName, null, table.Alias);
         FilterNode where = GetWhere(column, whereValue);
 
         return new DeleteNode(table, where);

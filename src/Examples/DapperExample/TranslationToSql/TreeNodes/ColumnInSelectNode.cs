@@ -21,9 +21,9 @@ internal sealed class ColumnInSelectNode : ColumnNode
         return selector.Identity;
     }
 
-    public string GetUnderlyingTableColumnName()
+    public string GetPersistedColumnName()
     {
-        return Selector.Column is ColumnInSelectNode columnInSelect ? columnInSelect.GetUnderlyingTableColumnName() : Selector.Column.Name;
+        return Selector.Column is ColumnInSelectNode columnInSelect ? columnInSelect.GetPersistedColumnName() : Selector.Column.Name;
     }
 
     public override TResult Accept<TArgument, TResult>(SqlTreeNodeVisitor<TArgument, TResult> visitor, TArgument argument)

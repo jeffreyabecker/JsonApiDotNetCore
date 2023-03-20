@@ -36,7 +36,7 @@ internal sealed class UpdateResourceStatementBuilder : StatementBuilder
 
         foreach ((string? columnName, object? columnValue) in columnsToUpdate)
         {
-            ColumnNode column = table.GetColumn(columnName, table.Alias);
+            ColumnNode column = table.GetColumn(columnName, null, table.Alias);
             ParameterNode parameter = ParameterGenerator.Create(columnValue);
 
             var assignment = new ColumnAssignmentNode(column, parameter);

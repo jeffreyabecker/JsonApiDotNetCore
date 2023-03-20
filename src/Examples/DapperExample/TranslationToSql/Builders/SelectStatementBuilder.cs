@@ -18,6 +18,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private readonly TableAliasGenerator _tableAliasGenerator;
     private readonly ParameterGenerator _parameterGenerator;
     private readonly Dictionary<TableAccessorReference, Dictionary<RelationshipAttribute, TableAccessorReference>> _relatedTables = new();
+    private readonly Dictionary<string, string> _oldToNewTableAliasMap = new();
+    private readonly Dictionary<string, TableSourceNode> _tablesByAlias = new();
     private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
     private readonly HashSet<string> _selectorNamesUsed = new();
     private readonly List<FilterNode> _whereConditions = new();
@@ -36,6 +38,20 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _dataModelService = dataModelService;
         _tableAliasGenerator = tableAliasGenerator;
         _parameterGenerator = parameterGenerator;
+    }
+
+    private SelectStatementBuilder(SelectStatementBuilder source)
+        : this(source._dataModelService, source._tableAliasGenerator, source._parameterGenerator)
+    {
+        _relatedTables = new Dictionary<TableAccessorReference, Dictionary<RelationshipAttribute, TableAccessorReference>>(source._relatedTables);
+        _oldToNewTableAliasMap = source._oldToNewTableAliasMap;
+        _tablesByAlias = source._tablesByAlias;
+        _selectorsPerTable = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(source._selectorsPerTable);
+        _selectorNamesUsed = new HashSet<string>(source._selectorNamesUsed);
+        _whereConditions.AddRange(source._whereConditions);
+        _orderByTerms.AddRange(source._orderByTerms);
+        _selectShape = source._selectShape;
+        _limitOffset = source._limitOffset;
     }
 
     public SelectNode Build(QueryLayer queryLayer, SelectShape selectShape)
@@ -67,6 +83,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         {
             _tableAliasGenerator.Reset();
             _parameterGenerator.Reset();
+            _oldToNewTableAliasMap.Clear();
+            _tablesByAlias.Clear();
         }
     }
 
@@ -101,10 +119,9 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private void PushDownIntoSubQuery()
     {
-        TableAccessorReference[] referencesToUpdate = _relatedTables.Keys.ToArray();
+        string[] oldTableAliases = _selectorsPerTable.Keys.Select(tableAccessor => tableAccessor.TableSource.Alias).Cast<string>().ToArray();
 
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
-        CopySelfTo(subSelectBuilder);
+        var subSelectBuilder = new SelectStatementBuilder(this);
 
         var selectorsToKeep = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(subSelectBuilder._selectorsPerTable);
         subSelectBuilder.SelectAllColumnsInAllTables(selectorsToKeep.Keys);
@@ -116,13 +133,30 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         TableAccessorReference outerTableReference = CreateFrom(subQuery);
         var aliasedSubQuery = (SelectNode)outerTableReference.Value.TableSource;
 
+        MapOldTableAliases(aliasedSubQuery.Alias!, oldTableAliases);
+        _tablesByAlias[aliasedSubQuery.Alias!] = aliasedSubQuery;
         _selectorsPerTable[outerTableReference.Value] = MapSelectorsFromSubQuery(selectorsToKeep.SelectMany(selector => selector.Value), aliasedSubQuery);
         _orderByTerms.AddRange(MapOrderByFromSubQuery(aliasedSubQuery));
+    }
 
-        foreach (TableAccessorReference tableReference in referencesToUpdate)
+    private void MapOldTableAliases(string newTableAlias, IEnumerable<string> oldTableAliases)
+    {
+        foreach (string oldTableAlias in oldTableAliases)
         {
-            tableReference.Value = outerTableReference.Value;
+            _oldToNewTableAliasMap[oldTableAlias] = newTableAlias;
         }
+    }
+
+    private string ResolveMappedTableAlias(string tableAlias)
+    {
+        string current = tableAlias;
+
+        while (_oldToNewTableAliasMap.ContainsKey(current))
+        {
+            current = _oldToNewTableAliasMap[current];
+        }
+
+        return current;
     }
 
     private void SelectAllColumnsInAllTables(IEnumerable<TableAccessorNode> tableAccessors)
@@ -134,29 +168,6 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         {
             SetColumnSelectors(tableAccessor, tableAccessor.TableSource.Columns);
         }
-    }
-
-    private void CopySelfTo(SelectStatementBuilder builder)
-    {
-        foreach ((TableAccessorReference tableReference, Dictionary<RelationshipAttribute, TableAccessorReference> relatedTableReferences) in _relatedTables)
-        {
-            builder._relatedTables[tableReference] = relatedTableReferences;
-        }
-
-        foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> tableSelectors) in _selectorsPerTable)
-        {
-            builder._selectorsPerTable[tableAccessor] = tableSelectors;
-        }
-
-        foreach (string name in _selectorNamesUsed)
-        {
-            builder._selectorNamesUsed.Add(name);
-        }
-
-        builder._whereConditions.AddRange(_whereConditions);
-        builder._orderByTerms.AddRange(_orderByTerms);
-        builder._selectShape = _selectShape;
-        builder._limitOffset = _limitOffset;
     }
 
     private IReadOnlyList<SelectorNode> MapSelectorsFromSubQuery(IEnumerable<SelectorNode> innerSelectorsToKeep, SelectNode select)
@@ -225,6 +236,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private void IncludePrimaryTable(TableAccessorReference tableReference)
     {
         _relatedTables[tableReference] = new Dictionary<RelationshipAttribute, TableAccessorReference>();
+        _tablesByAlias[tableReference.Value.TableSource.Alias!] = tableReference.Value.TableSource;
 
         _selectorsPerTable[tableReference.Value] = _selectShape switch
         {
@@ -276,15 +288,15 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             // And only selecting relationships implicitly means to fetch all scalar properties as well.
             // Additionally, empty selectors (originating from eliminated includes) indicate to fetch all scalar properties too.
 
-            selectedColumns = tableReference.Value.TableSource.GetScalarColumns().ToHashSet();
+            selectedColumns = tableReference.Value.TableSource.Columns.Where(column => column.Type == ColumnType.Scalar).ToHashSet();
         }
 
         foreach ((ResourceFieldAttribute field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))
         {
             if (field is AttrAttribute attribute)
             {
-                ColumnNode? column =
-                    tableReference.Value.TableSource.FindScalarColumn(attribute.Property.Name, tableReference.TableAliasBeforePushDownIntoSubQuery);
+                string tableAlias = ResolveMappedTableAlias(tableReference.Value.TableSource.Alias!);
+                ColumnNode? column = tableReference.Value.TableSource.FindColumn(attribute.Property.Name, ColumnType.Scalar, tableAlias);
 
                 if (column != null)
                 {
@@ -329,9 +341,9 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (relatedTableReference == null)
         {
-            if (_relatedTables.Count == 0)
+            if (_selectorsPerTable.Count == 0)
             {
-                relatedTableReference = CreateFromWithIdentityCondition(leftTableReference, relationship);
+                relatedTableReference = CreateFromWithIdentityCondition(leftTableReference.Value.TableSource, relationship);
             }
             else
             {
@@ -340,7 +352,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
                     PushDownIntoSubQuery();
                 }
 
-                relatedTableReference = CreateJoin(leftTableReference, relationship);
+                relatedTableReference = CreateJoin(leftTableReference.Value.TableSource, relationship);
                 IncludeRelatedTable(leftTableReference, relationship, relatedTableReference);
             }
         }
@@ -364,33 +376,54 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private void IncludeRelatedTable(TableAccessorReference leftTableReference, RelationshipAttribute relationship, TableAccessorReference rightTableReference)
     {
         _relatedTables.TryAdd(leftTableReference, new Dictionary<RelationshipAttribute, TableAccessorReference>());
+        _tablesByAlias.TryAdd(leftTableReference.Value.TableSource.Alias!, leftTableReference.Value.TableSource);
         _relatedTables[leftTableReference].Add(relationship, rightTableReference);
 
         _relatedTables[rightTableReference] = new Dictionary<RelationshipAttribute, TableAccessorReference>();
+        _tablesByAlias[rightTableReference.Value.TableSource.Alias!] = rightTableReference.Value.TableSource;
         _selectorsPerTable[rightTableReference.Value] = Array.Empty<SelectorNode>();
     }
 
-    private TableAccessorReference CreateJoin(TableAccessorReference leftTableReference, RelationshipAttribute relationship)
+    private TableAccessorReference CreateJoin(TableSourceNode leftTableSource, RelationshipAttribute relationship)
     {
         RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
 
         IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
-        var table = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
+        var rightTable = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
 
-        ColumnNode joinColumn = foreignKey.IsAtLeftSide ? table.GetIdColumn(table.Alias) : table.GetForeignKeyColumn(foreignKey.ColumnName, table.Alias);
+        ColumnNode rightColumn = foreignKey.IsAtLeftSide
+            ? rightTable.GetIdColumn(rightTable.Alias)
+            : rightTable.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, rightTable.Alias);
 
-        ColumnNode parentJoinColumn = foreignKey.IsAtLeftSide
-            ? leftTableReference.Value.TableSource.GetForeignKeyColumn(foreignKey.ColumnName, leftTableReference.TableAliasBeforePushDownIntoSubQuery)
-            : leftTableReference.Value.TableSource.GetIdColumn(leftTableReference.TableAliasBeforePushDownIntoSubQuery);
+        TableSourceNode leftTable = ResolveMappedTableSource(leftTableSource.Alias);
 
-        var join = new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, table, joinColumn, parentJoinColumn);
+        ColumnNode leftColumn = foreignKey.IsAtLeftSide
+            ? leftTable.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, leftTableSource.Alias)
+            : leftTable.GetIdColumn(leftTableSource.Alias);
+
+        var join = new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, rightTable, rightColumn, leftColumn);
         return new TableAccessorReference(join);
     }
 
-    private TableAccessorReference CreateFromWithIdentityCondition(TableAccessorReference outerTableReference, RelationshipAttribute relationship)
+    private TableSourceNode ResolveMappedTableSource(string? tableAlias)
     {
-        TableSourceNode outerTable = outerTableReference.Value.TableSource;
+        if (tableAlias == null)
+        {
+            throw new InvalidOperationException("Missing table alias.");
+        }
 
+        string currentTableAlias = ResolveMappedTableAlias(tableAlias);
+
+        if (_tablesByAlias.TryGetValue(currentTableAlias, out TableSourceNode? tableSource))
+        {
+            return tableSource;
+        }
+
+        throw new InvalidOperationException("Table source not found.");
+    }
+
+    private TableAccessorReference CreateFromWithIdentityCondition(TableSourceNode outerTableSource, RelationshipAttribute relationship)
+    {
         TableAccessorReference innerTableReference = CreateFrom(relationship.RightType);
         TableSourceNode innerTable = innerTableReference.Value.TableSource;
 
@@ -398,11 +431,13 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         ColumnNode innerColumn = foreignKey.IsAtLeftSide
             ? innerTable.GetIdColumn(innerTable.Alias)
-            : innerTable.GetForeignKeyColumn(foreignKey.ColumnName, innerTable.Alias);
+            : innerTable.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, innerTable.Alias);
+
+        TableSourceNode outerTable = ResolveMappedTableSource(outerTableSource.Alias);
 
         ColumnNode outerColumn = foreignKey.IsAtLeftSide
-            ? outerTable.GetForeignKeyColumn(foreignKey.ColumnName, outerTableReference.TableAliasBeforePushDownIntoSubQuery)
-            : outerTable.GetIdColumn(outerTableReference.TableAliasBeforePushDownIntoSubQuery);
+            ? outerTable.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, outerTableSource.Alias)
+            : outerTable.GetIdColumn(outerTableSource.Alias);
 
         var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerColumn, innerColumn);
         _whereConditions.Add(joinCondition);
@@ -528,12 +563,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         {
             if (columnSelector.Column is ColumnInSelectNode columnInSelect)
             {
-                string underlyingTableColumnName = columnInSelect.GetUnderlyingTableColumnName();
+                string persistedColumnName = columnInSelect.GetPersistedColumnName();
 
-                if (columnInSelect.Name != underlyingTableColumnName)
+                if (columnInSelect.Name != persistedColumnName)
                 {
                     // t1.Id0 => t1.Id0 AS Id
-                    return new ColumnSelectorNode(columnInSelect, underlyingTableColumnName);
+                    return new ColumnSelectorNode(columnInSelect, persistedColumnName);
                 }
             }
 
@@ -589,9 +624,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
             else if (field is AttrAttribute attribute)
             {
-                ColumnNode? column =
-                    currentTableReference.Value.TableSource.FindScalarColumn(attribute.Property.Name,
-                        currentTableReference.TableAliasBeforePushDownIntoSubQuery);
+                string tableAlias = ResolveMappedTableAlias(currentTableReference.Value.TableSource.Alias!);
+                ColumnNode? column = currentTableReference.Value.TableSource.FindColumn(attribute.Property.Name, ColumnType.Scalar, tableAlias);
 
                 if (column == null)
                 {
@@ -640,7 +674,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitHas(HasExpression expression, TableAccessorReference tableReference)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
+        var subSelectBuilder = new SelectStatementBuilder(this);
         subSelectBuilder.ResetState(SelectShape.One, false);
 
         return subSelectBuilder.GetExistsClause(expression, tableReference);
@@ -701,7 +735,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitCount(CountExpression expression, TableAccessorReference tableReference)
     {
-        var subSelectBuilder = new SelectStatementBuilder(_dataModelService, _tableAliasGenerator, _parameterGenerator);
+        var subSelectBuilder = new SelectStatementBuilder(this);
         subSelectBuilder.ResetState(SelectShape.Count, false);
 
         return subSelectBuilder.GetCountClause(expression, tableReference);
