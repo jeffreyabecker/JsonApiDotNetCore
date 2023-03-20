@@ -128,7 +128,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     public override object? VisitFrom(FromNode node, StringBuilder builder)
     {
         AppendOnNewLine("FROM ", builder);
-        Visit(node.TableSource, builder);
+        Visit(node.Source, builder);
         return null;
     }
 
@@ -142,7 +142,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         };
 
         AppendOnNewLine(joinTypeText, builder);
-        Visit(node.TableSource, builder);
+        Visit(node.Source, builder);
         builder.Append(" ON ");
         Visit(node.ParentJoinColumn, builder);
         builder.Append(" = ");

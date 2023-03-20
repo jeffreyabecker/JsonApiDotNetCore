@@ -2,8 +2,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class FromNode : TableAccessorNode
 {
-    public FromNode(TableSourceNode tableSource)
-        : base(tableSource)
+    public FromNode(TableSourceNode source)
+        : base(source)
     {
     }
 

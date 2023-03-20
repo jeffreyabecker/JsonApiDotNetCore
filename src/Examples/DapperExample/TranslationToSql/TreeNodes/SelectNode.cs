@@ -48,7 +48,7 @@ internal sealed class SelectNode : TableSourceNode
             return Columns.FirstOrDefault(column => column.GetPersistedColumnName() == persistedColumnName && (type == null || column.Type == type));
         }
 
-        foreach (TableSourceNode tableSource in Selectors.Keys.Select(tableAccessor => tableAccessor.TableSource))
+        foreach (TableSourceNode tableSource in Selectors.Keys.Select(tableAccessor => tableAccessor.Source))
         {
             ColumnNode? innerColumn = tableSource.FindColumn(persistedColumnName, type, innerTableAlias);
 
