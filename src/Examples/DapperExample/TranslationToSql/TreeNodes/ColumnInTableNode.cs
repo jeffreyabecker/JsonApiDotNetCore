@@ -2,8 +2,8 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 
 internal sealed class ColumnInTableNode : ColumnNode
 {
-    public ColumnInTableNode(string name, string? tableAlias)
-        : base(name, tableAlias)
+    public ColumnInTableNode(string name, ColumnType type, string? tableAlias)
+        : base(name, type, tableAlias)
     {
     }
 

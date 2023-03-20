@@ -7,10 +7,7 @@ internal abstract class TableSourceNode : SqlTreeNode
 {
     public const string IdColumnName = nameof(Identifiable<object>.Id);
 
-    public abstract IReadOnlyList<ColumnNode> AllColumns { get; }
-    public abstract IReadOnlyList<ColumnNode> ScalarColumns { get; }
-    public abstract IReadOnlyList<ColumnNode> ForeignKeyColumns { get; }
-
+    public abstract IReadOnlyList<ColumnNode> Columns { get; }
     public string? Alias { get; }
 
     protected TableSourceNode(string? alias)
@@ -22,30 +19,38 @@ internal abstract class TableSourceNode : SqlTreeNode
 
     public ColumnNode GetIdColumn(string? tableAlias)
     {
-        return GetColumnByUnderlyingTableColumnName(ScalarColumns, IdColumnName, tableAlias);
+        IEnumerable<ColumnNode> scalarColumns = GetScalarColumns();
+        return GetColumnByUnderlyingTableColumnName(scalarColumns, IdColumnName, tableAlias);
     }
 
-    // TODO: Redesign these for improved handling of sub-query push down.
+    // TODO: Redesign these for efficiency and improved handling of sub-query push down.
+
+    public IEnumerable<ColumnNode> GetScalarColumns()
+    {
+        return Columns.Where(column => column.Type == ColumnType.Scalar);
+    }
 
     public ColumnNode GetColumn(string columnName, string? tableAlias)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        return GetColumnByUnderlyingTableColumnName(AllColumns, columnName, tableAlias);
+        return GetColumnByUnderlyingTableColumnName(Columns, columnName, tableAlias);
     }
 
     public ColumnNode? FindScalarColumn(string columnName, string? tableAlias)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        return FindColumnByUnderlyingTableColumnName(ScalarColumns, columnName, tableAlias);
+        IEnumerable<ColumnNode> scalarColumns = GetScalarColumns();
+        return FindColumnByUnderlyingTableColumnName(scalarColumns, columnName, tableAlias);
     }
 
     public ColumnNode GetForeignKeyColumn(string columnName, string? tableAlias)
     {
         ArgumentGuard.NotNullNorEmpty(columnName);
 
-        return GetColumnByUnderlyingTableColumnName(ForeignKeyColumns, columnName, tableAlias);
+        IEnumerable<ColumnNode> foreignKeyColumns = Columns.Where(column => column.Type == ColumnType.ForeignKey);
+        return GetColumnByUnderlyingTableColumnName(foreignKeyColumns, columnName, tableAlias);
     }
 
     protected abstract ColumnNode? FindColumnByUnderlyingTableColumnName(IEnumerable<ColumnNode> source, string columnName, string? tableAlias);

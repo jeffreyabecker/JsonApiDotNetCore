@@ -90,7 +90,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private static void AssertUniqueColumnNames(SelectNode selectNode)
     {
-        string? firstDuplicate = selectNode.AllColumns.GroupBy(column => column.Name).Where(group => group.Count() > 1).Select(group => group.Key)
+        string? firstDuplicate = selectNode.Columns.GroupBy(column => column.Name).Where(group => group.Count() > 1).Select(group => group.Key)
             .FirstOrDefault();
 
         if (firstDuplicate != null)
@@ -132,7 +132,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         foreach (TableAccessorNode tableAccessor in tableAccessors)
         {
-            SetColumnSelectors(tableAccessor, tableAccessor.TableSource.AllColumns);
+            SetColumnSelectors(tableAccessor, tableAccessor.TableSource.Columns);
         }
     }
 
@@ -169,7 +169,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             {
                 // t2."Id" AS Id0 => t3.Id0
                 ColumnNode innerColumn = innerColumnSelector.Column;
-                ColumnNode outerColumn = select.AllColumns.Single(outerColumn => outerColumn.Selector.Column == innerColumn);
+                ColumnNode outerColumn = select.Columns.Single(outerColumn => outerColumn.Selector.Column == innerColumn);
                 outerColumnsToKeep.Add(outerColumn);
             }
             else
@@ -190,7 +190,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             {
                 if (term is OrderByColumnNode orderByColumn)
                 {
-                    ColumnNode outerColumn = select.AllColumns.Single(outerColumn => outerColumn.Selector.Column == orderByColumn.Column);
+                    ColumnNode outerColumn = select.Columns.Single(outerColumn => outerColumn.Selector.Column == orderByColumn.Column);
                     yield return new OrderByColumnNode(outerColumn, term.IsAscending);
                 }
                 else
@@ -276,7 +276,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             // And only selecting relationships implicitly means to fetch all scalar properties as well.
             // Additionally, empty selectors (originating from eliminated includes) indicate to fetch all scalar properties too.
 
-            selectedColumns = tableReference.Value.TableSource.ScalarColumns.ToHashSet();
+            selectedColumns = tableReference.Value.TableSource.GetScalarColumns().ToHashSet();
         }
 
         foreach ((ResourceFieldAttribute field, QueryLayer? nextLayer) in selectors.OrderBy(selector => selector.Key.PublicName))

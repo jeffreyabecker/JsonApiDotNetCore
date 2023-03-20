@@ -9,7 +9,7 @@ internal sealed class ColumnInSelectNode : ColumnNode
     public bool IsVirtual => Selector.Column is ColumnInSelectNode columnInSelect ? columnInSelect.IsVirtual : Selector.Alias != null;
 
     public ColumnInSelectNode(ColumnSelectorNode selector, string? tableAlias)
-        : base(GetColumnName(selector), tableAlias)
+        : base(GetColumnName(selector), selector.Column.Type, tableAlias)
     {
         Selector = selector;
     }
