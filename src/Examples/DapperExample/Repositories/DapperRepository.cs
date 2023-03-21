@@ -41,6 +41,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     private readonly ITargetedFields _targetedFields;
     private readonly IResourceGraph _resourceGraph;
     private readonly IResourceFactory _resourceFactory;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DapperRepository<TResource, TId>> _logger;
     private readonly IResourceDefinitionAccessor _resourceDefinitionAccessor;
     private readonly DapperTransactionFactory _transactionFactory;
@@ -70,6 +71,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         _targetedFields = targetedFields;
         _resourceGraph = resourceGraph;
         _resourceFactory = resourceFactory;
+        _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<DapperRepository<TResource, TId>>();
         _resourceDefinitionAccessor = resourceDefinitionAccessor;
         _transactionFactory = transactionFactory;
@@ -85,7 +87,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         EnsureAtMostOnePagination(queryLayer);
 
-        var selectBuilder = new SelectStatementBuilder(_dataModelService);
+        var selectBuilder = new SelectStatementBuilder(_dataModelService, _loggerFactory);
         SelectNode selectNode = selectBuilder.Build(queryLayer, SelectShape.Columns);
         CommandDefinition sqlCommand = GetSqlCommand(selectNode, cancellationToken);
         LogSqlCommand(sqlCommand);
@@ -174,7 +176,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             Filter = filter
         };
 
-        var selectBuilder = new SelectStatementBuilder(_dataModelService);
+        var selectBuilder = new SelectStatementBuilder(_dataModelService, _loggerFactory);
         SelectNode selectNode = selectBuilder.Build(queryLayer, SelectShape.Count);
         CommandDefinition sqlCommand = GetSqlCommand(selectNode, cancellationToken);
         LogSqlCommand(sqlCommand);

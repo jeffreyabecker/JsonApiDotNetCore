@@ -6,10 +6,13 @@ using FluentAssertions.Common;
 using FluentAssertions.Extensions;
 using JsonApiDotNetCore.Configuration;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace DapperTests;
 
@@ -29,10 +32,15 @@ public sealed partial class SqlTests : IntegrationTest, IClassFixture<WebApplica
         }
     }
 
-    public SqlTests(WebApplicationFactory<TodoItem> factory)
+    public SqlTests(WebApplicationFactory<TodoItem> factory, ITestOutputHelper testOutputHelper)
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
+            builder.ConfigureLogging(loggingBuilder =>
+            {
+                loggingBuilder.Services.AddSingleton<ILoggerProvider>(_ => new XUnitLoggerProvider(testOutputHelper));
+            });
+
             builder.ConfigureServices(services =>
             {
                 services.AddSingleton<ISystemClock>(new FrozenSystemClock

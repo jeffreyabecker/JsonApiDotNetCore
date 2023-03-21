@@ -228,9 +228,6 @@ LIMIT @p1");
 
         string route = $"/people/{person.StringId}/ownedTodoItems?sort=-count(tags),id";
 
-        // TODO: This fails, because push-down occurred before sort sub-select is built, but it fails to find the remapped table (which lives in the outer select).
-        //string route = $"/people/{person.StringId}/ownedTodoItems?include=tags&sort=-count(tags),id";
-
         // Act
         (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
 
@@ -268,6 +265,82 @@ ORDER BY (
     WHERE t2.""Id"" = t3.""TodoItemId""
 ) DESC, t2.""Id""
 LIMIT @p2");
+
+            command.Parameters.ShouldHaveCount(2);
+            command.Parameters.Should().Contain("@p1", person.Id);
+            command.Parameters.Should().Contain("@p2", 10);
+        });
+    }
+
+    [Fact]
+    public async Task Can_sort_on_count_in_secondary_resources_with_include()
+    {
+        // Arrange
+        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        store.Clear();
+
+        Person person = _fakers.Person.Generate();
+        person.OwnedTodoItems = _fakers.TodoItem.Generate(3).ToHashSet();
+
+        person.OwnedTodoItems.ElementAt(0).Tags = _fakers.Tag.Generate(2).ToHashSet();
+        person.OwnedTodoItems.ElementAt(1).Tags = _fakers.Tag.Generate(1).ToHashSet();
+        person.OwnedTodoItems.ElementAt(2).Tags = _fakers.Tag.Generate(3).ToHashSet();
+
+        await RunOnDatabaseAsync(async dbContext =>
+        {
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            dbContext.People.AddRange(person);
+            await dbContext.SaveChangesAsync();
+        });
+
+        string route = $"/people/{person.StringId}/ownedTodoItems?include=tags&sort=-count(tags),id";
+
+        // Act
+        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+
+        // Assert
+        httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
+
+        responseDocument.Data.ManyValue.ShouldHaveCount(3);
+        responseDocument.Data.ManyValue[0].Id.Should().Be(person.OwnedTodoItems.ElementAt(2).StringId);
+        responseDocument.Data.ManyValue[1].Id.Should().Be(person.OwnedTodoItems.ElementAt(0).StringId);
+        responseDocument.Data.ManyValue[2].Id.Should().Be(person.OwnedTodoItems.ElementAt(1).StringId);
+
+        store.SqlCommands.ShouldHaveCount(2);
+
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1
+INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
+WHERE t2.""Id"" = @p1");
+
+            command.Parameters.ShouldHaveCount(1);
+            command.Parameters.Should().Contain("@p1", person.Id);
+        });
+
+        store.SqlCommands[1].With(command =>
+        {
+            command.Statement.Should().Be(
+                @"SELECT t4.""Id"", t4.Id0 AS Id, t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t5.""Id"", t5.""Name""
+FROM (
+    SELECT t1.""Id"", t1.""AccountId"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS Id0, t2.""AssigneeId"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""OwnerId"", t2.""Priority""
+    FROM ""People"" AS t1
+    INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
+    WHERE t1.""Id"" = @p1
+    ORDER BY (
+        SELECT COUNT(*)
+        FROM ""Tags"" AS t3
+        WHERE t2.""Id"" = t3.""TodoItemId""
+    ) DESC, t2.""Id""
+    LIMIT @p2
+) AS t4
+LEFT JOIN ""Tags"" AS t5 ON t4.Id0 = t5.""TodoItemId""
+ORDER BY (
+    SELECT COUNT(*)
+    FROM ""Tags"" AS t3
+    WHERE t4.Id0 = t3.""TodoItemId""
+) DESC, t4.Id0, t5.""Id""");
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", person.Id);

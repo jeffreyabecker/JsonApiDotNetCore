@@ -8,8 +8,8 @@ internal sealed class JoinNode : TableAccessorNode
     public ColumnNode JoinColumn { get; }
     public ColumnNode ParentJoinColumn { get; }
 
-    public JoinNode(JoinType joinType, TableSourceNode joinTableSource, ColumnNode joinColumn, ColumnNode parentJoinColumn)
-        : base(joinTableSource)
+    public JoinNode(JoinType joinType, TableSourceNode source, ColumnNode joinColumn, ColumnNode parentJoinColumn)
+        : base(source)
     {
         ArgumentGuard.NotNull(joinColumn);
         ArgumentGuard.NotNull(parentJoinColumn);
