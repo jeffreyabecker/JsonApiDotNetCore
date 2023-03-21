@@ -27,7 +27,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.Tags.AddRange(tags);
             await dbContext.SaveChangesAsync();
         });
@@ -90,7 +90,7 @@ LIMIT @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.Tags.AddRange(tags);
             await dbContext.SaveChangesAsync();
         });
@@ -276,7 +276,7 @@ LIMIT @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -337,7 +337,7 @@ LIMIT @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -403,7 +403,7 @@ LIMIT @p3");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -530,7 +530,7 @@ LIMIT @p3");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -599,7 +599,7 @@ LIMIT @p4");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -664,7 +664,7 @@ LIMIT @p3");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -693,7 +693,7 @@ INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
 WHERE ((
     SELECT COUNT(*)
     FROM ""People"" AS t2
-    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
     WHERE t1.""OwnerId"" = t2.""Id""
 ) > @p1) AND (NOT (t4.""Id"" IS NULL))");
 
@@ -710,7 +710,7 @@ INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
 WHERE ((
     SELECT COUNT(*)
     FROM ""People"" AS t2
-    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
     WHERE t1.""OwnerId"" = t2.""Id""
 ) > @p1) AND (NOT (t4.""Id"" IS NULL))
 ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
@@ -746,7 +746,7 @@ LIMIT @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -775,7 +775,7 @@ FROM ""TodoItems"" AS t1
 WHERE EXISTS (
     SELECT 1
     FROM ""People"" AS t2
-    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
     INNER JOIN ""People"" AS t5 ON t3.""OwnerId"" = t5.""Id""
     WHERE (t1.""OwnerId"" = t2.""Id"") AND (EXISTS (
         SELECT 1
@@ -798,7 +798,7 @@ FROM ""TodoItems"" AS t1
 WHERE EXISTS (
     SELECT 1
     FROM ""People"" AS t2
-    LEFT JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
+    INNER JOIN ""TodoItems"" AS t3 ON t2.""Id"" = t3.""AssigneeId""
     INNER JOIN ""People"" AS t5 ON t3.""OwnerId"" = t5.""Id""
     WHERE (t1.""OwnerId"" = t2.""Id"") AND (EXISTS (
         SELECT 1
@@ -814,6 +814,78 @@ LIMIT @p4");
             command.Parameters.Should().Contain("@p2", "Smith");
             command.Parameters.Should().Contain("@p3", "Homework");
             command.Parameters.Should().Contain("@p4", 10);
+        });
+    }
+
+    [Fact]
+    public async Task Can_filter_conditional_has_with_null_check_at_primary_endpoint()
+    {
+        // Arrange
+        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        store.Clear();
+
+        List<Person> people = _fakers.Person.Generate(3);
+        people.ForEach(person => person.OwnedTodoItems = _fakers.TodoItem.Generate(1).ToHashSet());
+
+        people[0].OwnedTodoItems.ElementAt(0).Assignee = null;
+
+        people[1].OwnedTodoItems.ElementAt(0).Assignee = _fakers.Person.Generate();
+
+        people[2].OwnedTodoItems.ElementAt(0).Assignee = _fakers.Person.Generate();
+        people[2].OwnedTodoItems.ElementAt(0).Assignee!.FirstName = null;
+
+        await RunOnDatabaseAsync(async dbContext =>
+        {
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            dbContext.People.AddRange(people);
+            await dbContext.SaveChangesAsync();
+        });
+
+        const string route = "/people?filter=has(ownedTodoItems,equals(assignee.firstName,null))";
+
+        // Act
+        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+
+        // Assert
+        httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
+
+        responseDocument.Data.ManyValue.ShouldHaveCount(1);
+        responseDocument.Data.ManyValue[0].Type.Should().Be("people");
+        responseDocument.Data.ManyValue[0].Id.Should().Be(people[2].StringId);
+
+        responseDocument.Meta.Should().ContainTotal(1);
+
+        store.SqlCommands.ShouldHaveCount(2);
+
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(@"SELECT COUNT(*)
+FROM ""People"" AS t1
+WHERE EXISTS (
+    SELECT 1
+    FROM ""TodoItems"" AS t2
+    INNER JOIN ""People"" AS t3 ON t2.""AssigneeId"" = t3.""Id""
+    WHERE (t1.""Id"" = t2.""OwnerId"") AND (t3.""FirstName"" IS NULL)
+)");
+
+            command.Parameters.Should().BeEmpty();
+        });
+
+        store.SqlCommands[1].With(command =>
+        {
+            command.Statement.Should().Be(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
+FROM ""People"" AS t1
+WHERE EXISTS (
+    SELECT 1
+    FROM ""TodoItems"" AS t2
+    INNER JOIN ""People"" AS t3 ON t2.""AssigneeId"" = t3.""Id""
+    WHERE (t1.""Id"" = t2.""OwnerId"") AND (t3.""FirstName"" IS NULL)
+)
+ORDER BY t1.""Id""
+LIMIT @p1");
+
+            command.Parameters.ShouldHaveCount(1);
+            command.Parameters.Should().Contain("@p1", 10);
         });
     }
 

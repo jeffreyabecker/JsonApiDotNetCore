@@ -30,7 +30,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -183,7 +183,7 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });

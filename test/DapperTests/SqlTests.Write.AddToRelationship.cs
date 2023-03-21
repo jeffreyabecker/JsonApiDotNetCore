@@ -26,7 +26,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.People.Add(existingPerson);
             dbContext.TodoItems.AddRange(existingTodoItems);
             await dbContext.SaveChangesAsync();

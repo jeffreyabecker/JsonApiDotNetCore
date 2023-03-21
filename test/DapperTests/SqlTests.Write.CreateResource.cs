@@ -552,7 +552,7 @@ WHERE t1.""Id"" = @p1");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.Tags.Add(existingTag);
             await dbContext.SaveChangesAsync();
         });
@@ -646,7 +646,7 @@ WHERE t1.""Id"" = @p1");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.AddInRange(existingColor, existingTag);
             await dbContext.SaveChangesAsync();
         });

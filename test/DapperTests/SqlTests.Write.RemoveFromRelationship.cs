@@ -24,7 +24,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });
@@ -119,7 +119,7 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<RgbColor, Tag, TodoItem>();
+            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });

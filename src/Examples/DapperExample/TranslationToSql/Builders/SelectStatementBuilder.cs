@@ -27,6 +27,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private readonly List<OrderByTermNode> _orderByTerms = new();
     private SelectShape _selectShape;
     private LimitOffsetNode? _limitOffset;
+    private bool _forceInnerJoins;
 
     public SelectStatementBuilder(IDataModelService dataModelService, ILoggerFactory loggerFactory)
         : this(dataModelService, new TableAliasGenerator(), new ParameterGenerator(), loggerFactory)
@@ -56,6 +57,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _orderByTerms.AddRange(source._orderByTerms);
         _selectShape = source._selectShape;
         _limitOffset = source._limitOffset;
+        _forceInnerJoins = source._forceInnerJoins;
     }
 
     public SelectNode Build(QueryLayer queryLayer, SelectShape selectShape)
@@ -89,6 +91,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _orderByTerms.Clear();
         _selectShape = selectShape;
         _limitOffset = null;
+        _forceInnerJoins = false;
 
         if (!isSubQuery)
         {
@@ -167,7 +170,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         foreach (TableAccessorNode tableAccessor in tableAccessors)
         {
             _selectorsPerTable.Add(tableAccessor, Array.Empty<SelectorNode>());
-            SetColumnSelectors(tableAccessor, tableAccessor.Source.Columns);
+
+            if (_selectShape == SelectShape.Columns)
+            {
+                SetColumnSelectors(tableAccessor, tableAccessor.Source.Columns);
+            }
         }
     }
 
@@ -388,7 +395,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             ? leftTableAccessor.Source.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, leftTableAccessor.Source.Alias)
             : leftTableAccessor.Source.GetIdColumn(leftTableAccessor.Source.Alias);
 
-        return new JoinNode(foreignKey.IsNullable ? JoinType.LeftJoin : JoinType.InnerJoin, rightTable, rightColumn, leftColumn);
+        JoinType joinType = foreignKey.IsNullable && !_forceInnerJoins ? JoinType.LeftJoin : JoinType.InnerJoin;
+        return new JoinNode(joinType, rightTable, rightColumn, leftColumn);
     }
 
     private TableAccessorNode CreatePrimaryTableWithIdentityCondition(TableAccessorNode outerTableAccessor, RelationshipAttribute relationship)
@@ -646,6 +654,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         var subSelectBuilder = new SelectStatementBuilder(this);
         subSelectBuilder.ResetState(SelectShape.One, true);
+        subSelectBuilder._forceInnerJoins = true;
 
         return subSelectBuilder.GetExistsClause(expression, tableAccessor);
     }
@@ -707,6 +716,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         var subSelectBuilder = new SelectStatementBuilder(this);
         subSelectBuilder.ResetState(SelectShape.Count, true);
+        subSelectBuilder._forceInnerJoins = true;
 
         return subSelectBuilder.GetCountClause(expression, tableAccessor);
     }
