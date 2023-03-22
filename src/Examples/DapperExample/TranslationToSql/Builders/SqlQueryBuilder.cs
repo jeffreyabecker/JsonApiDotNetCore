@@ -144,9 +144,9 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         AppendOnNewLine(joinTypeText, builder);
         Visit(node.Source, builder);
         builder.Append(" ON ");
-        Visit(node.ParentJoinColumn, builder);
+        Visit(node.OuterColumn, builder);
         builder.Append(" = ");
-        Visit(node.JoinColumn, builder);
+        Visit(node.InnerColumn, builder);
         return null;
     }
 

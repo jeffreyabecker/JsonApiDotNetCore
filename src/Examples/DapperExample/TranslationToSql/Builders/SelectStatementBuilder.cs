@@ -12,45 +12,56 @@ using JsonApiDotNetCore.Serialization.Objects;
 
 namespace DapperExample.TranslationToSql.Builders;
 
+// TODO: Re-order methods (globally).
+
+/// <summary>
+/// Builds a SELECT statement from a <see cref="QueryLayer" />.
+/// </summary>
 internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAccessorNode, SqlTreeNode>
 {
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly IDataModelService _dataModelService;
-    private readonly TableAliasGenerator _tableAliasGenerator;
-    private readonly ParameterGenerator _parameterGenerator;
-    private readonly Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>> _relatedTables = new();
-    private readonly Dictionary<string, TableAccessorNode> _tablesByAlias = new();
-    private readonly Dictionary<string, string> _oldToNewTableAliasMap = new();
-    private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable = new();
-    private readonly HashSet<string> _selectorNamesUsed = new();
-    private readonly List<FilterNode> _whereConditions = new();
-    private readonly List<OrderByTermNode> _orderByTerms = new();
+    // State that is shared between sub-queries.
+    private readonly QueryState _queryState;
+
+    // The FROM/JOIN/sub-SELECT tables, along with their selectors (which usually are column references).
+    private readonly Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> _selectorsPerTable;
+
+    // Used to assign unique names when adding selectors, in case tables are joined that would result in duplicate column names.
+    private readonly HashSet<string> _selectorNamesUsed;
+
+    // Filter constraints.
+    private readonly List<FilterNode> _whereConditions;
+
+    // Sorting on columns, or COUNT(*) in a sub-query.
+    private readonly List<OrderByTermNode> _orderByTerms;
+
+    // Indicates whether to select a set of columns, the number of rows, or only the first (unnamed) column.
     private SelectShape _selectShape;
+
+    // Pagination, which can only occur once.
     private LimitOffsetNode? _limitOffset;
+
+    // When filtering on "EXISTS (SELECT COUNT (*) FROM ...)" or "EXISTS (SELECT 1 FROM ...)", the sub-query must not use LEFT JOINs.
     private bool _forceInnerJoins;
 
     public SelectStatementBuilder(IDataModelService dataModelService, ILoggerFactory loggerFactory)
-        : this(dataModelService, new TableAliasGenerator(), new ParameterGenerator(), loggerFactory)
+        : this(new QueryState(dataModelService, new TableAliasGenerator(), new ParameterGenerator(), loggerFactory))
     {
-        ArgumentGuard.NotNull(dataModelService);
-        ArgumentGuard.NotNull(loggerFactory);
     }
 
-    private SelectStatementBuilder(IDataModelService dataModelService, TableAliasGenerator tableAliasGenerator, ParameterGenerator parameterGenerator,
-        ILoggerFactory loggerFactory)
+    private SelectStatementBuilder(QueryState queryState)
     {
-        _loggerFactory = loggerFactory;
-        _dataModelService = dataModelService;
-        _tableAliasGenerator = tableAliasGenerator;
-        _parameterGenerator = parameterGenerator;
+        _queryState = queryState;
+        _selectorsPerTable = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>();
+        _selectorNamesUsed = new HashSet<string>();
+        _whereConditions = new List<FilterNode>();
+        _orderByTerms = new List<OrderByTermNode>();
     }
 
     private SelectStatementBuilder(SelectStatementBuilder source)
-        : this(source._dataModelService, source._tableAliasGenerator, source._parameterGenerator, source._loggerFactory)
+        : this(source._queryState)
     {
-        _relatedTables = new Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>>(source._relatedTables);
-        _tablesByAlias = source._tablesByAlias;
-        _oldToNewTableAliasMap = source._oldToNewTableAliasMap;
+        // Copy constructor.
+        _queryState = source._queryState;
         _selectorsPerTable = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(source._selectorsPerTable);
         _selectorNamesUsed = new HashSet<string>(source._selectorNamesUsed);
         _whereConditions.AddRange(source._whereConditions);
@@ -64,20 +75,21 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         ArgumentGuard.NotNull(queryLayer);
 
+        // Convert queryLayer.Include into multiple levels of queryLayer.Selection.
         var includeConverter = new QueryLayerIncludeConverter(queryLayer);
         includeConverter.ConvertIncludesToSelections();
 
         ResetState(selectShape, false);
 
-        TableAccessorNode tableAccessor = CreatePrimaryTable(queryLayer.ResourceType);
-        ConvertQueryLayer(queryLayer, tableAccessor);
+        TableAccessorNode primaryTableAccessor = CreatePrimaryTable(queryLayer.ResourceType);
+        ConvertQueryLayer(queryLayer, primaryTableAccessor);
 
-        SelectNode select = ToSelectNode(true, null, false);
+        SelectNode select = ToSelectNode(false);
 
-        if (_selectShape == SelectShape.Columns)
+        if (_selectShape == SelectShape.Columns && _queryState.HasPushDownOccurred)
         {
-            var columnReferenceRewriter = new ColumnReferenceRewriter(_oldToNewTableAliasMap, _loggerFactory);
-            select = columnReferenceRewriter.PullColumnsIntoScope(select);
+            var rewriter = new StaleColumnReferenceRewriter(_queryState.OldToNewTableAliasMap, _queryState.LoggerFactory);
+            select = rewriter.PullColumnsIntoScope(select);
         }
 
         return select;
@@ -95,31 +107,20 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (!isSubQuery)
         {
-            _tableAliasGenerator.Reset();
-            _parameterGenerator.Reset();
-
-            _relatedTables.Clear();
-            _tablesByAlias.Clear();
-            _oldToNewTableAliasMap.Clear();
+            _queryState.Reset();
         }
     }
 
-    private SelectNode ToSelectNode(bool aliasSelectorsToTableColumnNames, string? alias, bool requireUniqueColumnNames)
+    private SelectNode ToSelectNode(bool isSubQuery)
     {
         FilterNode? where = GetWhere();
         OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
 
+        // Materialization using Dapper requires selectors to match property names, so adjust selector names accordingly.
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable =
-            aliasSelectorsToTableColumnNames ? AliasSelectorsToTableColumnNames(_selectorsPerTable) : _selectorsPerTable;
+            isSubQuery ? _selectorsPerTable : AliasSelectorsToTableColumnNames(_selectorsPerTable);
 
-        var selectNode = new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, alias);
-
-        if (requireUniqueColumnNames)
-        {
-            AssertUniqueColumnNames(selectNode);
-        }
-
-        return selectNode;
+        return new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, null);
     }
 
     private static void AssertUniqueColumnNames(SelectNode selectNode)
@@ -139,26 +140,39 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         var subSelectBuilder = new SelectStatementBuilder(this);
 
+        // In the sub-query, select all columns, to enable referencing them from other locations in the query.
         var selectorsToKeep = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(subSelectBuilder._selectorsPerTable);
         subSelectBuilder.SelectAllColumnsInAllTables(selectorsToKeep.Keys);
 
-        var subQuery = subSelectBuilder.ToSelectNode(false, null, true);
+        var subQuery = subSelectBuilder.ToSelectNode(true);
+
+        // Push down potentially combines multiple tables with duplicate column names. Duplicate names are normally fine, but here
+        // it must be possible to reference all columns from other locations in the query.
+        AssertUniqueColumnNames(subQuery);
 
         ResetState(_selectShape, true);
 
         TableAccessorNode outerTableAccessor = CreatePrimaryTable(subQuery);
         var aliasedSubQuery = (SelectNode)outerTableAccessor.Source;
 
+        // Store old-to-new table aliases, to enable rewriting stale column references afterwards.
         MapOldTableAliasesToSubQuery(aliasedSubQuery.Alias!, oldTableAliases);
+
+        // In the outer query, select only what was originally set. Map references into outer query.
         _selectorsPerTable[outerTableAccessor] = MapSelectorsFromSubQuery(selectorsToKeep.SelectMany(selector => selector.Value), aliasedSubQuery);
+
+        // Ordering must always be duplicated in the outer query, to achieve total ordering. Map references into outer query.
         _orderByTerms.AddRange(MapOrderByFromSubQuery(aliasedSubQuery));
+
+        // Signals to rewrite stale columns before returning the final query.
+        _queryState.HasPushDownOccurred = true;
     }
 
     private void MapOldTableAliasesToSubQuery(string newTableAlias, IEnumerable<string> oldTableAliases)
     {
         foreach (string oldTableAlias in oldTableAliases)
         {
-            _oldToNewTableAliasMap[oldTableAlias] = newTableAlias;
+            _queryState.OldToNewTableAliasMap[oldTableAlias] = newTableAlias;
         }
     }
 
@@ -222,8 +236,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private TableAccessorNode CreatePrimaryTable(ResourceType resourceType)
     {
-        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(resourceType);
-        var table = new TableNode(resourceType, columnMappings, _tableAliasGenerator.GetNext());
+        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _queryState.DataModelService.GetColumnMappings(resourceType);
+        var table = new TableNode(resourceType, columnMappings, _queryState.TableAliasGenerator.GetNext());
         var from = new FromNode(table);
 
         TrackPrimaryTable(from);
@@ -232,7 +246,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private TableAccessorNode CreatePrimaryTable(TableSourceNode tableSource)
     {
-        TableSourceNode clone = tableSource.Clone(_tableAliasGenerator.GetNext());
+        TableSourceNode clone = tableSource.Clone(_queryState.TableAliasGenerator.GetNext());
         var from = new FromNode(clone);
 
         TrackPrimaryTable(from);
@@ -246,8 +260,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             throw new InvalidOperationException("A primary table already exists.");
         }
 
-        _relatedTables.Add(tableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
-        _tablesByAlias.Add(tableAccessor.Source.Alias!, tableAccessor);
+        _queryState.RelatedTables.Add(tableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
 
         _selectorsPerTable[tableAccessor] = _selectShape switch
         {
@@ -273,8 +286,14 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (queryLayer.Pagination is { PageSize: not null })
         {
-            // TODO: Assumption: The caller has ensured we'll never find more than one pagination in the query layer tree.
-            _limitOffset ??= (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
+            if (_queryState.HasPagination)
+            {
+                // The caller should ensure we'll never find more than one pagination in the query layer tree.
+                throw new NotSupportedException("Multiple levels of pagination are not supported.");
+            }
+
+            _limitOffset = (LimitOffsetNode)Visit(queryLayer.Pagination, tableAccessor);
+            _queryState.HasPagination = true;
         }
 
         if (queryLayer.Selection != null)
@@ -290,8 +309,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private void ConvertFieldSelectors(FieldSelectors selectors, TableAccessorNode tableAccessor)
     {
         HashSet<ColumnNode> selectedColumns = new();
-        Dictionary<RelationshipAttribute, QueryLayer> nextToOneLayers = new();
-        Dictionary<RelationshipAttribute, QueryLayer> nextToManyLayers = new();
+        Dictionary<RelationshipAttribute, QueryLayer> nextLayers = new();
 
         if (selectors.ContainsReadOnlyAttribute || selectors.ContainsOnlyRelationships || selectors.IsEmpty)
         {
@@ -306,6 +324,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         {
             if (field is AttrAttribute attribute)
             {
+                // Returns null when the set contains an unmapped column, which is silently ignored.
                 ColumnNode? column = tableAccessor.Source.FindColumn(attribute.Property.Name, ColumnType.Scalar, tableAccessor.Source.Alias);
 
                 if (column != null)
@@ -316,29 +335,17 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
             if (field is RelationshipAttribute relationship && nextLayer != null)
             {
-                if (relationship is HasOneAttribute)
-                {
-                    nextToOneLayers.Add(relationship, nextLayer);
-                }
-                else
-                {
-                    nextToManyLayers.Add(relationship, nextLayer);
-                }
+                nextLayers.Add(relationship, nextLayer);
             }
         }
 
         if (_selectShape == SelectShape.Columns)
         {
+            // Must store the selected columns *before* processing related tables, which may result in push down.
             SetColumnSelectors(tableAccessor, selectedColumns);
         }
 
-        foreach ((RelationshipAttribute relationship, QueryLayer nextLayer) in nextToOneLayers)
-        {
-            TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
-            ConvertQueryLayer(nextLayer, relatedTableAccessor);
-        }
-
-        foreach ((RelationshipAttribute relationship, QueryLayer nextLayer) in nextToManyLayers)
+        foreach ((RelationshipAttribute relationship, QueryLayer nextLayer) in nextLayers)
         {
             TableAccessorNode relatedTableAccessor = GetOrCreateRelatedTable(tableAccessor, relationship);
             ConvertQueryLayer(nextLayer, relatedTableAccessor);
@@ -348,6 +355,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private TableAccessorNode GetOrCreateRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
         TableAccessorNode? relatedTableAccessor = _selectorsPerTable.Count == 0
+            // Joining against something in an outer query.
             ? CreatePrimaryTableWithIdentityCondition(leftTableAccessor, relationship)
             : FindRelatedTable(leftTableAccessor, relationship);
 
@@ -355,6 +363,8 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         {
             if (relationship is HasManyAttribute && _limitOffset != null)
             {
+                // Joining against a table that may produce multiple related rows results in incorrect pagination.
+                // Therefore we need to push what we've built so far into a sub-query and join against that instead.
                 PushDownIntoSubQuery();
             }
 
@@ -367,56 +377,54 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private TableAccessorNode? FindRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
-        Dictionary<RelationshipAttribute, TableAccessorNode> rightTableAccessors = _relatedTables[leftTableAccessor];
+        Dictionary<RelationshipAttribute, TableAccessorNode> rightTableAccessors = _queryState.RelatedTables[leftTableAccessor];
         return rightTableAccessors.TryGetValue(relationship, out TableAccessorNode? rightTableAccessor) ? rightTableAccessor : null;
     }
 
     private void TrackRelatedTable(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship, TableAccessorNode rightTableAccessor)
     {
-        _relatedTables.Add(rightTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
-        _tablesByAlias.Add(rightTableAccessor.Source.Alias!, rightTableAccessor);
+        _queryState.RelatedTables.Add(rightTableAccessor, new Dictionary<RelationshipAttribute, TableAccessorNode>());
         _selectorsPerTable[rightTableAccessor] = Array.Empty<SelectorNode>();
 
-        _relatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
+        _queryState.RelatedTables[leftTableAccessor].Add(relationship, rightTableAccessor);
     }
 
     private TableAccessorNode CreateJoin(TableAccessorNode leftTableAccessor, RelationshipAttribute relationship)
     {
-        RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
+        RelationshipForeignKey foreignKey = _queryState.DataModelService.GetForeignKey(relationship);
 
-        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _dataModelService.GetColumnMappings(relationship.RightType);
-        var rightTable = new TableNode(relationship.RightType, columnMappings, _tableAliasGenerator.GetNext());
+        IReadOnlyDictionary<string, ResourceFieldAttribute?> columnMappings = _queryState.DataModelService.GetColumnMappings(relationship.RightType);
+        var rightTable = new TableNode(relationship.RightType, columnMappings, _queryState.TableAliasGenerator.GetNext());
 
-        ColumnNode rightColumn = foreignKey.IsAtLeftSide
-            ? rightTable.GetIdColumn(rightTable.Alias)
-            : rightTable.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, rightTable.Alias);
-
-        ColumnNode leftColumn = foreignKey.IsAtLeftSide
-            ? leftTableAccessor.Source.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, leftTableAccessor.Source.Alias)
-            : leftTableAccessor.Source.GetIdColumn(leftTableAccessor.Source.Alias);
+        ComparisonNode joinCondition = CreateJoinCondition(leftTableAccessor.Source, relationship, rightTable);
 
         JoinType joinType = foreignKey.IsNullable && !_forceInnerJoins ? JoinType.LeftJoin : JoinType.InnerJoin;
-        return new JoinNode(joinType, rightTable, rightColumn, leftColumn);
+        return new JoinNode(joinType, rightTable, (ColumnNode)joinCondition.Left, (ColumnNode)joinCondition.Right);
     }
 
     private TableAccessorNode CreatePrimaryTableWithIdentityCondition(TableAccessorNode outerTableAccessor, RelationshipAttribute relationship)
     {
         TableAccessorNode innerTableAccessor = CreatePrimaryTable(relationship.RightType);
 
-        RelationshipForeignKey foreignKey = _dataModelService.GetForeignKey(relationship);
-
-        ColumnNode innerColumn = foreignKey.IsAtLeftSide
-            ? innerTableAccessor.Source.GetIdColumn(innerTableAccessor.Source.Alias)
-            : innerTableAccessor.Source.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, innerTableAccessor.Source.Alias);
-
-        ColumnNode outerColumn = foreignKey.IsAtLeftSide
-            ? outerTableAccessor.Source.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, outerTableAccessor.Source.Alias)
-            : outerTableAccessor.Source.GetIdColumn(outerTableAccessor.Source.Alias);
-
-        var joinCondition = new ComparisonNode(ComparisonOperator.Equals, outerColumn, innerColumn);
+        ComparisonNode joinCondition = CreateJoinCondition(outerTableAccessor.Source, relationship, innerTableAccessor.Source);
         _whereConditions.Add(joinCondition);
 
         return innerTableAccessor;
+    }
+
+    private ComparisonNode CreateJoinCondition(TableSourceNode outerTableSource, RelationshipAttribute relationship, TableSourceNode innerTableSource)
+    {
+        RelationshipForeignKey foreignKey = _queryState.DataModelService.GetForeignKey(relationship);
+
+        ColumnNode innerColumn = foreignKey.IsAtLeftSide
+            ? innerTableSource.GetIdColumn(innerTableSource.Alias)
+            : innerTableSource.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, innerTableSource.Alias);
+
+        ColumnNode outerColumn = foreignKey.IsAtLeftSide
+            ? outerTableSource.GetColumn(foreignKey.ColumnName, ColumnType.ForeignKey, outerTableSource.Alias)
+            : outerTableSource.GetIdColumn(outerTableSource.Alias);
+
+        return new ComparisonNode(ComparisonOperator.Equals, outerColumn, innerColumn);
     }
 
     private void SetColumnSelectors(TableAccessorNode tableAccessor, IEnumerable<ColumnNode> columns)
@@ -426,16 +434,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             throw new InvalidOperationException($"Table {tableAccessor.Source.Alias} not found in selected tables.");
         }
 
-        bool preserveOrder = tableAccessor.Source is SelectNode;
-
-        if (preserveOrder)
-        {
-            _selectorsPerTable[tableAccessor] = PreserveColumnOrderEnsuringUniqueNames(columns);
-        }
-        else
-        {
-            _selectorsPerTable[tableAccessor] = OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns);
-        }
+        // When selecting from a table, use a deterministic order to simplify test assertions.
+        // When selecting from a sub-query (typically spanning multiple tables and renamed columns), existing order must be preserved.
+        _selectorsPerTable[tableAccessor] = tableAccessor.Source is SelectNode
+            ? PreserveColumnOrderEnsuringUniqueNames(columns)
+            : OrderColumnsWithIdAtFrontEnsuringUniqueNames(columns);
     }
 
     private List<SelectorNode> PreserveColumnOrderEnsuringUniqueNames(IEnumerable<ColumnNode> columns)
@@ -506,6 +509,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         List<FilterNode> andTerms = new();
 
+        // Collapse multiple ANDs at top-level. This turns "A AND (B AND C)" into "A AND B AND C".
         foreach (FilterNode filter in _whereConditions.ToArray())
         {
             if (filter is LogicalNode { Operator: LogicalOperator.And } nestedAnd)
@@ -585,7 +589,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (treeNode is JoinNode join)
         {
-            return join.JoinColumn;
+            return join.InnerColumn;
         }
 
         return (SqlValueNode)treeNode;
@@ -607,6 +611,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
                 if (column == null)
                 {
+                    // Unmapped columns cannot be translated to SQL.
                     throw new JsonApiException(new ErrorObject(HttpStatusCode.BadRequest)
                     {
                         Title = "Sorting or filtering on the requested attribute is unavailable.",
@@ -623,12 +628,12 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitLiteralConstant(LiteralConstantExpression expression, TableAccessorNode tableAccessor)
     {
-        return _parameterGenerator.Create(expression.TypedValue);
+        return _queryState.ParameterGenerator.Create(expression.TypedValue);
     }
 
     public override SqlTreeNode VisitNullConstant(NullConstantExpression expression, TableAccessorNode tableAccessor)
     {
-        return _parameterGenerator.Create(null);
+        return _queryState.ParameterGenerator.Create(null);
     }
 
     public override SqlTreeNode VisitLogical(LogicalExpression expression, TableAccessorNode tableAccessor)
@@ -669,7 +674,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             _whereConditions.Add(filter);
         }
 
-        SelectNode select = ToSelectNode(false, null, false);
+        SelectNode select = ToSelectNode(true);
         return new ExistsNode(select);
     }
 
@@ -703,10 +708,10 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     public override SqlTreeNode VisitPagination(PaginationExpression expression, TableAccessorNode tableAccessor)
     {
-        ParameterNode limitParameter = _parameterGenerator.Create(expression.PageSize!.Value);
+        ParameterNode limitParameter = _queryState.ParameterGenerator.Create(expression.PageSize!.Value);
 
         ParameterNode? offsetParameter = !expression.PageNumber.Equals(PageNumber.ValueOne)
-            ? _parameterGenerator.Create(expression.PageSize.Value * (expression.PageNumber.OneBasedValue - 1))
+            ? _queryState.ParameterGenerator.Create(expression.PageSize.Value * (expression.PageNumber.OneBasedValue - 1))
             : null;
 
         return new LimitOffsetNode(limitParameter, offsetParameter);
@@ -725,7 +730,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         _ = Visit(expression.TargetCollection, outerTableAccessor);
 
-        SelectNode select = ToSelectNode(false, null, false);
+        SelectNode select = ToSelectNode(true);
         return new CountNode(select);
     }
 
@@ -743,5 +748,59 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             VisitSequence<LiteralConstantExpression, ParameterNode>(expression.Constants.OrderBy(constant => constant.TypedValue), tableAccessor).ToArray();
 
         return parameters.Length == 1 ? new ComparisonNode(ComparisonOperator.Equals, column, parameters[0]) : new InNode(column, parameters);
+    }
+
+    private sealed class QueryState
+    {
+        // Provides access to the remote data model (tables, columns and foreign keys).
+        public IDataModelService DataModelService { get; }
+
+        // Used to generate unique aliases for tables.
+        public TableAliasGenerator TableAliasGenerator { get; }
+
+        // Used to generate unique parameters for constants (to improve query plan caching and guard against SQL injection).
+        public ParameterGenerator ParameterGenerator { get; }
+
+        public ILoggerFactory LoggerFactory { get; }
+
+        // Prevents importing a table multiple times and enables to reference a table imported by an inner/outer query.
+        // In case of push down, this may include temporary tables that won't survive in the final query.
+        public Dictionary<TableAccessorNode, Dictionary<RelationshipAttribute, TableAccessorNode>> RelatedTables { get; } = new();
+
+        // In case of push down, we track old/new table aliases, so we can rewrite stale references afterwards.
+        // This cannot be done reliably during push down, because references to tables are on method call stacks.
+        public Dictionary<string, string> OldToNewTableAliasMap { get; } = new();
+
+        // Prevents emitting multiple levels of pagination, which requires multiple push downs with non-standard SQL constructs,
+        // such as "ROW_NUMBER() OVER (PARTITION ...)" and LITERAL/OUTER APPLY JOINs.
+        public bool HasPagination { get; set; }
+
+        // Indicates whether push down into sub-query has occurred. If so, we need to rewrite stale references afterwards.
+        public bool HasPushDownOccurred { get; set; }
+
+        public QueryState(IDataModelService dataModelService, TableAliasGenerator tableAliasGenerator, ParameterGenerator parameterGenerator,
+            ILoggerFactory loggerFactory)
+        {
+            ArgumentGuard.NotNull(dataModelService);
+            ArgumentGuard.NotNull(tableAliasGenerator);
+            ArgumentGuard.NotNull(parameterGenerator);
+            ArgumentGuard.NotNull(loggerFactory);
+
+            DataModelService = dataModelService;
+            TableAliasGenerator = tableAliasGenerator;
+            ParameterGenerator = parameterGenerator;
+            LoggerFactory = loggerFactory;
+        }
+
+        public void Reset()
+        {
+            TableAliasGenerator.Reset();
+            ParameterGenerator.Reset();
+
+            RelatedTables.Clear();
+            OldToNewTableAliasMap.Clear();
+            HasPagination = false;
+            HasPushDownOccurred = false;
+        }
     }
 }

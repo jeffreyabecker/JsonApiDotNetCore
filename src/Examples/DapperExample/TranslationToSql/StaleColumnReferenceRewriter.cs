@@ -4,19 +4,19 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql;
 
-internal sealed class ColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMode, SqlTreeNode>
+internal sealed class StaleColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMode, SqlTreeNode>
 {
     private readonly IReadOnlyDictionary<string, string> _oldToNewTableAliasMap;
-    private readonly ILogger<ColumnReferenceRewriter> _logger;
+    private readonly ILogger<StaleColumnReferenceRewriter> _logger;
     private readonly Stack<Dictionary<string, TableSourceNode>> _tablesInScopeStack = new();
 
-    public ColumnReferenceRewriter(IReadOnlyDictionary<string, string> oldToNewTableAliasMap, ILoggerFactory loggerFactory)
+    public StaleColumnReferenceRewriter(IReadOnlyDictionary<string, string> oldToNewTableAliasMap, ILoggerFactory loggerFactory)
     {
         ArgumentGuard.NotNull(oldToNewTableAliasMap);
         ArgumentGuard.NotNull(loggerFactory);
 
         _oldToNewTableAliasMap = oldToNewTableAliasMap;
-        _logger = loggerFactory.CreateLogger<ColumnReferenceRewriter>();
+        _logger = loggerFactory.CreateLogger<StaleColumnReferenceRewriter>();
     }
 
     public SelectNode PullColumnsIntoScope(SelectNode select)
@@ -103,9 +103,9 @@ internal sealed class ColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMo
     public override SqlTreeNode VisitJoin(JoinNode node, ColumnVisitMode mode)
     {
         TableSourceNode source = TypedVisit(node.Source, mode);
-        ColumnNode joinColumn = TypedVisit(node.JoinColumn, mode);
-        ColumnNode parentJoinColumn = TypedVisit(node.ParentJoinColumn, mode);
-        return new JoinNode(node.JoinType, source, joinColumn, parentJoinColumn);
+        ColumnNode outerColumn = TypedVisit(node.OuterColumn, mode);
+        ColumnNode innerColumn = TypedVisit(node.InnerColumn, mode);
+        return new JoinNode(node.JoinType, source, outerColumn, innerColumn);
     }
 
     public override SqlTreeNode VisitColumnInTable(ColumnInTableNode node, ColumnVisitMode mode)
@@ -123,6 +123,7 @@ internal sealed class ColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMo
     {
         if (column.TableAlias != null && !tablesInScope.ContainsKey(column.TableAlias))
         {
+            // Stale column found. Keep pulling out until in scope.
             string currentAlias = column.TableAlias;
 
             while (_oldToNewTableAliasMap.ContainsKey(currentAlias))
@@ -142,7 +143,7 @@ internal sealed class ColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMo
             }
 
             string candidateScopes = string.Join(", ", tablesInScope.Select(table => table.Key));
-            throw new Exception($"Failed to map inaccessible column {column} to any of the tables in scope: {candidateScopes}.");
+            throw new InvalidOperationException($"Failed to map inaccessible column {column} to any of the tables in scope: {candidateScopes}.");
         }
 
         return column;

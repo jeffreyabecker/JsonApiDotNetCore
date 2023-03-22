@@ -27,7 +27,7 @@ internal abstract class TableSourceNode : SqlTreeNode
 
         if (column == null)
         {
-            throw new InvalidOperationException($"Column '{persistedColumnName}' not found.");
+            throw new ArgumentException($"Column '{persistedColumnName}' not found.", nameof(persistedColumnName));
         }
 
         return column;
