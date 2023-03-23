@@ -18,6 +18,9 @@ namespace DapperTests;
 
 public sealed partial class SqlTests : IntegrationTest, IClassFixture<WebApplicationFactory<TodoItem>>
 {
+    // TODO: Test with MySQL and SQL Server.
+    // TODO: Run tests in parallel.
+
     private static readonly DateTimeOffset FrozenTime = 29.September(2018).At(16, 41, 56).AsUtc().ToDateTimeOffset();
 
     private readonly WebApplicationFactory<TodoItem> _factory;

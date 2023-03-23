@@ -4,6 +4,30 @@ using JsonApiDotNetCore;
 
 namespace DapperExample.TranslationToSql;
 
+/// <summary>
+/// Updates stale references to columns that were pushed down, by pulling them out until in scope.
+/// </summary>
+/// <example>
+/// <p>
+/// Query before push-down: <code><![CDATA[
+/// SELECT t1."Id", t1."FirstName", t1."LastName"
+/// FROM People AS t1
+/// WHERE t1."LastName" = 'Doe'
+/// ]]></code>
+/// </p>
+/// <p>
+/// Query after push-down:
+/// <code><![CDATA[
+/// SELECT t2."Id", t2."FirstName", t2."LastName"
+/// FROM (
+///     SELECT t1."Id", t1."FirstName", t1."LastName"
+///     FROM People AS t1
+/// ) AS t2
+/// WHERE t1."LastName" = 'Doe'
+/// ]]></code>
+/// </p>
+/// The reference to t1 in the WHERE clause has become stale and needs to be pulled out into scope, which is t2.
+/// </example>
 internal sealed class StaleColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVisitMode, SqlTreeNode>
 {
     private readonly IReadOnlyDictionary<string, string> _oldToNewTableAliasMap;
@@ -255,17 +279,17 @@ internal sealed class StaleColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVi
         return node;
     }
 
-    [return: NotNullIfNotNull("element")]
-    private T? TypedVisit<T>(T? element, ColumnVisitMode mode)
+    [return: NotNullIfNotNull("node")]
+    private T? TypedVisit<T>(T? node, ColumnVisitMode mode)
         where T : SqlTreeNode
     {
-        return element != null ? (T)Visit(element, mode) : null;
+        return node != null ? (T)Visit(node, mode) : null;
     }
 
-    private IReadOnlyList<T> VisitList<T>(IEnumerable<T> elements, ColumnVisitMode mode)
+    private IReadOnlyList<T> VisitList<T>(IEnumerable<T> nodes, ColumnVisitMode mode)
         where T : SqlTreeNode
     {
-        return elements.Select(element => TypedVisit(element, mode)).ToList();
+        return nodes.Select(element => TypedVisit(element, mode)).ToList();
     }
 
     private sealed class PopStackOnDispose<T> : IDisposable

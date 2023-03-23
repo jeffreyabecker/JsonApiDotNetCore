@@ -9,27 +9,25 @@ internal class XUnitLogger : ILogger
 {
     private readonly ITestOutputHelper _testOutputHelper;
     private readonly string _categoryName;
-    private readonly LoggerExternalScopeProvider _scopeProvider;
+    private readonly IExternalScopeProvider _scopeProvider = new NoExternalScopeProvider();
 
-    public XUnitLogger(ITestOutputHelper testOutputHelper, LoggerExternalScopeProvider scopeProvider, string categoryName)
+    public XUnitLogger(ITestOutputHelper testOutputHelper, string categoryName)
     {
         ArgumentGuard.NotNull(testOutputHelper);
-        ArgumentGuard.NotNull(scopeProvider);
         ArgumentGuard.NotNull(categoryName);
 
         _testOutputHelper = testOutputHelper;
-        _scopeProvider = scopeProvider;
         _categoryName = categoryName;
     }
 
     public static ILogger CreateLogger(ITestOutputHelper testOutputHelper)
     {
-        return new XUnitLogger(testOutputHelper, new LoggerExternalScopeProvider(), string.Empty);
+        return new XUnitLogger(testOutputHelper, string.Empty);
     }
 
     public static ILogger<T> CreateLogger<T>(ITestOutputHelper testOutputHelper)
     {
-        return new XUnitLogger<T>(testOutputHelper, new LoggerExternalScopeProvider());
+        return new XUnitLogger<T>(testOutputHelper);
     }
 
     public bool IsEnabled(LogLevel logLevel)
@@ -75,12 +73,33 @@ internal class XUnitLogger : ILogger
             _ => throw new ArgumentOutOfRangeException(nameof(logLevel))
         };
     }
+
+    private sealed class NoExternalScopeProvider : IExternalScopeProvider
+    {
+        public void ForEachScope<TState>(Action<object?, TState> callback, TState state)
+        {
+        }
+
+        public IDisposable Push(object? state)
+        {
+            return EmptyDisposable.Instance;
+        }
+
+        private sealed class EmptyDisposable : IDisposable
+        {
+            public static EmptyDisposable Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
+    }
 }
 
 internal sealed class XUnitLogger<T> : XUnitLogger, ILogger<T>
 {
-    public XUnitLogger(ITestOutputHelper testOutputHelper, LoggerExternalScopeProvider scopeProvider)
-        : base(testOutputHelper, scopeProvider, typeof(T).FullName!)
+    public XUnitLogger(ITestOutputHelper testOutputHelper)
+        : base(testOutputHelper, typeof(T).FullName!)
     {
     }
 }

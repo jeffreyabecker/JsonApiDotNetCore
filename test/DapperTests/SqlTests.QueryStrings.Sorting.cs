@@ -128,7 +128,7 @@ WHERE t2.""Id"" = @p1");
             command.Statement.Should().Be(
                 @"SELECT t3.""Id"", t3.Id0 AS Id, t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority"", t4.""Id"", t4.""Name""
 FROM (
-    SELECT t1.""Id"", t1.""AccountId"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS Id0, t2.""AssigneeId"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""OwnerId"", t2.""Priority""
+    SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
     FROM ""People"" AS t1
     INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
     WHERE t1.""Id"" = @p1
@@ -324,7 +324,7 @@ WHERE t2.""Id"" = @p1");
             command.Statement.Should().Be(
                 @"SELECT t4.""Id"", t4.Id0 AS Id, t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t5.""Id"", t5.""Name""
 FROM (
-    SELECT t1.""Id"", t1.""AccountId"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS Id0, t2.""AssigneeId"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""OwnerId"", t2.""Priority""
+    SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
     FROM ""People"" AS t1
     INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
     WHERE t1.""Id"" = @p1
@@ -402,7 +402,7 @@ FROM ""People"" AS t1");
             command.Statement.Should().Be(
                 @"SELECT t2.""Id"", t2.""FirstName"", t2.""LastName"", t3.""Id"", t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority""
 FROM (
-    SELECT t1.""Id"", t1.""AccountId"", t1.""FirstName"", t1.""LastName""
+    SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
     FROM ""People"" AS t1
     ORDER BY t1.""Id""
     LIMIT @p1

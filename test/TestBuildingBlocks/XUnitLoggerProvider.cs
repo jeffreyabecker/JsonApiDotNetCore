@@ -7,7 +7,6 @@ namespace TestBuildingBlocks;
 public sealed class XUnitLoggerProvider : ILoggerProvider
 {
     private readonly ITestOutputHelper _testOutputHelper;
-    private readonly LoggerExternalScopeProvider _scopeProvider = new();
 
     public XUnitLoggerProvider(ITestOutputHelper testOutputHelper)
     {
@@ -18,7 +17,7 @@ public sealed class XUnitLoggerProvider : ILoggerProvider
 
     public ILogger CreateLogger(string categoryName)
     {
-        return new XUnitLogger(_testOutputHelper, _scopeProvider, categoryName);
+        return new XUnitLogger(_testOutputHelper, categoryName);
     }
 
     public void Dispose()

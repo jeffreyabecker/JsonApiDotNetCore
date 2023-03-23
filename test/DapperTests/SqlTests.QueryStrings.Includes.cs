@@ -153,7 +153,7 @@ FROM ""TodoItems"" AS t1");
             command.Statement.Should().Be(
                 @"SELECT t4.""Id"", t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t4.Id0 AS Id, t4.""FirstName"", t4.""LastName"", t4.Id00 AS Id, t4.FirstName0 AS FirstName, t4.LastName0 AS LastName, t5.""Id"", t5.""CreatedAt"", t5.""Description"", t5.""DurationInHours"", t5.""LastModifiedAt"", t5.""Priority"", t6.""Id"", t6.""Name""
 FROM (
-    SELECT t1.""Id"", t1.""AssigneeId"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""OwnerId"", t1.""Priority"", t2.""Id"" AS Id0, t2.""AccountId"", t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""AccountId"" AS AccountId0, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0
+    SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS Id0, t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0
     FROM ""TodoItems"" AS t1
     LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
     INNER JOIN ""People"" AS t3 ON t1.""OwnerId"" = t3.""Id""
@@ -225,7 +225,7 @@ FROM ""TodoItems"" AS t1");
             command.Statement.Should().Be(
                 @"SELECT t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority"", t3.""Id"", t3.""Name"", t4.""Id""
 FROM (
-    SELECT t1.""Id"", t1.""AssigneeId"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""OwnerId"", t1.""Priority""
+    SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
     FROM ""TodoItems"" AS t1
     ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
     LIMIT @p1

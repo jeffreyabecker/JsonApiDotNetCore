@@ -88,8 +88,11 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
         if (_selectShape == SelectShape.Columns && _queryState.HasPushDownOccurred)
         {
-            var rewriter = new StaleColumnReferenceRewriter(_queryState.OldToNewTableAliasMap, _queryState.LoggerFactory);
-            select = rewriter.PullColumnsIntoScope(select);
+            var staleRewriter = new StaleColumnReferenceRewriter(_queryState.OldToNewTableAliasMap, _queryState.LoggerFactory);
+            select = staleRewriter.PullColumnsIntoScope(select);
+
+            var selectorsRewriter = new UnusedSelectorsRewriter(_queryState.LoggerFactory);
+            select = selectorsRewriter.RemoveUnusedSelectorsInSubQueries(select);
         }
 
         return select;
@@ -141,6 +144,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         var subSelectBuilder = new SelectStatementBuilder(this);
 
         // In the sub-query, select all columns, to enable referencing them from other locations in the query.
+        // This usually produces unused selectors in sub-queries, which are removed afterwards.
         var selectorsToKeep = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(subSelectBuilder._selectorsPerTable);
         subSelectBuilder.SelectAllColumnsInAllTables(selectorsToKeep.Keys);
 
@@ -528,8 +532,6 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private static Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> AliasSelectorsToTableColumnNames(
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectorsPerTable)
     {
-        // TODO: Remove unreferenced selectors in sub-queries.
-
         Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> aliasedSelectors = new();
 
         foreach ((TableAccessorNode tableAccessor, IReadOnlyList<SelectorNode> tableSelectors) in selectorsPerTable)
