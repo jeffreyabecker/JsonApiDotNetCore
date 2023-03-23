@@ -5,8 +5,6 @@ using JsonApiDotNetCore.Resources.Annotations;
 
 namespace DapperExample.TranslationToSql.TreeNodes;
 
-// TODO: Replace read-only collections with immutable collections.
-
 internal sealed class TableNode : TableSourceNode
 {
     private readonly ResourceType _resourceType;
