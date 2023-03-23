@@ -36,12 +36,10 @@ public sealed class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        // When deleting a person, un-assign him/her from existing todo-items.
         builder.Entity<Person>()
             .HasMany(person => person.AssignedTodoItems)
             .WithOne(todoItem => todoItem.Assignee!);
 
-        // When deleting a person, the todo-items he/she owns are deleted too.
         builder.Entity<Person>()
             .HasMany(person => person.OwnedTodoItems)
             .WithOne(todoItem => todoItem.Owner);
@@ -55,9 +53,6 @@ public sealed class AppDbContext : DbContext
             .HasOne(loginAccount => loginAccount.Recovery)
             .WithOne(accountRecovery => accountRecovery.Account)
             .HasForeignKey<LoginAccount>("RecoveryId");
-
-        builder.Entity<TodoItem>()
-            .Property(todoItem => todoItem.Priority);
 
         builder.Entity<Tag>()
             .HasOne(tag => tag.Color)

@@ -26,7 +26,8 @@ internal sealed class TestFakers : FakerContainer
         new Faker<LoginAccount>()
             .UseSeed(GetFakerSeed())
             .RuleFor(loginAccount => loginAccount.UserName, faker => faker.Internet.UserName())
-            .RuleFor(loginAccount => loginAccount.LastUsedAt, faker => faker.Date.PastOffset()));
+            .RuleFor(loginAccount => loginAccount.LastUsedAt, faker => faker.Date.PastOffset()
+                .TruncateToWholeMilliseconds()));
 
     private readonly Lazy<Faker<AccountRecovery>> _lazyAccountRecoveryFaker = new(() =>
         new Faker<AccountRecovery>()
