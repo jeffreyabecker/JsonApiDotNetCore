@@ -55,7 +55,7 @@ builder.Services.AddJsonApi(options =>
 builder.Services.AddScoped<IInverseNavigationResolver, FromEntitiesNavigationResolver>();
 builder.Services.AddSingleton<FromEntitiesDataModelService>();
 builder.Services.AddSingleton<IDataModelService>(serviceProvider => serviceProvider.GetRequiredService<FromEntitiesDataModelService>());
-builder.Services.AddScoped(serviceProvider => new DapperTransactionFactory(serviceProvider.GetRequiredService<IJsonApiOptions>(), connectionString));
+builder.Services.AddScoped<DapperTransactionFactory>();
 builder.Services.AddScoped<IOperationsTransactionFactory>(serviceProvider => serviceProvider.GetRequiredService<DapperTransactionFactory>());
 
 WebApplication app = builder.Build();

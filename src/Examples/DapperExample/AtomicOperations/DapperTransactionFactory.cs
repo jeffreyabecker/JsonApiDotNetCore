@@ -1,7 +1,8 @@
+using System.Data.Common;
+using DapperExample.TranslationToSql.DataModel;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.AtomicOperations;
 using JsonApiDotNetCore.Configuration;
-using Npgsql;
 
 namespace DapperExample.AtomicOperations;
 
@@ -11,20 +12,20 @@ namespace DapperExample.AtomicOperations;
 public sealed class DapperTransactionFactory : IOperationsTransactionFactory
 {
     private readonly IJsonApiOptions _options;
-    private readonly string _connectionString;
+    private readonly IDataModelService _dataModelService;
 
     internal DapperTransaction? AmbientTransaction { get; private set; }
 
-    internal DapperTransactionFactory(IJsonApiOptions options, string connectionString)
+    public DapperTransactionFactory(IJsonApiOptions options, IDataModelService dataModelService)
     {
         ArgumentGuard.NotNull(options);
-        ArgumentGuard.NotNullNorEmpty(connectionString);
+        ArgumentGuard.NotNull(dataModelService);
 
         _options = options;
-        _connectionString = connectionString;
+        _dataModelService = dataModelService;
     }
 
-    public async Task<DapperTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
+    internal async Task<DapperTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
     {
         var instance = (IOperationsTransactionFactory)this;
 
@@ -39,10 +40,10 @@ public sealed class DapperTransactionFactory : IOperationsTransactionFactory
             throw new InvalidOperationException("Cannot start transaction because another transaction is already active.");
         }
 
-        var dbConnection = new NpgsqlConnection(_connectionString);
+        DbConnection dbConnection = _dataModelService.CreateConnection();
         await dbConnection.OpenAsync(cancellationToken);
 
-        NpgsqlTransaction transaction = _options.TransactionIsolationLevel != null
+        DbTransaction transaction = _options.TransactionIsolationLevel != null
             ? await dbConnection.BeginTransactionAsync(_options.TransactionIsolationLevel.Value, cancellationToken)
             : await dbConnection.BeginTransactionAsync(cancellationToken);
 

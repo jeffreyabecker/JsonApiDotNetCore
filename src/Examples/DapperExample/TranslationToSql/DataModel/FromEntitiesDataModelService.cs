@@ -1,7 +1,9 @@
+using System.Data.Common;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Resources.Annotations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Npgsql;
 
 namespace DapperExample.TranslationToSql.DataModel;
 
@@ -45,6 +47,16 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
         }
     }
 
+    public override DbConnection CreateConnection()
+    {
+        if (_connectionString == null)
+        {
+            throw new InvalidOperationException($"Call {nameof(Initialize)} first.");
+        }
+
+        return new NpgsqlConnection(_connectionString);
+    }
+
     public override RelationshipForeignKey GetForeignKey(RelationshipAttribute relationship)
     {
         if (_foreignKeysByRelationship.TryGetValue(relationship, out RelationshipForeignKey? foreignKey))
@@ -54,15 +66,5 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
 
         throw new InvalidOperationException(
             $"Foreign key mapping for relationship '{relationship.LeftType.ClrType.Name}.{relationship.Property.Name}' is unavailable.");
-    }
-
-    public override string GetConnectionString()
-    {
-        if (_connectionString == null)
-        {
-            throw new InvalidOperationException($"Call {nameof(Initialize)} first.");
-        }
-
-        return _connectionString;
     }
 }

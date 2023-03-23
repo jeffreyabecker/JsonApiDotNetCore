@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Common;
 using System.Reflection;
 using DapperExample.TranslationToSql.TreeNodes;
 using JsonApiDotNetCore;
@@ -24,7 +25,7 @@ public abstract class BaseDataModelService : IDataModelService
         ResourceGraph = resourceGraph;
     }
 
-    public abstract string GetConnectionString();
+    public abstract DbConnection CreateConnection();
 
     public abstract RelationshipForeignKey GetForeignKey(RelationshipAttribute relationship);
 

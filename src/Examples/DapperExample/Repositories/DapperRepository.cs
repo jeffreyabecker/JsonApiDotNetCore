@@ -13,7 +13,6 @@ using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Repositories;
 using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
-using Npgsql;
 
 namespace DapperExample.Repositories;
 
@@ -36,7 +35,6 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
     private readonly CollectionConverter _collectionConverter = new();
     private readonly ParameterFormatter _parameterFormatter = new();
 
-    private readonly string _connectionString;
     private readonly IJsonApiRequest _request;
     private readonly ITargetedFields _targetedFields;
     private readonly IResourceGraph _resourceGraph;
@@ -66,7 +64,6 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         ArgumentGuard.NotNull(dataModelService);
         ArgumentGuard.NotNull(captureStore);
 
-        _connectionString = dataModelService.GetConnectionString();
         _request = request;
         _targetedFields = targetedFields;
         _resourceGraph = resourceGraph;
@@ -698,7 +695,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             return await asyncAction(connection);
         }
 
-        await using var dbConnection = new NpgsqlConnection(_connectionString);
+        await using DbConnection dbConnection = _dataModelService.CreateConnection();
         await dbConnection.OpenAsync(cancellationToken);
 
         return await asyncAction(dbConnection);

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
@@ -9,7 +10,7 @@ namespace DapperExample.TranslationToSql.DataModel;
 /// </summary>
 public interface IDataModelService
 {
-    string GetConnectionString();
+    DbConnection CreateConnection();
 
     RelationshipForeignKey GetForeignKey(RelationshipAttribute relationship);
 
