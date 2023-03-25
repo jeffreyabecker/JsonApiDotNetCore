@@ -223,26 +223,6 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    public override object? VisitRowNumber(RowNumberNode node, StringBuilder builder)
-    {
-        builder.Append("ROW_NUMBER() OVER (");
-
-        using (Indent())
-        {
-            if (node.PartitionBy != null)
-            {
-                AppendOnNewLine("PARTITION BY ", builder);
-                Visit(node.PartitionBy, builder);
-            }
-
-            VisitOrderBy(node.OrderBy, builder);
-        }
-
-        AppendOnNewLine(")", builder);
-        WriteDeclareAlias(node.Alias, builder);
-        return null;
-    }
-
     public override object? VisitNot(NotNode node, StringBuilder builder)
     {
         builder.Append("NOT (");
