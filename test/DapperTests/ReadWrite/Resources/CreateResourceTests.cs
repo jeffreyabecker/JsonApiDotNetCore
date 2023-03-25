@@ -7,16 +7,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.ReadWrite.Resources;
 
-public sealed partial class SqlTests
+public sealed class CreateResourceTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public CreateResourceTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_create_resource()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem newTodoItem = _fakers.TodoItem.Generate();
@@ -24,7 +34,7 @@ public sealed partial class SqlTests
         Person existingPerson = _fakers.Person.Generate();
         Tag existingTag = _fakers.Tag.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AddInRange(existingPerson, existingTag);
             await dbContext.SaveChangesAsync();
@@ -77,7 +87,7 @@ public sealed partial class SqlTests
         const string route = "/todoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.Created);
@@ -87,7 +97,7 @@ public sealed partial class SqlTests
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("description").With(value => value.Should().Be(newTodoItem.Description));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("priority").With(value => value.Should().Be(newTodoItem.Priority));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("durationInHours").With(value => value.Should().Be(newTodoItem.DurationInHours));
-        responseDocument.Data.SingleValue.Attributes.ShouldContainKey("createdAt").With(value => value.Should().Be(FrozenTime));
+        responseDocument.Data.SingleValue.Attributes.ShouldContainKey("createdAt").With(value => value.Should().Be(DapperTestContext.FrozenTime));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("modifiedAt").With(value => value.Should().BeNull());
 
         responseDocument.Data.SingleValue.Relationships.ShouldOnlyContainKeys("owner", "assignee", "tags");
@@ -95,7 +105,7 @@ public sealed partial class SqlTests
         long newTodoItemId = long.Parse(responseDocument.Data.SingleValue.Id.ShouldNotBeNull());
         httpResponse.Headers.Location.Should().Be($"/todoItems/{newTodoItemId}");
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             // @formatter:wrap_chained_method_calls chop_always
             // @formatter:keep_existing_linebreaks true
@@ -112,7 +122,7 @@ public sealed partial class SqlTests
             todoItemInDatabase.Description.Should().Be(newTodoItem.Description);
             todoItemInDatabase.Priority.Should().Be(newTodoItem.Priority);
             todoItemInDatabase.DurationInHours.Should().Be(newTodoItem.DurationInHours);
-            todoItemInDatabase.CreatedAt.Should().Be(FrozenTime);
+            todoItemInDatabase.CreatedAt.Should().Be(DapperTestContext.FrozenTime);
             todoItemInDatabase.LastModifiedAt.Should().BeNull();
 
             todoItemInDatabase.Owner.ShouldNotBeNull();
@@ -127,7 +137,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"INSERT INTO ""TodoItems"" (""Description"", ""Priority"", ""DurationInHours"", ""CreatedAt"", ""LastModifiedAt"", ""OwnerId"", ""AssigneeId"")
 VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7)
 RETURNING ""Id"""));
@@ -136,7 +146,7 @@ RETURNING ""Id"""));
             command.Parameters.Should().Contain("@p1", newTodoItem.Description);
             command.Parameters.Should().Contain("@p2", newTodoItem.Priority);
             command.Parameters.Should().Contain("@p3", newTodoItem.DurationInHours);
-            command.Parameters.Should().Contain("@p4", FrozenTime);
+            command.Parameters.Should().Contain("@p4", DapperTestContext.FrozenTime);
             command.Parameters.Should().Contain("@p5", null);
             command.Parameters.Should().Contain("@p6", existingPerson.Id);
             command.Parameters.Should().Contain("@p7", existingPerson.Id);
@@ -144,7 +154,7 @@ RETURNING ""Id"""));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""Tags""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""Tags""
 SET ""TodoItemId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -155,7 +165,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Id"" = @p1"));
@@ -169,14 +179,14 @@ WHERE t1.""Id"" = @p1"));
     public async Task Can_create_resource_with_only_required_fields()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem newTodoItem = _fakers.TodoItem.Generate();
 
         Person existingPerson = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
@@ -209,7 +219,7 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/todoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.Created);
@@ -219,13 +229,13 @@ WHERE t1.""Id"" = @p1"));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("description").With(value => value.Should().Be(newTodoItem.Description));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("priority").With(value => value.Should().Be(newTodoItem.Priority));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("durationInHours").With(value => value.Should().BeNull());
-        responseDocument.Data.SingleValue.Attributes.ShouldContainKey("createdAt").With(value => value.Should().Be(FrozenTime));
+        responseDocument.Data.SingleValue.Attributes.ShouldContainKey("createdAt").With(value => value.Should().Be(DapperTestContext.FrozenTime));
         responseDocument.Data.SingleValue.Attributes.ShouldContainKey("modifiedAt").With(value => value.Should().BeNull());
         responseDocument.Data.SingleValue.Relationships.ShouldOnlyContainKeys("owner", "assignee", "tags");
 
         long newTodoItemId = long.Parse(responseDocument.Data.SingleValue.Id.ShouldNotBeNull());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             // @formatter:wrap_chained_method_calls chop_always
             // @formatter:keep_existing_linebreaks true
@@ -242,7 +252,7 @@ WHERE t1.""Id"" = @p1"));
             todoItemInDatabase.Description.Should().Be(newTodoItem.Description);
             todoItemInDatabase.Priority.Should().Be(newTodoItem.Priority);
             todoItemInDatabase.DurationInHours.Should().BeNull();
-            todoItemInDatabase.CreatedAt.Should().Be(FrozenTime);
+            todoItemInDatabase.CreatedAt.Should().Be(DapperTestContext.FrozenTime);
             todoItemInDatabase.LastModifiedAt.Should().BeNull();
 
             todoItemInDatabase.Owner.ShouldNotBeNull();
@@ -255,7 +265,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"INSERT INTO ""TodoItems"" (""Description"", ""Priority"", ""DurationInHours"", ""CreatedAt"", ""LastModifiedAt"", ""OwnerId"", ""AssigneeId"")
 VALUES (@p1, @p2, @p3, @p4, @p5, @p6, @p7)
 RETURNING ""Id"""));
@@ -264,7 +274,7 @@ RETURNING ""Id"""));
             command.Parameters.Should().Contain("@p1", newTodoItem.Description);
             command.Parameters.Should().Contain("@p2", newTodoItem.Priority);
             command.Parameters.Should().Contain("@p3", null);
-            command.Parameters.Should().Contain("@p4", FrozenTime);
+            command.Parameters.Should().Contain("@p4", DapperTestContext.FrozenTime);
             command.Parameters.Should().Contain("@p5", null);
             command.Parameters.Should().Contain("@p6", existingPerson.Id);
             command.Parameters.Should().Contain("@p7", null);
@@ -272,7 +282,7 @@ RETURNING ""Id"""));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Id"" = @p1"));
@@ -286,7 +296,7 @@ WHERE t1.""Id"" = @p1"));
     public async Task Cannot_create_resource_without_required_fields()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         var requestBody = new
@@ -303,7 +313,7 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/todoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.UnprocessableEntity);
@@ -338,7 +348,7 @@ WHERE t1.""Id"" = @p1"));
     public async Task Can_create_resource_with_unmapped_property()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         AccountRecovery existingAccountRecovery = _fakers.AccountRecovery.Generate();
@@ -346,7 +356,7 @@ WHERE t1.""Id"" = @p1"));
 
         string newUserName = _fakers.LoginAccount.Generate().UserName;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AddInRange(existingAccountRecovery, existingPerson);
             await dbContext.SaveChangesAsync();
@@ -386,7 +396,7 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/loginAccounts";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.Created);
@@ -399,7 +409,7 @@ WHERE t1.""Id"" = @p1"));
 
         long newLoginAccountId = long.Parse(responseDocument.Data.SingleValue.Id.ShouldNotBeNull());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             // @formatter:wrap_chained_method_calls chop_always
             // @formatter:keep_existing_linebreaks true
@@ -425,7 +435,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""LoginAccounts""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""LoginAccounts""
 WHERE ""RecoveryId"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -434,7 +444,7 @@ WHERE ""RecoveryId"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"INSERT INTO ""LoginAccounts"" (""UserName"", ""LastUsedAt"", ""RecoveryId"")
+            command.Statement.Should().Be(_testContext.AdaptSql(@"INSERT INTO ""LoginAccounts"" (""UserName"", ""LastUsedAt"", ""RecoveryId"")
 VALUES (@p1, @p2, @p3)
 RETURNING ""Id"""));
 
@@ -446,7 +456,7 @@ RETURNING ""Id"""));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -457,7 +467,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[3].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName""
 FROM ""LoginAccounts"" AS t1
 WHERE t1.""Id"" = @p1"));
 
@@ -470,7 +480,7 @@ WHERE t1.""Id"" = @p1"));
     public async Task Can_create_resource_with_calculated_attribute()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person newPerson = _fakers.Person.Generate();
@@ -491,7 +501,7 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/people";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.Created);
@@ -505,7 +515,7 @@ WHERE t1.""Id"" = @p1"));
 
         long newPersonId = long.Parse(responseDocument.Data.SingleValue.Id.ShouldNotBeNull());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.FirstWithIdAsync(newPersonId);
 
@@ -518,7 +528,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"INSERT INTO ""People"" (""FirstName"", ""LastName"", ""AccountId"")
+            command.Statement.Should().Be(_testContext.AdaptSql(@"INSERT INTO ""People"" (""FirstName"", ""LastName"", ""AccountId"")
 VALUES (@p1, @p2, @p3)
 RETURNING ""Id"""));
 
@@ -530,7 +540,7 @@ RETURNING ""Id"""));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
 FROM ""People"" AS t1
 WHERE t1.""Id"" = @p1"));
 
@@ -543,16 +553,16 @@ WHERE t1.""Id"" = @p1"));
     public async Task Can_create_resource_with_client_generated_ID()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Tag existingTag = _fakers.Tag.Generate();
 
         RgbColor newColor = _fakers.RgbColor.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.Tags.Add(existingTag);
             await dbContext.SaveChangesAsync();
         });
@@ -580,14 +590,14 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/rgbColors/";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePostAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePostAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             RgbColor colorInDatabase = await dbContext.RgbColors.Include(rgbColor => rgbColor.Tag).FirstWithIdAsync(newColor.Id);
 
@@ -603,7 +613,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""RgbColors""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""RgbColors""
 WHERE ""TagId"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -612,7 +622,7 @@ WHERE ""TagId"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"INSERT INTO ""RgbColors"" (""Id"", ""TagId"")
+            command.Statement.Should().Be(_testContext.AdaptSql(@"INSERT INTO ""RgbColors"" (""Id"", ""TagId"")
 VALUES (@p1, @p2)
 RETURNING ""Id""", true));
 
@@ -623,7 +633,7 @@ RETURNING ""Id""", true));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id""
 FROM ""RgbColors"" AS t1
 WHERE t1.""Id"" = @p1"));
 
@@ -636,7 +646,7 @@ WHERE t1.""Id"" = @p1"));
     public async Task Cannot_create_resource_for_existing_client_generated_ID()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         RgbColor existingColor = _fakers.RgbColor.Generate();
@@ -644,9 +654,9 @@ WHERE t1.""Id"" = @p1"));
 
         Tag existingTag = _fakers.Tag.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.AddInRange(existingColor, existingTag);
             await dbContext.SaveChangesAsync();
         });
@@ -674,7 +684,7 @@ WHERE t1.""Id"" = @p1"));
         const string route = "/rgbColors";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePostAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePostAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.Conflict);
@@ -691,7 +701,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""RgbColors""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""RgbColors""
 WHERE ""TagId"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -700,7 +710,7 @@ WHERE ""TagId"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"INSERT INTO ""RgbColors"" (""Id"", ""TagId"")
+            command.Statement.Should().Be(_testContext.AdaptSql(@"INSERT INTO ""RgbColors"" (""Id"", ""TagId"")
 VALUES (@p1, @p2)
 RETURNING ""Id""", true));
 
@@ -711,7 +721,7 @@ RETURNING ""Id""", true));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id""
 FROM ""RgbColors"" AS t1
 WHERE t1.""Id"" = @p1"));
 

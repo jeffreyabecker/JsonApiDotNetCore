@@ -7,16 +7,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.ReadWrite.Resources;
 
-public sealed partial class SqlTests
+public sealed class DeleteResourceTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public DeleteResourceTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_delete_resource()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
@@ -24,9 +34,9 @@ public sealed partial class SqlTests
         existingTodoItem.Tags = _fakers.Tag.Generate(1).ToHashSet();
         existingTodoItem.Tags.ElementAt(0).Color = _fakers.RgbColor.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.Add(existingTodoItem);
             await dbContext.SaveChangesAsync();
         });
@@ -34,14 +44,14 @@ public sealed partial class SqlTests
         string route = $"/todoItems/{existingTodoItem.StringId}";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecuteDeleteAsync<string>(route);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecuteDeleteAsync<string>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             TodoItem? todoItemInDatabase = await dbContext.TodoItems.FirstWithIdOrDefaultAsync(existingTodoItem.Id);
 
@@ -56,7 +66,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""TodoItems""
 WHERE ""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -68,7 +78,7 @@ WHERE ""Id"" = @p1"));
     public async Task Cannot_delete_unknown_resource()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         const long unknownTodoItemId = Unknown.TypedId.Int64;
@@ -76,7 +86,7 @@ WHERE ""Id"" = @p1"));
         string route = $"/todoItems/{unknownTodoItemId}";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteDeleteAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteDeleteAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NotFound);
@@ -93,7 +103,7 @@ WHERE ""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""TodoItems""
 WHERE ""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -102,7 +112,7 @@ WHERE ""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Id"" = @p1"));
 

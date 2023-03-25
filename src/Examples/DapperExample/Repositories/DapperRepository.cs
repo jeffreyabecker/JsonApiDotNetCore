@@ -21,7 +21,7 @@ namespace DapperExample.Repositories;
 // - No many-to-many
 // - No resource inheritance
 // - No composite primary/foreign keys
-// - No nested pagination?
+// - No nested pagination
 // - No eager loading?
 // - No resource constructor injection (materialization by Dapper)
 // - Simplified change detection: includes scalar properties, but relationships only one level deep

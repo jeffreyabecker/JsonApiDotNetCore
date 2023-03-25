@@ -6,16 +6,26 @@ using JsonApiDotNetCore.Serialization.Objects;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.QueryStrings;
 
-public sealed partial class SqlTests
+public sealed class IncludeTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public IncludeTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_get_primary_resources_with_multiple_include_chains()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person owner = _fakers.Person.Generate();
@@ -28,9 +38,9 @@ public sealed partial class SqlTests
         todoItems[0].Priority = TodoItemPriority.High;
         todoItems[1].Priority = TodoItemPriority.Low;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -38,7 +48,7 @@ public sealed partial class SqlTests
         const string route = "/todoItems?include=owner.assignedTodoItems,assignee,tags";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -142,7 +152,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -150,7 +160,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t4.""Id"", t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t4.Id0 AS Id, t4.""FirstName"", t4.""LastName"", t4.Id00 AS Id, t4.FirstName0 AS FirstName, t4.LastName0 AS LastName, t5.""Id"", t5.""CreatedAt"", t5.""Description"", t5.""DurationInHours"", t5.""LastModifiedAt"", t5.""Priority"", t6.""Id"", t6.""Name""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS Id0, t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0
@@ -173,7 +183,7 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
     public async Task Can_get_primary_resources_with_includes()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(25);
@@ -181,9 +191,9 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
         todoItems.ForEach(todoItem => todoItem.Tags = _fakers.Tag.Generate(15).ToHashSet());
         todoItems.ForEach(todoItem => todoItem.Tags.ForEach(tag => tag.Color = _fakers.RgbColor.Generate()));
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -191,7 +201,7 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
         const string route = "/todoItems?include=tags.color";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -214,7 +224,7 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -222,7 +232,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority"", t3.""Id"", t3.""Name"", t4.""Id""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""

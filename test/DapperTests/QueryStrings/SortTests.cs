@@ -6,16 +6,26 @@ using JsonApiDotNetCore.Serialization.Objects;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.QueryStrings;
 
-public sealed partial class SqlTests
+public sealed class SortTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public SortTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_sort_on_attributes_in_primary_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(3);
@@ -25,9 +35,9 @@ public sealed partial class SqlTests
         todoItems[1].Description = "A";
         todoItems[2].Description = "C";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -35,7 +45,7 @@ public sealed partial class SqlTests
         const string route = "/todoItems?sort=-description,durationInHours,id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -49,7 +59,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -57,7 +67,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY t1.""Description"" DESC, t1.""DurationInHours"", t1.""Id""
@@ -72,7 +82,7 @@ LIMIT @p1"));
     public async Task Can_sort_on_attributes_in_secondary_and_included_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -87,7 +97,7 @@ LIMIT @p1"));
         person.OwnedTodoItems.ElementAt(1).Tags.ElementAt(0).Name = "B";
         person.OwnedTodoItems.ElementAt(1).Tags.ElementAt(1).Name = "A";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
@@ -96,7 +106,7 @@ LIMIT @p1"));
         string route = $"/people/{person.StringId}/ownedTodoItems?include=tags&sort=-durationInHours&sort[tags]=name";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -114,7 +124,7 @@ LIMIT @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE t2.""Id"" = @p1"));
@@ -125,7 +135,7 @@ WHERE t2.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t3.""Id"", t3.Id0 AS Id, t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority"", t4.""Id"", t4.""Name""
 FROM (
     SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -148,7 +158,7 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name"""));
     public async Task Can_sort_on_count_in_primary_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(3);
@@ -158,9 +168,9 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name"""));
         todoItems[1].Tags = _fakers.Tag.Generate(1).ToHashSet();
         todoItems[2].Tags = _fakers.Tag.Generate(3).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -168,7 +178,7 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name"""));
         const string route = "/todoItems?sort=-count(tags),id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -182,7 +192,7 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name"""));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -190,7 +200,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY (
@@ -209,7 +219,7 @@ LIMIT @p1"));
     public async Task Can_sort_on_count_in_secondary_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -219,9 +229,9 @@ LIMIT @p1"));
         person.OwnedTodoItems.ElementAt(1).Tags = _fakers.Tag.Generate(1).ToHashSet();
         person.OwnedTodoItems.ElementAt(2).Tags = _fakers.Tag.Generate(3).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -229,7 +239,7 @@ LIMIT @p1"));
         string route = $"/people/{person.StringId}/ownedTodoItems?sort=-count(tags),id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -243,7 +253,7 @@ LIMIT @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE t2.""Id"" = @p1"));
@@ -254,7 +264,7 @@ WHERE t2.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -276,7 +286,7 @@ LIMIT @p2"));
     public async Task Can_sort_on_count_in_secondary_resources_with_include()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -286,9 +296,9 @@ LIMIT @p2"));
         person.OwnedTodoItems.ElementAt(1).Tags = _fakers.Tag.Generate(1).ToHashSet();
         person.OwnedTodoItems.ElementAt(2).Tags = _fakers.Tag.Generate(3).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -296,7 +306,7 @@ LIMIT @p2"));
         string route = $"/people/{person.StringId}/ownedTodoItems?include=tags&sort=-count(tags),id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -310,7 +320,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE t2.""Id"" = @p1"));
@@ -321,7 +331,7 @@ WHERE t2.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t4.""Id"", t4.Id0 AS Id, t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t5.""Id"", t5.""Name""
 FROM (
     SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -352,7 +362,7 @@ ORDER BY (
     public async Task Can_sort_on_count_in_included_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -362,9 +372,9 @@ ORDER BY (
         person.OwnedTodoItems.ElementAt(1).Tags = _fakers.Tag.Generate(1).ToHashSet();
         person.OwnedTodoItems.ElementAt(2).Tags = _fakers.Tag.Generate(3).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -372,7 +382,7 @@ ORDER BY (
         const string route = "/people?include=ownedTodoItems&sort[ownedTodoItems]=-count(tags),id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -391,7 +401,7 @@ ORDER BY (
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""People"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -399,7 +409,7 @@ FROM ""People"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t2.""Id"", t2.""FirstName"", t2.""LastName"", t3.""Id"", t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority""
 FROM (
     SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""

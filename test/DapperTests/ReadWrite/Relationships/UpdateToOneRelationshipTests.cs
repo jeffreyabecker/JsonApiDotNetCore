@@ -7,22 +7,32 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.ReadWrite.Relationships;
 
-public sealed partial class SqlTests
+public sealed class UpdateToOneRelationshipTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public UpdateToOneRelationshipTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_clear_OneToOne_relationship_with_nullable_foreign_key_at_left_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.Account = _fakers.LoginAccount.Generate();
         existingPerson.Account.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
@@ -36,14 +46,14 @@ public sealed partial class SqlTests
         string route = $"/people/{existingPerson.StringId}/relationships/account";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.Include(person => person.Account).FirstWithIdAsync(existingPerson.Id);
 
@@ -59,7 +69,8 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
 FROM ""People"" AS t1
 LEFT JOIN ""LoginAccounts"" AS t2 ON t1.""AccountId"" = t2.""Id""
 WHERE t1.""Id"" = @p1"));
@@ -70,7 +81,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -83,14 +94,14 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_clear_OneToOne_relationship_with_nullable_foreign_key_at_right_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount = _fakers.LoginAccount.Generate();
         existingLoginAccount.Recovery = _fakers.AccountRecovery.Generate();
         existingLoginAccount.Person = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.LoginAccounts.Add(existingLoginAccount);
             await dbContext.SaveChangesAsync();
@@ -104,14 +115,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/loginAccounts/{existingLoginAccount.StringId}/relationships/person";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             LoginAccount loginAccountInDatabase =
                 await dbContext.LoginAccounts.Include(loginAccount => loginAccount.Person).FirstWithIdAsync(existingLoginAccount.Id);
@@ -127,7 +138,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""LoginAccounts"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""Id"" = t2.""AccountId""
 WHERE t1.""Id"" = @p1"));
@@ -138,7 +150,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -151,13 +163,13 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_clear_OneToOne_relationship_with_nullable_foreign_key_at_right_side_when_already_null()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount = _fakers.LoginAccount.Generate();
         existingLoginAccount.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.LoginAccounts.Add(existingLoginAccount);
             await dbContext.SaveChangesAsync();
@@ -171,7 +183,7 @@ WHERE ""Id"" = @p2"));
         string route = $"/loginAccounts/{existingLoginAccount.StringId}/relationships/person";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
@@ -182,7 +194,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""LoginAccounts"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""Id"" = t2.""AccountId""
 WHERE t1.""Id"" = @p1"));
@@ -195,13 +208,13 @@ WHERE t1.""Id"" = @p1"));
     [Fact]
     public async Task Cannot_clear_OneToOne_relationship_with_required_foreign_key_at_left_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount = _fakers.LoginAccount.Generate();
         existingLoginAccount.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.LoginAccounts.Add(existingLoginAccount);
             await dbContext.SaveChangesAsync();
@@ -215,7 +228,7 @@ WHERE t1.""Id"" = @p1"));
         string route = $"/loginAccounts/{existingLoginAccount.StringId}/relationships/recovery";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePatchAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePatchAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.BadRequest);
@@ -232,7 +245,8 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""EmailAddress"", t2.""PhoneNumber""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""EmailAddress"", t2.""PhoneNumber""
 FROM ""LoginAccounts"" AS t1
 INNER JOIN ""AccountRecoveries"" AS t2 ON t1.""RecoveryId"" = t2.""Id""
 WHERE t1.""Id"" = @p1"));
@@ -245,13 +259,13 @@ WHERE t1.""Id"" = @p1"));
     [Fact]
     public async Task Cannot_clear_OneToOne_relationship_with_required_foreign_key_at_right_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         AccountRecovery existingAccountRecovery = _fakers.AccountRecovery.Generate();
         existingAccountRecovery.Account = _fakers.LoginAccount.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AccountRecoveries.Add(existingAccountRecovery);
             await dbContext.SaveChangesAsync();
@@ -265,7 +279,7 @@ WHERE t1.""Id"" = @p1"));
         string route = $"/accountRecoveries/{existingAccountRecovery.StringId}/relationships/account";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePatchAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePatchAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.BadRequest);
@@ -282,7 +296,8 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""EmailAddress"", t1.""PhoneNumber"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""EmailAddress"", t1.""PhoneNumber"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
 FROM ""AccountRecoveries"" AS t1
 INNER JOIN ""LoginAccounts"" AS t2 ON t1.""Id"" = t2.""RecoveryId""
 WHERE t1.""Id"" = @p1"));
@@ -295,14 +310,14 @@ WHERE t1.""Id"" = @p1"));
     [Fact]
     public async Task Can_clear_ManyToOne_relationship_with_nullable_foreign_key()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
         existingTodoItem.Owner = _fakers.Person.Generate();
         existingTodoItem.Assignee = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.TodoItems.Add(existingTodoItem);
             await dbContext.SaveChangesAsync();
@@ -316,14 +331,14 @@ WHERE t1.""Id"" = @p1"));
         string route = $"/todoItems/{existingTodoItem.StringId}/relationships/assignee";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             TodoItem todoItemInDatabase = await dbContext.TodoItems.Include(todoItem => todoItem.Assignee).FirstWithIdAsync(existingTodoItem.Id);
 
@@ -334,7 +349,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
@@ -346,7 +361,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""AssigneeId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -359,13 +374,13 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Cannot_clear_ManyToOne_relationship_with_required_foreign_key()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
         existingTodoItem.Owner = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.TodoItems.Add(existingTodoItem);
             await dbContext.SaveChangesAsync();
@@ -379,7 +394,7 @@ WHERE ""Id"" = @p2"));
         string route = $"/todoItems/{existingTodoItem.StringId}/relationships/owner";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecutePatchAsync<Document>(route, requestBody);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecutePatchAsync<Document>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.BadRequest);
@@ -396,7 +411,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
@@ -410,7 +425,7 @@ WHERE t1.""Id"" = @p1"));
     [Fact]
     public async Task Can_create_OneToOne_relationship_with_nullable_foreign_key_at_left_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson = _fakers.Person.Generate();
@@ -418,7 +433,7 @@ WHERE t1.""Id"" = @p1"));
         LoginAccount existingLoginAccount = _fakers.LoginAccount.Generate();
         existingLoginAccount.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AddInRange(existingPerson, existingLoginAccount);
             await dbContext.SaveChangesAsync();
@@ -436,14 +451,14 @@ WHERE t1.""Id"" = @p1"));
         string route = $"/people/{existingPerson.StringId}/relationships/account";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.Include(person => person.Account).FirstWithIdAsync(existingPerson.Id);
 
@@ -455,7 +470,8 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
 FROM ""People"" AS t1
 LEFT JOIN ""LoginAccounts"" AS t2 ON t1.""AccountId"" = t2.""Id""
 WHERE t1.""Id"" = @p1"));
@@ -466,7 +482,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""AccountId"" = @p2"));
 
@@ -477,7 +493,7 @@ WHERE ""AccountId"" = @p2"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -490,7 +506,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_create_OneToOne_relationship_with_nullable_foreign_key_at_right_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount = _fakers.LoginAccount.Generate();
@@ -498,7 +514,7 @@ WHERE ""Id"" = @p2"));
 
         Person existingPerson = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AddInRange(existingLoginAccount, existingPerson);
             await dbContext.SaveChangesAsync();
@@ -516,14 +532,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/loginAccounts/{existingLoginAccount.StringId}/relationships/person";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             LoginAccount loginAccountInDatabase =
                 await dbContext.LoginAccounts.Include(loginAccount => loginAccount.Person).FirstWithIdAsync(existingLoginAccount.Id);
@@ -536,7 +552,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""LoginAccounts"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""Id"" = t2.""AccountId""
 WHERE t1.""Id"" = @p1"));
@@ -547,7 +564,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -560,7 +577,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_create_ManyToOne_relationship_with_nullable_foreign_key()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem = _fakers.TodoItem.Generate();
@@ -568,7 +585,7 @@ WHERE ""Id"" = @p2"));
 
         Person existingPerson = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AddInRange(existingTodoItem, existingPerson);
             await dbContext.SaveChangesAsync();
@@ -586,14 +603,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/todoItems/{existingTodoItem.StringId}/relationships/assignee";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             TodoItem todoItemInDatabase = await dbContext.TodoItems.Include(todoItem => todoItem.Assignee).FirstWithIdAsync(existingTodoItem.Id);
 
@@ -605,7 +622,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
@@ -617,7 +634,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""AssigneeId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -630,7 +647,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_OneToOne_relationship_with_nullable_foreign_key_at_left_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson1 = _fakers.Person.Generate();
@@ -641,7 +658,7 @@ WHERE ""Id"" = @p2"));
         existingPerson2.Account = _fakers.LoginAccount.Generate();
         existingPerson2.Account.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.AddRange(existingPerson1, existingPerson2);
             await dbContext.SaveChangesAsync();
@@ -659,14 +676,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/people/{existingPerson1.StringId}/relationships/account";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase1 = await dbContext.People.Include(person => person.Account).FirstWithIdAsync(existingPerson1.Id);
 
@@ -682,7 +699,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
 FROM ""People"" AS t1
 LEFT JOIN ""LoginAccounts"" AS t2 ON t1.""AccountId"" = t2.""Id""
 WHERE t1.""Id"" = @p1"));
@@ -693,7 +711,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""AccountId"" = @p2"));
 
@@ -704,7 +722,7 @@ WHERE ""AccountId"" = @p2"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -717,7 +735,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_OneToOne_relationship_with_nullable_foreign_key_at_right_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount1 = _fakers.LoginAccount.Generate();
@@ -728,7 +746,7 @@ WHERE ""Id"" = @p2"));
         existingLoginAccount2.Recovery = _fakers.AccountRecovery.Generate();
         existingLoginAccount2.Person = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.LoginAccounts.AddRange(existingLoginAccount1, existingLoginAccount2);
             await dbContext.SaveChangesAsync();
@@ -746,14 +764,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/loginAccounts/{existingLoginAccount1.StringId}/relationships/person";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             LoginAccount loginAccountInDatabase1 =
                 await dbContext.LoginAccounts.Include(loginAccount => loginAccount.Person).FirstWithIdAsync(existingLoginAccount1.Id);
@@ -771,7 +789,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""LoginAccounts"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""Id"" = t2.""AccountId""
 WHERE t1.""Id"" = @p1"));
@@ -782,7 +801,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -793,7 +812,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""People""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""People""
 SET ""AccountId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -806,7 +825,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_OneToOne_relationship_with_required_foreign_key_at_left_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         LoginAccount existingLoginAccount1 = _fakers.LoginAccount.Generate();
@@ -815,7 +834,7 @@ WHERE ""Id"" = @p2"));
         LoginAccount existingLoginAccount2 = _fakers.LoginAccount.Generate();
         existingLoginAccount2.Recovery = _fakers.AccountRecovery.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.LoginAccounts.AddRange(existingLoginAccount1, existingLoginAccount2);
             await dbContext.SaveChangesAsync();
@@ -833,14 +852,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/loginAccounts/{existingLoginAccount1.StringId}/relationships/recovery";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             LoginAccount loginAccountInDatabase1 =
                 await dbContext.LoginAccounts.Include(loginAccount => loginAccount.Recovery).FirstWithIdAsync(existingLoginAccount1.Id);
@@ -858,7 +877,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""EmailAddress"", t2.""PhoneNumber""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""LastUsedAt"", t1.""UserName"", t2.""Id"", t2.""EmailAddress"", t2.""PhoneNumber""
 FROM ""LoginAccounts"" AS t1
 INNER JOIN ""AccountRecoveries"" AS t2 ON t1.""RecoveryId"" = t2.""Id""
 WHERE t1.""Id"" = @p1"));
@@ -869,7 +889,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""LoginAccounts""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""LoginAccounts""
 WHERE ""RecoveryId"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -878,7 +898,7 @@ WHERE ""RecoveryId"" = @p1"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""LoginAccounts""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""LoginAccounts""
 SET ""RecoveryId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -891,7 +911,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_OneToOne_relationship_with_required_foreign_key_at_right_side()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         AccountRecovery existingAccountRecovery1 = _fakers.AccountRecovery.Generate();
@@ -900,7 +920,7 @@ WHERE ""Id"" = @p2"));
         AccountRecovery existingAccountRecovery2 = _fakers.AccountRecovery.Generate();
         existingAccountRecovery2.Account = _fakers.LoginAccount.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.AccountRecoveries.AddRange(existingAccountRecovery1, existingAccountRecovery2);
             await dbContext.SaveChangesAsync();
@@ -918,14 +938,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/accountRecoveries/{existingAccountRecovery1.StringId}/relationships/account";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             AccountRecovery accountRecoveryInDatabase1 =
                 await dbContext.AccountRecoveries.Include(recovery => recovery.Account).FirstWithIdAsync(existingAccountRecovery1.Id);
@@ -943,7 +963,8 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""EmailAddress"", t1.""PhoneNumber"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""EmailAddress"", t1.""PhoneNumber"", t2.""Id"", t2.""LastUsedAt"", t2.""UserName""
 FROM ""AccountRecoveries"" AS t1
 INNER JOIN ""LoginAccounts"" AS t2 ON t1.""Id"" = t2.""RecoveryId""
 WHERE t1.""Id"" = @p1"));
@@ -954,7 +975,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""LoginAccounts""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""LoginAccounts""
 WHERE ""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
@@ -963,7 +984,7 @@ WHERE ""Id"" = @p1"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""LoginAccounts""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""LoginAccounts""
 SET ""RecoveryId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -976,7 +997,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_ManyToOne_relationship_with_nullable_foreign_key()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem1 = _fakers.TodoItem.Generate();
@@ -987,7 +1008,7 @@ WHERE ""Id"" = @p2"));
         existingTodoItem2.Owner = _fakers.Person.Generate();
         existingTodoItem2.Assignee = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.TodoItems.AddRange(existingTodoItem1, existingTodoItem2);
             await dbContext.SaveChangesAsync();
@@ -1005,14 +1026,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/todoItems/{existingTodoItem1.StringId}/relationships/assignee";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             TodoItem todoItemInDatabase1 = await dbContext.TodoItems.Include(todoItem => todoItem.Assignee).FirstWithIdAsync(existingTodoItem1.Id);
 
@@ -1024,7 +1045,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
@@ -1036,7 +1057,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""AssigneeId"" = @p1
 WHERE ""Id"" = @p2"));
 
@@ -1049,7 +1070,7 @@ WHERE ""Id"" = @p2"));
     [Fact]
     public async Task Can_replace_ManyToOne_relationship_with_required_foreign_key()
     {
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         TodoItem existingTodoItem1 = _fakers.TodoItem.Generate();
@@ -1058,7 +1079,7 @@ WHERE ""Id"" = @p2"));
         TodoItem existingTodoItem2 = _fakers.TodoItem.Generate();
         existingTodoItem2.Owner = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.TodoItems.AddRange(existingTodoItem1, existingTodoItem2);
             await dbContext.SaveChangesAsync();
@@ -1076,14 +1097,14 @@ WHERE ""Id"" = @p2"));
         string route = $"/todoItems/{existingTodoItem1.StringId}/relationships/owner";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePatchAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePatchAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             TodoItem todoItemInDatabase1 = await dbContext.TodoItems.Include(todoItem => todoItem.Owner).FirstWithIdAsync(existingTodoItem1.Id);
 
@@ -1095,7 +1116,7 @@ WHERE ""Id"" = @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"", t2.""FirstName"", t2.""LastName""
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
@@ -1107,7 +1128,7 @@ WHERE t1.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""OwnerId"" = @p1
 WHERE ""Id"" = @p2"));
 

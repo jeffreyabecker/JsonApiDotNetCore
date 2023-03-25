@@ -211,7 +211,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
             }
             else
             {
-                // TODO: If there's an alias, we should use it. Otherwise we could fallback to ordinal selector.
+                // If there's an alias, we should use it. Otherwise we could fallback to ordinal selector.
                 throw new NotImplementedException("Mapping non-column selectors is not implemented.");
             }
         }

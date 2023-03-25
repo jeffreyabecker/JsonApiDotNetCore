@@ -6,25 +6,35 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.ReadWrite.Relationships;
 
-public sealed partial class SqlTests
+public sealed class RemoveFromToManyRelationshipTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public RemoveFromToManyRelationshipTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_remove_from_OneToMany_relationship_with_nullable_foreign_key()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.AssignedTodoItems = _fakers.TodoItem.Generate(3).ToHashSet();
         existingPerson.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });
@@ -49,14 +59,14 @@ public sealed partial class SqlTests
         string route = $"/people/{existingPerson.StringId}/relationships/assignedTodoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecuteDeleteAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecuteDeleteAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.Include(person => person.AssignedTodoItems).FirstWithIdAsync(existingPerson.Id);
 
@@ -72,7 +82,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t2.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
@@ -85,7 +95,7 @@ WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Id"" IN (@p1, @p2)"));
 
@@ -96,7 +106,7 @@ WHERE t1.""Id"" IN (@p1, @p2)"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""AssigneeId"" = @p1
 WHERE ""Id"" IN (@p2, @p3)"));
 
@@ -111,15 +121,15 @@ WHERE ""Id"" IN (@p2, @p3)"));
     public async Task Can_remove_from_OneToMany_relationship_with_required_foreign_key()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson = _fakers.Person.Generate();
         existingPerson.OwnedTodoItems = _fakers.TodoItem.Generate(3).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });
@@ -144,14 +154,14 @@ WHERE ""Id"" IN (@p2, @p3)"));
         string route = $"/people/{existingPerson.StringId}/relationships/ownedTodoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecuteDeleteAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecuteDeleteAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.Include(person => person.OwnedTodoItems).FirstWithIdAsync(existingPerson.Id);
 
@@ -167,7 +177,7 @@ WHERE ""Id"" IN (@p2, @p3)"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t2.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
@@ -180,7 +190,7 @@ WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Id"" IN (@p1, @p2)"));
 
@@ -191,7 +201,7 @@ WHERE t1.""Id"" IN (@p1, @p2)"));
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"DELETE FROM ""TodoItems""
 WHERE ""Id"" IN (@p1, @p2)"));
 
             command.Parameters.ShouldHaveCount(2);

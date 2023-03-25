@@ -6,16 +6,26 @@ using JsonApiDotNetCore.Serialization.Objects;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.QueryStrings;
 
-public sealed partial class SqlTests
+public sealed class FilterTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public FilterTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_filter_equals_on_obfuscated_id_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<Tag> tags = _fakers.Tag.Generate(3);
@@ -25,9 +35,9 @@ public sealed partial class SqlTests
         tags[1].Color!.StringId = "00FF00";
         tags[2].Color!.StringId = "0000FF";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.Tags.AddRange(tags);
             await dbContext.SaveChangesAsync();
         });
@@ -35,7 +45,7 @@ public sealed partial class SqlTests
         const string route = "/tags?filter=equals(color.id,'00FF00')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -50,7 +60,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""Tags"" AS t1
 INNER JOIN ""RgbColors"" AS t2 ON t1.""Id"" = t2.""TagId""
 WHERE t2.""Id"" = @p1"));
@@ -61,7 +71,7 @@ WHERE t2.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""Name""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t1.""Name""
 FROM ""Tags"" AS t1
 INNER JOIN ""RgbColors"" AS t2 ON t1.""Id"" = t2.""TagId""
 WHERE t2.""Id"" = @p1
@@ -78,7 +88,7 @@ LIMIT @p2"));
     public async Task Can_filter_any_on_obfuscated_id_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<Tag> tags = _fakers.Tag.Generate(3);
@@ -88,9 +98,9 @@ LIMIT @p2"));
         tags[1].Color!.StringId = "00FF00";
         tags[2].Color!.StringId = "0000FF";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.Tags.AddRange(tags);
             await dbContext.SaveChangesAsync();
         });
@@ -98,7 +108,7 @@ LIMIT @p2"));
         const string route = "/tags?filter=any(color.id,'00FF00','11EE11')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -113,7 +123,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""Tags"" AS t1
 INNER JOIN ""RgbColors"" AS t2 ON t1.""Id"" = t2.""TagId""
 WHERE t2.""Id"" IN (@p1, @p2)"));
@@ -125,7 +135,7 @@ WHERE t2.""Id"" IN (@p1, @p2)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""Name""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t1.""Name""
 FROM ""Tags"" AS t1
 INNER JOIN ""RgbColors"" AS t2 ON t1.""Id"" = t2.""TagId""
 WHERE t2.""Id"" IN (@p1, @p2)
@@ -143,14 +153,14 @@ LIMIT @p3"));
     public async Task Can_filter_equals_null_on_relationship_at_secondary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
         person.OwnedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
         person.OwnedTodoItems.ElementAt(0).Assignee = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
@@ -159,7 +169,7 @@ LIMIT @p3"));
         string route = $"/people/{person.StringId}/ownedTodoItems?filter=equals(assignee,null)";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -174,7 +184,7 @@ LIMIT @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 LEFT JOIN ""People"" AS t3 ON t1.""AssigneeId"" = t3.""Id""
@@ -186,7 +196,7 @@ WHERE (t2.""Id"" = @p1) AND (t3.""Id"" IS NULL)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -205,14 +215,14 @@ LIMIT @p2"));
     public async Task Can_filter_equals_null_on_attribute_at_secondary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
         person.OwnedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
         person.OwnedTodoItems.ElementAt(1).DurationInHours = null;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
@@ -221,7 +231,7 @@ LIMIT @p2"));
         string route = $"/people/{person.StringId}/ownedTodoItems?filter=equals(durationInHours,null)";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -236,7 +246,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE (t2.""Id"" = @p1) AND (t1.""DurationInHours"" IS NULL)"));
@@ -247,7 +257,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""DurationInHours"" IS NULL)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -265,7 +275,7 @@ LIMIT @p2"));
     public async Task Can_filter_equals_on_enum_attribute_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(3);
@@ -274,9 +284,9 @@ LIMIT @p2"));
 
         todoItems[1].Priority = TodoItemPriority.Medium;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -284,7 +294,7 @@ LIMIT @p2"));
         const string route = "/todoItems?filter=equals(priority,'Medium')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -299,7 +309,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 WHERE t1.""Priority"" = @p1"));
 
@@ -309,7 +319,7 @@ WHERE t1.""Priority"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 WHERE t1.""Priority"" = @p1
@@ -326,7 +336,7 @@ LIMIT @p2"));
     public async Task Can_filter_equals_on_string_attribute_at_secondary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -335,9 +345,9 @@ LIMIT @p2"));
 
         person.AssignedTodoItems.ElementAt(1).Description = "Take exam";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -345,7 +355,7 @@ LIMIT @p2"));
         string route = $"/people/{person.StringId}/assignedTodoItems?filter=equals(description,'Take exam')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -361,7 +371,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
 WHERE (t2.""Id"" = @p1) AND (t1.""Description"" = @p2)"));
@@ -373,7 +383,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""Description"" = @p2)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
@@ -392,7 +402,7 @@ LIMIT @p3"));
     public async Task Can_filter_equality_on_attributes_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(2);
@@ -401,9 +411,9 @@ LIMIT @p3"));
 
         todoItems[1].Assignee!.FirstName = todoItems[1].Assignee!.LastName;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -411,7 +421,7 @@ LIMIT @p3"));
         const string route = "/todoItems?filter=equals(assignee.lastName,assignee.firstName)";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -426,7 +436,7 @@ LIMIT @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
 WHERE t2.""LastName"" = t2.""FirstName"""));
@@ -436,7 +446,7 @@ WHERE t2.""LastName"" = t2.""FirstName"""));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 LEFT JOIN ""People"" AS t2 ON t1.""AssigneeId"" = t2.""Id""
@@ -453,7 +463,7 @@ LIMIT @p1"));
     public async Task Can_filter_any_with_single_constant_at_secondary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
@@ -462,7 +472,7 @@ LIMIT @p1"));
         person.OwnedTodoItems.ElementAt(0).Priority = TodoItemPriority.Low;
         person.OwnedTodoItems.ElementAt(1).Priority = TodoItemPriority.Medium;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
@@ -471,7 +481,7 @@ LIMIT @p1"));
         string route = $"/people/{person.StringId}/ownedTodoItems?filter=any(priority,'Medium')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -486,7 +496,7 @@ LIMIT @p1"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE (t2.""Id"" = @p1) AND (t1.""Priority"" = @p2)"));
@@ -498,7 +508,7 @@ WHERE (t2.""Id"" = @p1) AND (t1.""Priority"" = @p2)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -517,7 +527,7 @@ LIMIT @p3"));
     public async Task Can_filter_text_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(3);
@@ -528,9 +538,9 @@ LIMIT @p3"));
         todoItems[1].Owner.FirstName = "Jack";
         todoItems[2].Description = "Three";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -539,7 +549,7 @@ LIMIT @p3"));
             "/todoItems?filter=and(startsWith(description,'T'),not(any(description,'Three','Four')),equals(owner.firstName,'Jack'),contains(description,'o'))&sort=description";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -554,7 +564,7 @@ LIMIT @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE (t1.""Description"" LIKE 'T%') AND (NOT (t1.""Description"" IN (@p1, @p2))) AND (t2.""FirstName"" = @p3) AND (t1.""Description"" LIKE '%o%')"));
@@ -567,7 +577,7 @@ WHERE (t1.""Description"" LIKE 'T%') AND (NOT (t1.""Description"" IN (@p1, @p2))
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
@@ -587,7 +597,7 @@ LIMIT @p4"));
     public async Task Can_filter_numeric_range_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(3);
@@ -597,9 +607,9 @@ LIMIT @p4"));
         todoItems[1].DurationInHours = 200;
         todoItems[2].DurationInHours = 300;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -607,7 +617,7 @@ LIMIT @p4"));
         const string route = "/todoItems?filter=or(greaterThan(durationInHours,'250'),lessOrEqual(durationInHours,'100'))&sort=durationInHours";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -624,7 +634,7 @@ LIMIT @p4"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 WHERE (t1.""DurationInHours"" > @p1) OR (t1.""DurationInHours"" <= @p2)"));
 
@@ -635,7 +645,7 @@ WHERE (t1.""DurationInHours"" > @p1) OR (t1.""DurationInHours"" <= @p2)"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 WHERE (t1.""DurationInHours"" > @p1) OR (t1.""DurationInHours"" <= @p2)
@@ -653,7 +663,7 @@ LIMIT @p3"));
     public async Task Can_filter_count_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(2);
@@ -662,9 +672,9 @@ LIMIT @p3"));
         todoItems[1].Owner.AssignedTodoItems = _fakers.TodoItem.Generate(2).ToHashSet();
         todoItems[1].Owner.AssignedTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -672,7 +682,7 @@ LIMIT @p3"));
         const string route = "/todoItems?filter=and(greaterThan(count(owner.assignedTodoItems),'1'),not(equals(owner,null)))";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -687,7 +697,7 @@ LIMIT @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
 WHERE ((
@@ -703,7 +713,7 @@ WHERE ((
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t4 ON t1.""OwnerId"" = t4.""Id""
@@ -726,7 +736,7 @@ LIMIT @p2"));
     public async Task Can_filter_nested_conditional_has_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(2);
@@ -744,9 +754,9 @@ LIMIT @p2"));
 
         todoItems[1].Owner.AssignedTodoItems.ElementAt(1).Tags.ElementAt(0).Name = "Personal";
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -755,7 +765,7 @@ LIMIT @p2"));
             "/todoItems?filter=has(owner.assignedTodoItems,and(has(tags,equals(name,'Personal')),equals(owner.lastName,'Smith'),equals(description,'Homework')))";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -770,7 +780,7 @@ LIMIT @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 WHERE EXISTS (
     SELECT 1
@@ -792,7 +802,7 @@ WHERE EXISTS (
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 WHERE EXISTS (
@@ -821,7 +831,7 @@ LIMIT @p4"));
     public async Task Can_filter_conditional_has_with_null_check_at_primary_endpoint()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<Person> people = _fakers.Person.Generate(3);
@@ -834,9 +844,9 @@ LIMIT @p4"));
         people[2].OwnedTodoItems.ElementAt(0).Assignee = _fakers.Person.Generate();
         people[2].OwnedTodoItems.ElementAt(0).Assignee!.FirstName = null;
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(people);
             await dbContext.SaveChangesAsync();
         });
@@ -844,7 +854,7 @@ LIMIT @p4"));
         const string route = "/people?filter=has(ownedTodoItems,equals(assignee.firstName,null))";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -859,7 +869,7 @@ LIMIT @p4"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""People"" AS t1
 WHERE EXISTS (
     SELECT 1
@@ -873,7 +883,7 @@ WHERE EXISTS (
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
 FROM ""People"" AS t1
 WHERE EXISTS (
     SELECT 1
@@ -893,12 +903,12 @@ LIMIT @p1"));
     public async Task Cannot_filter_on_unmapped_attribute()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
@@ -907,7 +917,7 @@ LIMIT @p1"));
         const string route = "/people?filter=equals(displayName,'John Doe')";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.BadRequest);

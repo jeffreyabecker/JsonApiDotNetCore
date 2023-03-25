@@ -6,24 +6,34 @@ using JsonApiDotNetCore.Serialization.Objects;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.QueryStrings;
 
-public sealed partial class SqlTests
+public sealed class PaginationTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public PaginationTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_paginate_in_primary_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(5);
         todoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -31,7 +41,7 @@ public sealed partial class SqlTests
         const string route = "/todoItems?page[size]=3&page[number]=2&sort=id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -46,7 +56,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -54,7 +64,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY t1.""Id""
@@ -70,15 +80,15 @@ LIMIT @p1 OFFSET @p2"));
     public async Task Can_paginate_in_primary_resource_with_single_include()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
         person.OwnedTodoItems = _fakers.TodoItem.Generate(10).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -86,7 +96,7 @@ LIMIT @p1 OFFSET @p2"));
         string route = $"/people/{person.StringId}?include=ownedTodoItems&page[size]=ownedTodoItems:3&page[number]=ownedTodoItems:3&sort[ownedTodoItems]=id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -105,7 +115,7 @@ LIMIT @p1 OFFSET @p2"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -124,16 +134,16 @@ LIMIT @p2 OFFSET @p3"));
     public async Task Can_paginate_in_primary_resource_with_includes()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
         person.OwnedTodoItems = _fakers.TodoItem.Generate(10).ToHashSet();
         person.OwnedTodoItems.ForEach(todoItem => todoItem.Tags = _fakers.Tag.Generate(5).ToHashSet());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -141,7 +151,7 @@ LIMIT @p2 OFFSET @p3"));
         string route = $"/people/{person.StringId}?include=ownedTodoItems.tags&page[size]=ownedTodoItems:3,ownedTodoItems.tags:2&sort[ownedTodoItems]=id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -157,7 +167,7 @@ LIMIT @p2 OFFSET @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t3.""Id"", t3.""FirstName"", t3.""LastName"", t3.Id0 AS Id, t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority"", t4.""Id"", t4.""Name""
 FROM (
     SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -180,15 +190,15 @@ ORDER BY t3.Id0, t4.""Id"""));
     public async Task Can_paginate_in_secondary_resources()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person person = _fakers.Person.Generate();
         person.OwnedTodoItems = _fakers.TodoItem.Generate(10).ToHashSet();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -196,7 +206,7 @@ ORDER BY t3.Id0, t4.""Id"""));
         string route = $"/people/{person.StringId}/ownedTodoItems?page[size]=3&page[number]=3&sort=id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -212,7 +222,7 @@ ORDER BY t3.Id0, t4.""Id"""));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
 WHERE t2.""Id"" = @p1"));
@@ -223,7 +233,7 @@ WHERE t2.""Id"" = @p1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -242,16 +252,16 @@ LIMIT @p2 OFFSET @p3"));
     public async Task Can_paginate_in_primary_resources_with_includes()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         List<TodoItem> todoItems = _fakers.TodoItem.Generate(5);
         todoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
         todoItems.ForEach(todoItem => todoItem.Tags = _fakers.Tag.Generate(5).ToHashSet());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -259,7 +269,7 @@ LIMIT @p2 OFFSET @p3"));
         const string route = "/todoItems?include=owner,assignee,tags&page[size]=2&sort=id";
 
         // Act
-        (HttpResponseMessage httpResponse, Document responseDocument) = await ExecuteGetAsync<Document>(route);
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
@@ -276,7 +286,7 @@ LIMIT @p2 OFFSET @p3"));
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
@@ -284,7 +294,7 @@ FROM ""TodoItems"" AS t1"));
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(
+            command.Statement.Should().Be(_testContext.AdaptSql(
                 @"SELECT t4.""Id"", t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t4.Id0 AS Id, t4.""FirstName"", t4.""LastName"", t4.Id00 AS Id, t4.FirstName0 AS FirstName, t4.LastName0 AS LastName, t5.""Id"", t5.""Name""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS Id0, t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0

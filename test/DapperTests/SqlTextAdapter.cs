@@ -20,7 +20,7 @@ internal sealed class SqlTextAdapter
         _databaseProvider = databaseProvider;
     }
 
-    public string Adapt(string text, bool isClientGeneratedId = false)
+    public string Adapt(string text, bool isClientGeneratedId)
     {
         string replaced = text;
 

@@ -6,16 +6,26 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TestBuildingBlocks;
 using Xunit;
+using Xunit.Abstractions;
 
-namespace DapperTests;
+namespace DapperTests.ReadWrite.Relationships;
 
-public sealed partial class SqlTests
+public sealed class AddToToManyRelationshipTests : IClassFixture<DapperTestContext>
 {
+    private readonly DapperTestContext _testContext;
+    private readonly TestFakers _fakers = new();
+
+    public AddToToManyRelationshipTests(DapperTestContext testContext, ITestOutputHelper testOutputHelper)
+    {
+        testContext.SetTestOutputHelper(testOutputHelper);
+        _testContext = testContext;
+    }
+
     [Fact]
     public async Task Can_add_to_OneToMany_relationship()
     {
         // Arrange
-        var store = _factory.Services.GetRequiredService<SqlCaptureStore>();
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
         store.Clear();
 
         Person existingPerson = _fakers.Person.Generate();
@@ -24,9 +34,9 @@ public sealed partial class SqlTests
         List<TodoItem> existingTodoItems = _fakers.TodoItem.Generate(2);
         existingTodoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
-            await ClearAllTablesAsync(dbContext);
+            await _testContext.ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             dbContext.TodoItems.AddRange(existingTodoItems);
             await dbContext.SaveChangesAsync();
@@ -52,14 +62,14 @@ public sealed partial class SqlTests
         string route = $"/people/{existingPerson.StringId}/relationships/ownedTodoItems";
 
         // Act
-        (HttpResponseMessage httpResponse, string responseDocument) = await ExecutePostAsync<string>(route, requestBody);
+        (HttpResponseMessage httpResponse, string responseDocument) = await _testContext.ExecutePostAsync<string>(route, requestBody);
 
         // Assert
         httpResponse.ShouldHaveStatusCode(HttpStatusCode.NoContent);
 
         responseDocument.Should().BeEmpty();
 
-        await RunOnDatabaseAsync(async dbContext =>
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
         {
             Person personInDatabase = await dbContext.People.Include(person => person.OwnedTodoItems).FirstWithIdAsync(existingPerson.Id);
 
@@ -70,7 +80,7 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_testContext.AdaptSql(@"UPDATE ""TodoItems""
 SET ""OwnerId"" = @p1
 WHERE ""Id"" IN (@p2, @p3)"));
 
