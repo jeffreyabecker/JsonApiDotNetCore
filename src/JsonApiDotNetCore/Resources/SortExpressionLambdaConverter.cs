@@ -114,7 +114,7 @@ internal sealed class SortExpressionLambdaConverter
 
     private Expression? ReadAttribute(Expression expression)
     {
-        if (expression is MemberExpression { Expression: { } } memberExpression)
+        if (expression is MemberExpression { Expression: not null } memberExpression)
         {
             ResourceType resourceType = _resourceGraph.GetResourceType(memberExpression.Expression.Type);
             AttrAttribute? attribute = resourceType.FindAttributeByPropertyName(memberExpression.Member.Name);

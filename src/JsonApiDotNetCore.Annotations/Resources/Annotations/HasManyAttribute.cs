@@ -1,3 +1,4 @@
+using System.Collections;
 using JetBrains.Annotations;
 
 // ReSharper disable NonReadonlyMemberInGetHashCode
@@ -63,6 +64,54 @@ public sealed class HasManyAttribute : RelationshipAttribute
         }
 
         return false;
+    }
+
+    /// <inheritdoc />
+    public override void SetValue(object resource, object? newValue)
+    {
+        ArgumentGuard.NotNull(newValue);
+        AssertIsIdentifiableCollection(newValue);
+
+        base.SetValue(resource, newValue);
+    }
+
+    private void AssertIsIdentifiableCollection(object newValue)
+    {
+        if (newValue is not IEnumerable enumerable)
+        {
+            throw new InvalidOperationException($"Resource of type '{newValue.GetType()}' must be a collection.");
+        }
+
+        foreach (object? element in enumerable)
+        {
+            if (element == null)
+            {
+                throw new InvalidOperationException("Resource collection must not contain null values.");
+            }
+
+            AssertIsIdentifiable(element);
+        }
+    }
+
+    /// <summary>
+    /// Adds a resource to this to-many relationship on the specified resource instance. Throws if the property is read-only or if the field does not belong
+    /// to the specified resource instance.
+    /// </summary>
+    public void AddValue(object resource, IIdentifiable resourceToAdd)
+    {
+        ArgumentGuard.NotNull(resourceToAdd);
+        AssertIsIdentifiable(resourceToAdd);
+
+        object? rightValue = GetValue(resource);
+        List<IIdentifiable> rightResources = CollectionConverter.ExtractResources(rightValue).ToList();
+
+        if (rightResources.All(nextResource => nextResource != resourceToAdd))
+        {
+            rightResources.Add(resourceToAdd);
+
+            IEnumerable typedCollection = CollectionConverter.CopyToTypedCollection(rightResources, Property.PropertyType);
+            SetValue(resource, typedCollection);
+        }
     }
 
     public override bool Equals(object? obj)

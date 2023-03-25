@@ -64,6 +64,13 @@ public sealed class HasOneAttribute : RelationshipAttribute
         return false;
     }
 
+    /// <inheritdoc />
+    public override void SetValue(object resource, object? newValue)
+    {
+        AssertIsIdentifiable(newValue);
+        base.SetValue(resource, newValue);
+    }
+
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(this, obj))
