@@ -26,7 +26,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.Add(existingTodoItem);
             await dbContext.SaveChangesAsync();
         });
@@ -56,8 +56,8 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"DELETE FROM ""TodoItems""
-WHERE ""Id"" = @p1");
+            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+WHERE ""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", existingTodoItem.Id);
@@ -93,8 +93,8 @@ WHERE ""Id"" = @p1");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"DELETE FROM ""TodoItems""
-WHERE ""Id"" = @p1");
+            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+WHERE ""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", unknownTodoItemId);
@@ -102,9 +102,9 @@ WHERE ""Id"" = @p1");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
-WHERE t1.""Id"" = @p1");
+WHERE t1.""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", unknownTodoItemId);

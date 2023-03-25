@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using Dapper;
 using DapperExample.TranslationToSql.TreeNodes;
 using JsonApiDotNetCore;
 using JsonApiDotNetCore.Configuration;
@@ -18,6 +20,8 @@ public abstract class BaseDataModelService : IDataModelService
 
     protected IResourceGraph ResourceGraph { get; }
 
+    public abstract DatabaseProvider DatabaseProvider { get; }
+
     protected BaseDataModelService(IResourceGraph resourceGraph)
     {
         ArgumentGuard.NotNull(resourceGraph);
@@ -32,6 +36,12 @@ public abstract class BaseDataModelService : IDataModelService
     protected virtual void Initialize()
     {
         ScanColumnMappings();
+
+        if (DatabaseProvider == DatabaseProvider.MySql)
+        {
+            // https://stackoverflow.com/questions/12510299/get-datetime-as-utc-with-dapper
+            SqlMapper.AddTypeHandler(new DapperDateTimeOffsetHandlerForMySql());
+        }
     }
 
     private void ScanColumnMappings()
@@ -145,6 +155,19 @@ public abstract class BaseDataModelService : IDataModelService
         if (instanceType != declaredType)
         {
             throw new ArgumentException($"Expected resource of type '{declaredType.Name}' instead of '{instanceType.Name}'.", nameof(resource));
+        }
+    }
+
+    private sealed class DapperDateTimeOffsetHandlerForMySql : SqlMapper.TypeHandler<DateTimeOffset>
+    {
+        public override void SetValue(IDbDataParameter parameter, DateTimeOffset value)
+        {
+            parameter.Value = value;
+        }
+
+        public override DateTimeOffset Parse(object value)
+        {
+            return DateTime.SpecifyKind((DateTime)value, DateTimeKind.Utc);
         }
     }
 }

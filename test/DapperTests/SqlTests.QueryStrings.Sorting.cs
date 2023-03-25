@@ -27,7 +27,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -49,19 +49,19 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY t1.""Description"" DESC, t1.""DurationInHours"", t1.""Id""
-LIMIT @p1");
+LIMIT @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 10);
@@ -114,10 +114,10 @@ LIMIT @p1");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
-WHERE t2.""Id"" = @p1");
+WHERE t2.""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -125,7 +125,7 @@ WHERE t2.""Id"" = @p1");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t3.""Id"", t3.Id0 AS Id, t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority"", t4.""Id"", t4.""Name""
 FROM (
     SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -136,7 +136,7 @@ FROM (
     LIMIT @p2
 ) AS t3
 LEFT JOIN ""Tags"" AS t4 ON t3.Id0 = t4.""TodoItemId""
-ORDER BY t3.""DurationInHours"" DESC, t4.""Name""");
+ORDER BY t3.""DurationInHours"" DESC, t4.""Name"""));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -160,7 +160,7 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name""");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -182,15 +182,15 @@ ORDER BY t3.""DurationInHours"" DESC, t4.""Name""");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY (
@@ -198,7 +198,7 @@ ORDER BY (
     FROM ""Tags"" AS t2
     WHERE t1.""Id"" = t2.""TodoItemId""
 ) DESC, t1.""Id""
-LIMIT @p1");
+LIMIT @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 10);
@@ -221,7 +221,7 @@ LIMIT @p1");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -243,10 +243,10 @@ LIMIT @p1");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
-WHERE t2.""Id"" = @p1");
+WHERE t2.""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -254,7 +254,7 @@ WHERE t2.""Id"" = @p1");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
@@ -264,7 +264,7 @@ ORDER BY (
     FROM ""Tags"" AS t3
     WHERE t2.""Id"" = t3.""TodoItemId""
 ) DESC, t2.""Id""
-LIMIT @p2");
+LIMIT @p2"));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -288,7 +288,7 @@ LIMIT @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -310,10 +310,10 @@ LIMIT @p2");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
-WHERE t2.""Id"" = @p1");
+WHERE t2.""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -321,7 +321,7 @@ WHERE t2.""Id"" = @p1");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t4.""Id"", t4.Id0 AS Id, t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t5.""Id"", t5.""Name""
 FROM (
     SELECT t1.""Id"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -340,7 +340,7 @@ ORDER BY (
     SELECT COUNT(*)
     FROM ""Tags"" AS t3
     WHERE t4.Id0 = t3.""TodoItemId""
-) DESC, t4.Id0, t5.""Id""");
+) DESC, t4.Id0, t5.""Id"""));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -364,7 +364,7 @@ ORDER BY (
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.AddRange(person);
             await dbContext.SaveChangesAsync();
         });
@@ -391,15 +391,15 @@ ORDER BY (
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""People"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""People"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t2.""Id"", t2.""FirstName"", t2.""LastName"", t3.""Id"", t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority""
 FROM (
     SELECT t1.""Id"", t1.""FirstName"", t1.""LastName""
@@ -412,7 +412,7 @@ ORDER BY t2.""Id"", (
     SELECT COUNT(*)
     FROM ""Tags"" AS t4
     WHERE t3.""Id"" = t4.""TodoItemId""
-) DESC, t3.""Id""");
+) DESC, t3.""Id"""));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 10);

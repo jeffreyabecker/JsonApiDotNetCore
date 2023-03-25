@@ -23,7 +23,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -46,19 +46,19 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
 FROM ""TodoItems"" AS t1
 ORDER BY t1.""Id""
-LIMIT @p1 OFFSET @p2");
+LIMIT @p1 OFFSET @p2"));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", 3);
@@ -78,7 +78,7 @@ LIMIT @p1 OFFSET @p2");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -105,13 +105,13 @@ LIMIT @p1 OFFSET @p2");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE t1.""Id"" = @p1
 ORDER BY t2.""Id""
-LIMIT @p2 OFFSET @p3");
+LIMIT @p2 OFFSET @p3"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -133,7 +133,7 @@ LIMIT @p2 OFFSET @p3");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -157,7 +157,7 @@ LIMIT @p2 OFFSET @p3");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t3.""Id"", t3.""FirstName"", t3.""LastName"", t3.Id0 AS Id, t3.""CreatedAt"", t3.""Description"", t3.""DurationInHours"", t3.""LastModifiedAt"", t3.""Priority"", t4.""Id"", t4.""Name""
 FROM (
     SELECT t1.""Id"", t1.""FirstName"", t1.""LastName"", t2.""Id"" AS Id0, t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
@@ -168,7 +168,7 @@ FROM (
     LIMIT @p2
 ) AS t3
 LEFT JOIN ""Tags"" AS t4 ON t3.Id0 = t4.""TodoItemId""
-ORDER BY t3.Id0, t4.""Id""");
+ORDER BY t3.Id0, t4.""Id"""));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -188,7 +188,7 @@ ORDER BY t3.Id0, t4.""Id""");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(person);
             await dbContext.SaveChangesAsync();
         });
@@ -212,10 +212,10 @@ ORDER BY t3.Id0, t4.""Id""");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
 FROM ""TodoItems"" AS t1
 INNER JOIN ""People"" AS t2 ON t1.""OwnerId"" = t2.""Id""
-WHERE t2.""Id"" = @p1");
+WHERE t2.""Id"" = @p1"));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -223,13 +223,13 @@ WHERE t2.""Id"" = @p1");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t1.""Id"", t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
 WHERE t1.""Id"" = @p1
 ORDER BY t2.""Id""
-LIMIT @p2 OFFSET @p3");
+LIMIT @p2 OFFSET @p3"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", person.Id);
@@ -251,7 +251,7 @@ LIMIT @p2 OFFSET @p3");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -276,15 +276,15 @@ LIMIT @p2 OFFSET @p3");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t4.""Id"", t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t4.Id0 AS Id, t4.""FirstName"", t4.""LastName"", t4.Id00 AS Id, t4.FirstName0 AS FirstName, t4.LastName0 AS LastName, t5.""Id"", t5.""Name""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS Id0, t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0
@@ -295,7 +295,7 @@ FROM (
     LIMIT @p1
 ) AS t4
 LEFT JOIN ""Tags"" AS t5 ON t4.""Id"" = t5.""TodoItemId""
-ORDER BY t4.""Id"", t5.""Id""");
+ORDER BY t4.""Id"", t5.""Id"""));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 2);

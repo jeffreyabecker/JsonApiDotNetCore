@@ -9,6 +9,7 @@ using JsonApiDotNetCore.AtomicOperations;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Repositories;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
@@ -17,15 +18,27 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.TryAddSingleton<ISystemClock, SystemClock>();
 
-string connectionString = GetConnectionString(builder.Configuration);
+DatabaseProvider databaseProvider = GetDatabaseProvider(builder.Configuration);
+string connectionString = GetConnectionString(builder.Configuration, databaseProvider);
 
-builder.Services.AddNpgsql<AppDbContext>(connectionString, optionsAction: options =>
+switch (databaseProvider)
 {
-#if DEBUG
-    options.EnableSensitiveDataLogging();
-    options.EnableDetailedErrors();
-#endif
-});
+    case DatabaseProvider.PostgreSql:
+    {
+        builder.Services.AddNpgsql<AppDbContext>(connectionString, optionsAction: SetDatabaseOptions);
+        break;
+    }
+    case DatabaseProvider.MySql:
+    {
+        builder.Services.AddMySql<AppDbContext>(connectionString, ServerVersion.AutoDetect(connectionString), optionsAction: SetDatabaseOptions);
+        break;
+    }
+    case DatabaseProvider.SqlServer:
+    {
+        builder.Services.AddSqlServer<AppDbContext>(connectionString, optionsAction: SetDatabaseOptions);
+        break;
+    }
+}
 
 builder.Services.AddScoped(typeof(IResourceRepository<,>), typeof(DapperRepository<,>));
 builder.Services.AddScoped(typeof(IResourceWriteRepository<,>), typeof(DapperRepository<,>));
@@ -70,10 +83,22 @@ await CreateDatabaseAsync(app.Services);
 
 app.Run();
 
-static string GetConnectionString(IConfiguration configuration)
+static DatabaseProvider GetDatabaseProvider(IConfiguration configuration)
 {
-    string postgresPassword = Environment.GetEnvironmentVariable("PGPASSWORD") ?? "postgres";
-    return configuration.GetConnectionString("DapperExampleDb")?.Replace("###", postgresPassword)!;
+    return configuration.GetValue<DatabaseProvider>("DatabaseProvider");
+}
+
+static string GetConnectionString(IConfiguration configuration, DatabaseProvider databaseProvider)
+{
+    return configuration.GetConnectionString($"DapperExample{databaseProvider}")!;
+}
+
+static void SetDatabaseOptions(DbContextOptionsBuilder dbContextOptionsBuilder)
+{
+#if DEBUG
+    dbContextOptionsBuilder.EnableSensitiveDataLogging();
+    dbContextOptionsBuilder.EnableDetailedErrors();
+#endif
 }
 
 static async Task CreateDatabaseAsync(IServiceProvider serviceProvider)

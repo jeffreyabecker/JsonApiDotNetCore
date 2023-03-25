@@ -26,6 +26,7 @@ namespace DapperExample.Repositories;
 // - No resource constructor injection (materialization by Dapper)
 // - Simplified change detection: includes scalar properties, but relationships only one level deep
 // - Mapping of table/column/key names based on hardcoded conventions
+// - Cascading deletes are assumed, which SQL Server does not support very well
 // - Untested with self-referencing resources and relationship cycles
 // - No support for IResourceDefinition.OnRegisterQueryableHandlersForQueryStringParameters(), obviously
 
@@ -91,8 +92,10 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
 
         IReadOnlyCollection<TResource> resources = await ExecuteQueryAsync(async connection =>
         {
+            sqlCommand = sqlCommand.Associate(_transactionFactory.AmbientTransaction);
+
             // Unfortunately, there's no CancellationToken support. See https://github.com/DapperLib/Dapper/issues/1181.
-            _ = await connection.QueryAsync(sqlCommand.CommandText, mapper.ResourceClrTypes, mapper.Map, sqlCommand.Parameters);
+            _ = await connection.QueryAsync(sqlCommand.CommandText, mapper.ResourceClrTypes, mapper.Map, sqlCommand.Parameters, sqlCommand.Transaction);
 
             return mapper.GetResources();
         }, cancellationToken);
@@ -213,7 +216,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             foreach (CommandDefinition sqlCommand in preSqlCommands)
             {
                 LogSqlCommand(sqlCommand);
-                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                 if (rowsAffected > 1)
                 {
@@ -222,7 +225,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             }
 
             LogSqlCommand(insertCommand);
-            resourceForDatabase.Id = await transaction.Connection.ExecuteScalarAsync<TId>(insertCommand);
+            resourceForDatabase.Id = await transaction.Connection.ExecuteScalarAsync<TId>(insertCommand.Associate(transaction));
 
             IReadOnlyCollection<CommandDefinition> postSqlCommands =
                 BuildSqlCommandsForChangedRelationshipsHavingForeignKeyAtRightSide(changeDetector, resourceForDatabase.Id, cancellationToken);
@@ -230,7 +233,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             foreach (CommandDefinition sqlCommand in postSqlCommands)
             {
                 LogSqlCommand(sqlCommand);
-                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                 if (rowsAffected == 0)
                 {
@@ -305,7 +308,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 foreach (CommandDefinition sqlCommand in preSqlCommands)
                 {
                     LogSqlCommand(sqlCommand);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                     if (rowsAffected > 1)
                     {
@@ -316,7 +319,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 if (updateCommand != null)
                 {
                     LogSqlCommand(updateCommand.Value);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(updateCommand.Value);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(updateCommand.Value.Associate(transaction));
 
                     if (rowsAffected != 1)
                     {
@@ -327,7 +330,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 foreach (CommandDefinition sqlCommand in postSqlCommands)
                 {
                     LogSqlCommand(sqlCommand);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                     if (rowsAffected == 0)
                     {
@@ -354,7 +357,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         await ExecuteInTransactionAsync(async transaction =>
         {
             LogSqlCommand(sqlCommand);
-            int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+            int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
             if (rowsAffected != 1)
             {
@@ -398,7 +401,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 foreach (CommandDefinition sqlCommand in preSqlCommands)
                 {
                     LogSqlCommand(sqlCommand);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                     if (rowsAffected > 1)
                     {
@@ -409,7 +412,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 if (updateCommand != null)
                 {
                     LogSqlCommand(updateCommand.Value);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(updateCommand.Value);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(updateCommand.Value.Associate(transaction));
 
                     if (rowsAffected != 1)
                     {
@@ -420,7 +423,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
                 foreach (CommandDefinition sqlCommand in postSqlCommands)
                 {
                     LogSqlCommand(sqlCommand);
-                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                    int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                     if (rowsAffected == 0)
                     {
@@ -579,7 +582,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             await ExecuteInTransactionAsync(async transaction =>
             {
                 LogSqlCommand(sqlCommand);
-                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                 if (rowsAffected != rightResourceIdValues.Length)
                 {
@@ -625,7 +628,7 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
             await ExecuteInTransactionAsync(async transaction =>
             {
                 LogSqlCommand(sqlCommand);
-                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand);
+                int rowsAffected = await transaction.Connection.ExecuteAsync(sqlCommand.Associate(transaction));
 
                 if (rowsAffected != rightResourceIdValues.Length)
                 {
@@ -657,9 +660,9 @@ public sealed class DapperRepository<TResource, TId> : IResourceRepository<TReso
         return GetSqlCommand(updateNode, cancellationToken);
     }
 
-    private static CommandDefinition GetSqlCommand(SqlTreeNode node, CancellationToken cancellationToken)
+    private CommandDefinition GetSqlCommand(SqlTreeNode node, CancellationToken cancellationToken)
     {
-        var queryBuilder = new SqlQueryBuilder();
+        var queryBuilder = new SqlQueryBuilder(_dataModelService.DatabaseProvider);
         string statement = queryBuilder.GetCommand(node);
         IDictionary<string, object?> parameters = queryBuilder.Parameters;
 

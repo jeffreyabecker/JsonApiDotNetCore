@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using DapperExample.Models;
 using JetBrains.Annotations;
+using JsonApiDotNetCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
@@ -11,6 +12,8 @@ namespace DapperExample.Data;
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 public sealed class AppDbContext : DbContext
 {
+    private readonly IConfiguration _configuration;
+
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
     public DbSet<Person> People => Set<Person>();
     public DbSet<LoginAccount> LoginAccounts => Set<LoginAccount>();
@@ -18,9 +21,12 @@ public sealed class AppDbContext : DbContext
     public DbSet<Tag> Tags => Set<Tag>();
     public DbSet<RgbColor> RgbColors => Set<RgbColor>();
 
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    public AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration)
         : base(options)
     {
+        ArgumentGuard.NotNull(configuration);
+
+        _configuration = configuration;
     }
 
 #if DEBUG
@@ -59,7 +65,13 @@ public sealed class AppDbContext : DbContext
             .WithOne(rgbColor => rgbColor.Tag)
             .HasForeignKey<RgbColor>("TagId");
 
-        AdjustDeleteBehaviorForJsonApi(builder);
+        var databaseProvider = _configuration.GetValue<DatabaseProvider>("DatabaseProvider");
+
+        if (databaseProvider != DatabaseProvider.SqlServer)
+        {
+            // This sample requires all cascades to happen in the database, but SQL Server doesn't support that very well.
+            AdjustDeleteBehaviorForJsonApi(builder);
+        }
     }
 
     private static void AdjustDeleteBehaviorForJsonApi(ModelBuilder builder)

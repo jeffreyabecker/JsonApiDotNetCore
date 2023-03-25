@@ -8,7 +8,8 @@ internal abstract class SqlTreeNode
 
     public override string ToString()
     {
-        var queryBuilder = new SqlQueryBuilder();
+        // This is only used for debugging purposes.
+        var queryBuilder = new SqlQueryBuilder(DatabaseProvider.PostgreSql);
         return queryBuilder.GetCommand(this);
     }
 }

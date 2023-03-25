@@ -24,7 +24,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });
@@ -72,10 +72,10 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id""
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 LEFT JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""AssigneeId""
-WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
+WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", existingPerson.Id);
@@ -85,9 +85,9 @@ WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
-WHERE t1.""Id"" IN (@p1, @p2)");
+WHERE t1.""Id"" IN (@p1, @p2)"));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", existingPerson.AssignedTodoItems.ElementAt(0).Id);
@@ -96,9 +96,9 @@ WHERE t1.""Id"" IN (@p1, @p2)");
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
 SET ""AssigneeId"" = @p1
-WHERE ""Id"" IN (@p2, @p3)");
+WHERE ""Id"" IN (@p2, @p3)"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", null);
@@ -119,7 +119,7 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             await dbContext.SaveChangesAsync();
         });
@@ -167,10 +167,10 @@ WHERE ""Id"" IN (@p2, @p3)");
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id"", t2.""Id""
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id"", t2.""Id""
 FROM ""People"" AS t1
 INNER JOIN ""TodoItems"" AS t2 ON t1.""Id"" = t2.""OwnerId""
-WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
+WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", existingPerson.Id);
@@ -180,9 +180,9 @@ WHERE (t1.""Id"" = @p1) AND (t2.""Id"" IN (@p2, @p3))");
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT t1.""Id""
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT t1.""Id""
 FROM ""TodoItems"" AS t1
-WHERE t1.""Id"" IN (@p1, @p2)");
+WHERE t1.""Id"" IN (@p1, @p2)"));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", existingPerson.OwnedTodoItems.ElementAt(0).Id);
@@ -191,8 +191,8 @@ WHERE t1.""Id"" IN (@p1, @p2)");
 
         store.SqlCommands[2].With(command =>
         {
-            command.Statement.Should().Be(@"DELETE FROM ""TodoItems""
-WHERE ""Id"" IN (@p1, @p2)");
+            command.Statement.Should().Be(_adapter.Adapt(@"DELETE FROM ""TodoItems""
+WHERE ""Id"" IN (@p1, @p2)"));
 
             command.Parameters.ShouldHaveCount(2);
             command.Parameters.Should().Contain("@p1", existingPerson.OwnedTodoItems.ElementAt(0).Id);

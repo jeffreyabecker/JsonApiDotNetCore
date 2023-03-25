@@ -26,7 +26,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.People.Add(existingPerson);
             dbContext.TodoItems.AddRange(existingTodoItems);
             await dbContext.SaveChangesAsync();
@@ -70,9 +70,9 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"UPDATE ""TodoItems""
+            command.Statement.Should().Be(_adapter.Adapt(@"UPDATE ""TodoItems""
 SET ""OwnerId"" = @p1
-WHERE ""Id"" IN (@p2, @p3)");
+WHERE ""Id"" IN (@p2, @p3)"));
 
             command.Parameters.ShouldHaveCount(3);
             command.Parameters.Should().Contain("@p1", existingPerson.Id);

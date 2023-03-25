@@ -10,6 +10,8 @@ namespace DapperExample.TranslationToSql.DataModel;
 /// </summary>
 public interface IDataModelService
 {
+    DatabaseProvider DatabaseProvider { get; }
+
     DbConnection CreateConnection();
 
     RelationshipForeignKey GetForeignKey(RelationshipAttribute relationship);

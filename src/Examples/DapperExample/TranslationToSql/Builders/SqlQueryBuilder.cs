@@ -6,10 +6,16 @@ namespace DapperExample.TranslationToSql.Builders;
 
 internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object?>
 {
+    private readonly DatabaseProvider _databaseProvider;
     private readonly Dictionary<string, ParameterNode> _parametersByName = new();
     private int _indentDepth;
 
     public IDictionary<string, object?> Parameters => _parametersByName.Values.ToDictionary(parameter => parameter.Name, parameter => parameter.Value);
+
+    public SqlQueryBuilder(DatabaseProvider databaseProvider)
+    {
+        _databaseProvider = databaseProvider;
+    }
 
     public string GetCommand(SqlTreeNode node)
     {
@@ -84,13 +90,39 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         VisitSequence(node.Assignments.Select(assignment => assignment.Column), builder);
         builder.Append(')');
 
+        ColumnNode idColumn = node.Table.GetIdColumn(node.Table.Alias);
+
+        if (_databaseProvider == DatabaseProvider.SqlServer)
+        {
+            AppendOnNewLine("OUTPUT INSERTED.", builder);
+            Visit(idColumn, builder);
+        }
+
         AppendOnNewLine("VALUES (", builder);
         VisitSequence(node.Assignments.Select(assignment => assignment.Value), builder);
         builder.Append(')');
 
-        ColumnNode idColumn = node.Table.GetIdColumn(node.Table.Alias);
-        AppendOnNewLine("RETURNING ", builder);
-        Visit(idColumn, builder);
+        if (_databaseProvider == DatabaseProvider.PostgreSql)
+        {
+            AppendOnNewLine("RETURNING ", builder);
+            Visit(idColumn, builder);
+        }
+        else if (_databaseProvider == DatabaseProvider.MySql)
+        {
+            builder.Append(';');
+            ColumnAssignmentNode? idAssignment = node.Assignments.FirstOrDefault(assignment => assignment.Column == idColumn);
+
+            if (idAssignment != null)
+            {
+                AppendOnNewLine("SELECT ", builder);
+                Visit(idAssignment.Value, builder);
+            }
+            else
+            {
+                AppendOnNewLine("SELECT LAST_INSERT_ID()", builder);
+            }
+        }
+
         return null;
     }
 
@@ -162,7 +194,7 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         return null;
     }
 
-    private static void WriteColumn(ColumnNode column, bool isVirtualColumn, StringBuilder builder)
+    private void WriteColumn(ColumnNode column, bool isVirtualColumn, StringBuilder builder)
     {
         WriteReferenceAlias(column.TableAlias, builder);
 
@@ -337,13 +369,37 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
     public override object? VisitLimitOffset(LimitOffsetNode node, StringBuilder builder)
     {
-        AppendOnNewLine("LIMIT ", builder);
-        Visit(node.Limit, builder);
-
-        if (node.Offset != null)
+        if (_databaseProvider == DatabaseProvider.SqlServer)
         {
-            builder.Append(" OFFSET ");
-            Visit(node.Offset, builder);
+            if (node.Offset == null)
+            {
+                AppendOnNewLine("OFFSET 0 ROWS", builder);
+
+                AppendOnNewLine("FETCH FIRST ", builder);
+                Visit(node.Limit, builder);
+                builder.Append(" ROWS ONLY");
+            }
+            else
+            {
+                AppendOnNewLine("OFFSET ", builder);
+                Visit(node.Offset, builder);
+                builder.Append(" ROWS");
+
+                AppendOnNewLine("FETCH NEXT ", builder);
+                Visit(node.Limit, builder);
+                builder.Append(" ROWS ONLY");
+            }
+        }
+        else
+        {
+            AppendOnNewLine("LIMIT ", builder);
+            Visit(node.Limit, builder);
+
+            if (node.Offset != null)
+            {
+                builder.Append(" OFFSET ");
+                Visit(node.Offset, builder);
+            }
         }
 
         return null;
@@ -421,10 +477,23 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         }
     }
 
-    internal static string FormatIdentifier(string value)
+    private string FormatIdentifier(string value)
     {
-        string escaped = value.Replace("\"", "\"\"");
-        return $"\"{escaped}\"";
+        return FormatIdentifier(value, _databaseProvider);
+    }
+
+    internal static string FormatIdentifier(string value, DatabaseProvider databaseProvider)
+    {
+        return databaseProvider switch
+        {
+            // https://www.postgresql.org/docs/current/sql-syntax-lexical.html
+            DatabaseProvider.PostgreSql => $"\"{value.Replace("\"", "\"\"")}\"",
+            // https://dev.mysql.com/doc/refman/8.0/en/identifiers.html
+            DatabaseProvider.MySql => $"`{value.Replace("`", "``")}`",
+            // https://learn.microsoft.com/en-us/sql/t-sql/functions/quotename-transact-sql?view=sql-server-ver16
+            DatabaseProvider.SqlServer => $"[{value.Replace("]", "]]")}]",
+            _ => throw new NotSupportedException($"Unsupported database provider '{databaseProvider}'.")
+        };
     }
 
     private IDisposable Indent()

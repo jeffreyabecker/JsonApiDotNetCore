@@ -1,6 +1,7 @@
 using System.Text;
 using DapperExample.TranslationToSql.Builders;
 using Humanizer;
+using JsonApiDotNetCore;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Resources.Annotations;
 
@@ -11,6 +12,8 @@ namespace DapperExample.TranslationToSql.DataModel;
 /// </summary>
 public sealed class RelationshipForeignKey
 {
+    private readonly DatabaseProvider _databaseProvider;
+
     /// <summary>
     /// The JSON:API relationship mapped to this foreign key.
     /// </summary>
@@ -31,8 +34,12 @@ public sealed class RelationshipForeignKey
     /// </summary>
     public bool IsNullable { get; }
 
-    public RelationshipForeignKey(RelationshipAttribute relationship, bool isAtLeftSide, string columnName, bool isNullable)
+    public RelationshipForeignKey(DatabaseProvider databaseProvider, RelationshipAttribute relationship, bool isAtLeftSide, string columnName, bool isNullable)
     {
+        ArgumentGuard.NotNull(relationship);
+        ArgumentGuard.NotNullNorEmpty(columnName);
+
+        _databaseProvider = databaseProvider;
         Relationship = relationship;
         IsAtLeftSide = isAtLeftSide;
         ColumnName = columnName;
@@ -46,9 +53,9 @@ public sealed class RelationshipForeignKey
 
         ResourceType tableType = IsAtLeftSide ? Relationship.LeftType : Relationship.RightType;
 
-        builder.Append(SqlQueryBuilder.FormatIdentifier(tableType.ClrType.Name.Pluralize()));
+        builder.Append(SqlQueryBuilder.FormatIdentifier(tableType.ClrType.Name.Pluralize(), _databaseProvider));
         builder.Append('.');
-        builder.Append(SqlQueryBuilder.FormatIdentifier(ColumnName));
+        builder.Append(SqlQueryBuilder.FormatIdentifier(ColumnName, _databaseProvider));
 
         if (IsNullable)
         {

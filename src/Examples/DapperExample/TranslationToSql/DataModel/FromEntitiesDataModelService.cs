@@ -1,8 +1,10 @@
 using System.Data.Common;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Resources.Annotations;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using MySqlConnector;
 using Npgsql;
 
 namespace DapperExample.TranslationToSql.DataModel;
@@ -14,6 +16,9 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
 {
     private readonly Dictionary<RelationshipAttribute, RelationshipForeignKey> _foreignKeysByRelationship = new();
     private string? _connectionString;
+    private DatabaseProvider? _databaseProvider;
+
+    public override DatabaseProvider DatabaseProvider => AssertHasDatabaseProvider();
 
     public FromEntitiesDataModelService(IResourceGraph resourceGraph)
         : base(resourceGraph)
@@ -22,10 +27,18 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
 
     public void Initialize(DbContext dbContext)
     {
+        _connectionString = dbContext.Database.GetConnectionString();
+
+        _databaseProvider = dbContext.Database.ProviderName switch
+        {
+            "Npgsql.EntityFrameworkCore.PostgreSQL" => DatabaseProvider.PostgreSql,
+            "Pomelo.EntityFrameworkCore.MySql" => DatabaseProvider.MySql,
+            "Microsoft.EntityFrameworkCore.SqlServer" => DatabaseProvider.SqlServer,
+            _ => throw new NotSupportedException($"Unsupported database provider '{dbContext.Database.ProviderName}'.")
+        };
+
         ScanForeignKeys(dbContext.Model);
         Initialize();
-
-        _connectionString = dbContext.Database.GetConnectionString();
     }
 
     private void ScanForeignKeys(IModel entityModel)
@@ -41,7 +54,7 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
                 string columnName = navigation.ForeignKey.Properties.Single().Name;
                 bool isNullable = !navigation.ForeignKey.IsRequired;
 
-                var foreignKey = new RelationshipForeignKey(relationship, isAtLeftSide, columnName, isNullable);
+                var foreignKey = new RelationshipForeignKey(DatabaseProvider, relationship, isAtLeftSide, columnName, isNullable);
                 _foreignKeysByRelationship[relationship] = foreignKey;
             }
         }
@@ -49,12 +62,16 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
 
     public override DbConnection CreateConnection()
     {
-        if (_connectionString == null)
-        {
-            throw new InvalidOperationException($"Call {nameof(Initialize)} first.");
-        }
+        string connectionString = AssertHasConnectionString();
+        DatabaseProvider databaseProvider = AssertHasDatabaseProvider();
 
-        return new NpgsqlConnection(_connectionString);
+        return databaseProvider switch
+        {
+            DatabaseProvider.PostgreSql => new NpgsqlConnection(connectionString),
+            DatabaseProvider.MySql => new MySqlConnection(connectionString),
+            DatabaseProvider.SqlServer => new SqlConnection(connectionString),
+            _ => throw new NotSupportedException($"Unsupported database provider '{databaseProvider}'.")
+        };
     }
 
     public override RelationshipForeignKey GetForeignKey(RelationshipAttribute relationship)
@@ -66,5 +83,25 @@ public sealed class FromEntitiesDataModelService : BaseDataModelService
 
         throw new InvalidOperationException(
             $"Foreign key mapping for relationship '{relationship.LeftType.ClrType.Name}.{relationship.Property.Name}' is unavailable.");
+    }
+
+    private DatabaseProvider AssertHasDatabaseProvider()
+    {
+        if (_databaseProvider == null)
+        {
+            throw new InvalidOperationException($"Database provider is unavailable. Call {nameof(Initialize)} first.");
+        }
+
+        return _databaseProvider.Value;
+    }
+
+    private string AssertHasConnectionString()
+    {
+        if (_connectionString == null)
+        {
+            throw new InvalidOperationException($"Connection string is unavailable. Call {nameof(Initialize)} first.");
+        }
+
+        return _connectionString;
     }
 }

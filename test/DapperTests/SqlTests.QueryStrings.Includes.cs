@@ -30,7 +30,7 @@ public sealed partial class SqlTests
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -142,15 +142,15 @@ public sealed partial class SqlTests
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t4.""Id"", t4.""CreatedAt"", t4.""Description"", t4.""DurationInHours"", t4.""LastModifiedAt"", t4.""Priority"", t4.Id0 AS Id, t4.""FirstName"", t4.""LastName"", t4.Id00 AS Id, t4.FirstName0 AS FirstName, t4.LastName0 AS LastName, t5.""Id"", t5.""CreatedAt"", t5.""Description"", t5.""DurationInHours"", t5.""LastModifiedAt"", t5.""Priority"", t6.""Id"", t6.""Name""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority"", t2.""Id"" AS Id0, t2.""FirstName"", t2.""LastName"", t3.""Id"" AS Id00, t3.""FirstName"" AS FirstName0, t3.""LastName"" AS LastName0
@@ -162,7 +162,7 @@ FROM (
 ) AS t4
 LEFT JOIN ""TodoItems"" AS t5 ON t4.Id00 = t5.""AssigneeId""
 LEFT JOIN ""Tags"" AS t6 ON t4.""Id"" = t6.""TodoItemId""
-ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""LastModifiedAt"" DESC, t6.""Id""");
+ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""LastModifiedAt"" DESC, t6.""Id"""));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 10);
@@ -183,7 +183,7 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
 
         await RunOnDatabaseAsync(async dbContext =>
         {
-            await dbContext.ClearTablesAsync<Person, RgbColor, Tag, TodoItem>();
+            await ClearAllTablesAsync(dbContext);
             dbContext.TodoItems.AddRange(todoItems);
             await dbContext.SaveChangesAsync();
         });
@@ -214,15 +214,15 @@ ORDER BY t4.""Priority"", t4.""LastModifiedAt"" DESC, t5.""Priority"", t5.""Last
 
         store.SqlCommands[0].With(command =>
         {
-            command.Statement.Should().Be(@"SELECT COUNT(*)
-FROM ""TodoItems"" AS t1");
+            command.Statement.Should().Be(_adapter.Adapt(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1"));
 
             command.Parameters.Should().BeEmpty();
         });
 
         store.SqlCommands[1].With(command =>
         {
-            command.Statement.Should().Be(
+            command.Statement.Should().Be(_adapter.Adapt(
                 @"SELECT t2.""Id"", t2.""CreatedAt"", t2.""Description"", t2.""DurationInHours"", t2.""LastModifiedAt"", t2.""Priority"", t3.""Id"", t3.""Name"", t4.""Id""
 FROM (
     SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
@@ -232,7 +232,7 @@ FROM (
 ) AS t2
 LEFT JOIN ""Tags"" AS t3 ON t2.""Id"" = t3.""TodoItemId""
 INNER JOIN ""RgbColors"" AS t4 ON t3.""Id"" = t4.""TagId""
-ORDER BY t2.""Priority"", t2.""LastModifiedAt"" DESC, t3.""Id""");
+ORDER BY t2.""Priority"", t2.""LastModifiedAt"" DESC, t3.""Id"""));
 
             command.Parameters.ShouldHaveCount(1);
             command.Parameters.Should().Contain("@p1", 10);

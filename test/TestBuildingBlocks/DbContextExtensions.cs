@@ -40,15 +40,15 @@ public static class DbContextExtensions
         await ClearTablesAsync(dbContext, typeof(TEntity1), typeof(TEntity2), typeof(TEntity3), typeof(TEntity4));
     }
 
-    private static async Task ClearTablesAsync(this DbContext dbContext, params Type[] models)
+    private static async Task ClearTablesAsync(this DbContext dbContext, params Type[] modelTypes)
     {
-        foreach (Type model in models)
+        foreach (Type modelType in modelTypes)
         {
-            IEntityType? entityType = dbContext.Model.FindEntityType(model);
+            IEntityType? entityType = dbContext.Model.FindEntityType(modelType);
 
             if (entityType == null)
             {
-                throw new InvalidOperationException($"Table for '{model.Name}' not found.");
+                throw new InvalidOperationException($"Table for '{modelType.Name}' not found.");
             }
 
             string? tableName = entityType.GetTableName();
@@ -61,7 +61,7 @@ public static class DbContextExtensions
             }
             else
             {
-                await dbContext.Database.ExecuteSqlRawAsync($"delete from \"{tableName}\"");
+                await dbContext.Database.ExecuteSqlRawAsync($"DELETE FROM \"{tableName}\"");
             }
         }
     }
