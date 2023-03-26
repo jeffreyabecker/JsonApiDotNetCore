@@ -62,7 +62,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
     {
         builder.Services.AddJsonApi<AppDbContext>(options =>
         {
-            options.Namespace = "api/v1";
+            options.Namespace = "api";
             options.UseRelativeLinks = true;
             options.IncludeTotalResourceCount = true;
             options.SerializerOptions.WriteIndented = true;
