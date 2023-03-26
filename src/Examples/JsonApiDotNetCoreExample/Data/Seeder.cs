@@ -12,13 +12,13 @@ internal sealed class Seeder
 
         RotatingList<Person> people = RotatingList.Create(personCount, index => new Person
         {
-            FirstName = $"FirstName{index + 1}",
-            LastName = $"LastName{index + 1}"
+            FirstName = $"FirstName{index + 1:D2}",
+            LastName = $"LastName{index + 1:D2}"
         });
 
         RotatingList<Tag> tags = RotatingList.Create(tagCount, index => new Tag
         {
-            Name = $"TagName{index + 1}"
+            Name = $"TagName{index + 1:D2}"
         });
 
         RotatingList<TodoItemPriority> priorities = RotatingList.Create(3, index => (TodoItemPriority)(index + 1));
@@ -27,7 +27,7 @@ internal sealed class Seeder
         {
             var todoItem = new TodoItem
             {
-                Description = $"TodoItem{index + 1}",
+                Description = $"TodoItem{index + 1:D3}",
                 Priority = priorities.GetNext(),
                 DurationInHours = index,
                 CreatedAt = DateTimeOffset.UtcNow,
