@@ -900,6 +900,89 @@ LIMIT @p1"));
     }
 
     [Fact]
+    public async Task Can_filter_using_logical_operators_at_primary_endpoint()
+    {
+        // Arrange
+        var store = _testContext.Factory.Services.GetRequiredService<SqlCaptureStore>();
+        store.Clear();
+
+        List<TodoItem> todoItems = _fakers.TodoItem.Generate(5);
+        todoItems.ForEach(todoItem => todoItem.Owner = _fakers.Person.Generate());
+
+        todoItems[0].Description = "0";
+        todoItems[0].Priority = TodoItemPriority.High;
+        todoItems[0].DurationInHours = 1;
+
+        todoItems[1].Description = "1";
+        todoItems[1].Priority = TodoItemPriority.Low;
+        todoItems[1].DurationInHours = 0;
+
+        todoItems[2].Description = "1";
+        todoItems[2].Priority = TodoItemPriority.Low;
+        todoItems[2].DurationInHours = 1;
+
+        todoItems[3].Description = "1";
+        todoItems[3].Priority = TodoItemPriority.High;
+        todoItems[3].DurationInHours = 0;
+
+        todoItems[4].Description = "1";
+        todoItems[4].Priority = TodoItemPriority.High;
+        todoItems[4].DurationInHours = 1;
+
+        await _testContext.RunOnDatabaseAsync(async dbContext =>
+        {
+            await _testContext.ClearAllTablesAsync(dbContext);
+            dbContext.TodoItems.AddRange(todoItems);
+            await dbContext.SaveChangesAsync();
+        });
+
+        const string route = "/todoItems?filter=and(equals(description,'1'),or(equals(priority,'High'),equals(durationInHours,'1')))";
+
+        // Act
+        (HttpResponseMessage httpResponse, Document responseDocument) = await _testContext.ExecuteGetAsync<Document>(route);
+
+        // Assert
+        httpResponse.ShouldHaveStatusCode(HttpStatusCode.OK);
+
+        responseDocument.Data.ManyValue.ShouldHaveCount(3);
+        responseDocument.Data.ManyValue.Should().ContainSingle(resource => resource.Id == todoItems[2].StringId);
+        responseDocument.Data.ManyValue.Should().ContainSingle(resource => resource.Id == todoItems[3].StringId);
+        responseDocument.Data.ManyValue.Should().ContainSingle(resource => resource.Id == todoItems[4].StringId);
+
+        responseDocument.Meta.Should().ContainTotal(3);
+
+        store.SqlCommands.ShouldHaveCount(2);
+
+        store.SqlCommands[0].With(command =>
+        {
+            command.Statement.Should().Be(_testContext.AdaptSql(@"SELECT COUNT(*)
+FROM ""TodoItems"" AS t1
+WHERE (t1.""Description"" = @p1) AND ((t1.""Priority"" = @p2) OR (t1.""DurationInHours"" = @p3))"));
+
+            command.Parameters.ShouldHaveCount(3);
+            command.Parameters.Should().Contain("@p1", "1");
+            command.Parameters.Should().Contain("@p2", TodoItemPriority.High);
+            command.Parameters.Should().Contain("@p3", 1);
+        });
+
+        store.SqlCommands[1].With(command =>
+        {
+            command.Statement.Should().Be(_testContext.AdaptSql(
+                @"SELECT t1.""Id"", t1.""CreatedAt"", t1.""Description"", t1.""DurationInHours"", t1.""LastModifiedAt"", t1.""Priority""
+FROM ""TodoItems"" AS t1
+WHERE (t1.""Description"" = @p1) AND ((t1.""Priority"" = @p2) OR (t1.""DurationInHours"" = @p3))
+ORDER BY t1.""Priority"", t1.""LastModifiedAt"" DESC
+LIMIT @p4"));
+
+            command.Parameters.ShouldHaveCount(4);
+            command.Parameters.Should().Contain("@p1", "1");
+            command.Parameters.Should().Contain("@p2", TodoItemPriority.High);
+            command.Parameters.Should().Contain("@p3", 1);
+            command.Parameters.Should().Contain("@p4", 10);
+        });
+    }
+
+    [Fact]
     public async Task Cannot_filter_on_unmapped_attribute()
     {
         // Arrange
