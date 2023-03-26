@@ -67,6 +67,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
             options.IncludeTotalResourceCount = true;
             options.SerializerOptions.WriteIndented = true;
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
 #if DEBUG
             options.IncludeExceptionStackTraceInErrors = true;
             options.IncludeRequestBodyInErrors = true;
@@ -94,5 +95,8 @@ static async Task CreateDatabaseAsync(IServiceProvider serviceProvider)
     await using AsyncServiceScope scope = serviceProvider.CreateAsyncScope();
 
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.EnsureDeletedAsync();
     await dbContext.Database.EnsureCreatedAsync();
+
+    await Seeder.CreateSampleDataAsync(dbContext);
 }
