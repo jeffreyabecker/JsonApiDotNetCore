@@ -47,7 +47,7 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        string? connectionString = GetConnectionString(builder.Configuration);
+        string? connectionString = builder.Configuration["Data:DefaultConnection"];
 
         options.UseNpgsql(connectionString);
 #if DEBUG
@@ -71,12 +71,6 @@ static void ConfigureServices(WebApplicationBuilder builder)
 #endif
         }, discovery => discovery.AddCurrentAssembly());
     }
-}
-
-static string? GetConnectionString(IConfiguration configuration)
-{
-    string postgresPassword = Environment.GetEnvironmentVariable("PGPASSWORD") ?? "postgres";
-    return configuration["Data:DefaultConnection"]?.Replace("###", postgresPassword);
 }
 
 static void ConfigurePipeline(WebApplication webApplication)
