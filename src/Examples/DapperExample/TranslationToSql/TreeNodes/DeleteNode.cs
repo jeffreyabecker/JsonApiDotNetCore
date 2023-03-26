@@ -8,9 +8,9 @@ namespace DapperExample.TranslationToSql.TreeNodes;
 internal sealed class DeleteNode : SqlTreeNode
 {
     public TableNode Table { get; }
-    public FilterNode Where { get; }
+    public WhereNode Where { get; }
 
-    public DeleteNode(TableNode table, FilterNode where)
+    public DeleteNode(TableNode table, WhereNode where)
     {
         ArgumentGuard.NotNull(table);
         ArgumentGuard.NotNull(where);

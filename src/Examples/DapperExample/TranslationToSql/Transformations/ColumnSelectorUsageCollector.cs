@@ -77,6 +77,12 @@ internal sealed class ColumnSelectorUsageCollector : SqlTreeNodeVisitor<ColumnVi
         return null;
     }
 
+    public override object? VisitWhere(WhereNode node, ColumnVisitMode mode)
+    {
+        InnerVisit(node.Filter, mode);
+        return null;
+    }
+
     public override object? VisitNot(NotNode node, ColumnVisitMode mode)
     {
         InnerVisit(node.Child, mode);

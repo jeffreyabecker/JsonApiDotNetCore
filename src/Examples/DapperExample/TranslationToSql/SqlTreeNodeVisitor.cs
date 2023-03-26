@@ -79,6 +79,11 @@ internal abstract class SqlTreeNodeVisitor<TArgument, TResult>
         return DefaultVisit(node, argument);
     }
 
+    public virtual TResult VisitWhere(WhereNode node, TArgument argument)
+    {
+        return DefaultVisit(node, argument);
+    }
+
     public virtual TResult VisitNot(NotNode node, TArgument argument)
     {
         return DefaultVisit(node, argument);

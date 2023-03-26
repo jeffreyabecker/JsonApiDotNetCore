@@ -62,7 +62,7 @@ internal sealed class StaleColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVi
         using IDisposable scope = EnterSelectScope();
 
         IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors = VisitSelectors(node.Selectors, mode);
-        FilterNode? where = TypedVisit(node.Where, mode);
+        WhereNode? where = TypedVisit(node.Where, mode);
         OrderByNode? orderBy = TypedVisit(node.OrderBy, mode);
         LimitOffsetNode? limitOffset = TypedVisit(node.LimitOffset, mode);
         return new SelectNode(selectors, where, orderBy, limitOffset, node.Alias);
@@ -198,6 +198,12 @@ internal sealed class StaleColumnReferenceRewriter : SqlTreeNodeVisitor<ColumnVi
     public override SqlTreeNode VisitCountSelector(CountSelectorNode node, ColumnVisitMode mode)
     {
         return node;
+    }
+
+    public override SqlTreeNode VisitWhere(WhereNode node, ColumnVisitMode mode)
+    {
+        FilterNode filter = TypedVisit(node.Filter, mode);
+        return new WhereNode(filter);
     }
 
     public override SqlTreeNode VisitNot(NotNode node, ColumnVisitMode mode)

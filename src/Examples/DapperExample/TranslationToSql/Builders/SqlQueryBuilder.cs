@@ -73,7 +73,6 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
 
         if (node.Where != null)
         {
-            AppendOnNewLine("WHERE ", builder);
             Visit(node.Where, builder);
         }
 
@@ -140,7 +139,6 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
         AppendOnNewLine("SET ", builder);
         VisitSequence(node.Assignments, builder);
 
-        AppendOnNewLine("WHERE ", builder);
         Visit(node.Where, builder);
         return null;
     }
@@ -149,8 +147,6 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         AppendOnNewLine("DELETE FROM ", builder);
         Visit(node.Table, builder);
-
-        AppendOnNewLine("WHERE ", builder);
         Visit(node.Where, builder);
         return null;
     }
@@ -226,6 +222,13 @@ internal sealed class SqlQueryBuilder : SqlTreeNodeVisitor<StringBuilder, object
     {
         builder.Append("COUNT(*)");
         WriteDeclareAlias(node.Alias, builder);
+        return null;
+    }
+
+    public override object? VisitWhere(WhereNode node, StringBuilder builder)
+    {
+        AppendOnNewLine("WHERE ", builder);
+        Visit(node.Filter, builder);
         return null;
     }
 

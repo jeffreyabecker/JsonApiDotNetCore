@@ -28,7 +28,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     private readonly HashSet<string> _selectorNamesUsed;
 
     // Filter constraints.
-    private readonly List<FilterNode> _whereConditions;
+    private readonly List<FilterNode> _whereFilters;
 
     // Sorting on columns, or COUNT(*) in a sub-query.
     private readonly List<OrderByTermNode> _orderByTerms;
@@ -52,7 +52,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _queryState = queryState;
         _selectorsPerTable = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>();
         _selectorNamesUsed = new HashSet<string>();
-        _whereConditions = new List<FilterNode>();
+        _whereFilters = new List<FilterNode>();
         _orderByTerms = new List<OrderByTermNode>();
     }
 
@@ -63,7 +63,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         _queryState = source._queryState;
         _selectorsPerTable = new Dictionary<TableAccessorNode, IReadOnlyList<SelectorNode>>(source._selectorsPerTable);
         _selectorNamesUsed = new HashSet<string>(source._selectorNamesUsed);
-        _whereConditions.AddRange(source._whereConditions);
+        _whereFilters.AddRange(source._whereFilters);
         _orderByTerms.AddRange(source._orderByTerms);
         _selectShape = source._selectShape;
         _limitOffset = source._limitOffset;
@@ -101,7 +101,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
     {
         _selectorsPerTable.Clear();
         _selectorNamesUsed.Clear();
-        _whereConditions.Clear();
+        _whereFilters.Clear();
         _orderByTerms.Clear();
         _selectShape = selectShape;
         _limitOffset = null;
@@ -154,7 +154,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         if (queryLayer.Filter != null)
         {
             var filter = (FilterNode)Visit(queryLayer.Filter, tableAccessor);
-            _whereConditions.Add(filter);
+            _whereFilters.Add(filter);
         }
 
         if (queryLayer.Sort != null)
@@ -327,7 +327,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         TableAccessorNode innerTableAccessor = CreatePrimaryTable(relationship.RightType);
 
         ComparisonNode joinCondition = CreateJoinCondition(outerTableAccessor.Source, relationship, innerTableAccessor.Source);
-        _whereConditions.Add(joinCondition);
+        _whereFilters.Add(joinCondition);
 
         return innerTableAccessor;
     }
@@ -488,7 +488,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
 
     private SelectNode ToSelect(bool isSubQuery)
     {
-        FilterNode? where = GetWhere();
+        WhereNode? where = GetWhere();
         OrderByNode? orderBy = !_orderByTerms.Any() ? null : new OrderByNode(_orderByTerms);
 
         // Materialization using Dapper requires selectors to match property names, so adjust selector names accordingly.
@@ -498,22 +498,28 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         return new SelectNode(selectorsPerTable, where, orderBy, _limitOffset, null);
     }
 
-    private FilterNode? GetWhere()
+    private WhereNode? GetWhere()
     {
-        if (_whereConditions.Count == 0)
+        FilterNode? filter = CombineFilters();
+        return filter != null ? new WhereNode(filter) : null;
+    }
+
+    private FilterNode? CombineFilters()
+    {
+        if (_whereFilters.Count == 0)
         {
             return null;
         }
 
-        if (_whereConditions.Count == 1)
+        if (_whereFilters.Count == 1)
         {
-            return _whereConditions[0];
+            return _whereFilters[0];
         }
 
         List<FilterNode> andTerms = new();
 
         // Collapse multiple ANDs at top-level. This turns "A AND (B AND C)" into "A AND B AND C".
-        foreach (FilterNode filter in _whereConditions.ToArray())
+        foreach (FilterNode filter in _whereFilters.ToArray())
         {
             if (filter is LogicalNode { Operator: LogicalOperator.And } nestedAnd)
             {
@@ -672,7 +678,7 @@ internal sealed class SelectStatementBuilder : QueryExpressionVisitor<TableAcces
         if (expression.Filter != null)
         {
             var filter = (FilterNode)Visit(expression.Filter, rightTableAccessor);
-            _whereConditions.Add(filter);
+            _whereFilters.Add(filter);
         }
 
         SelectNode select = ToSelect(true);

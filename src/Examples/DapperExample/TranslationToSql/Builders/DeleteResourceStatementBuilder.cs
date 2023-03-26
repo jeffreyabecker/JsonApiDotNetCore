@@ -23,14 +23,15 @@ internal sealed class DeleteResourceStatementBuilder : StatementBuilder
         TableNode table = GetTable(resourceType, null);
 
         ColumnNode idColumn = table.GetIdColumn(table.Alias);
-        FilterNode where = GetWhere(idColumn, idValues);
+        WhereNode where = GetWhere(idColumn, idValues);
 
         return new DeleteNode(table, where);
     }
 
-    private FilterNode GetWhere(ColumnNode idColumn, IEnumerable<object> idValues)
+    private WhereNode GetWhere(ColumnNode idColumn, IEnumerable<object> idValues)
     {
         List<ParameterNode> parameters = idValues.Select(idValue => ParameterGenerator.Create(idValue)).ToList();
-        return parameters.Count == 1 ? new ComparisonNode(ComparisonOperator.Equals, idColumn, parameters[0]) : new InNode(idColumn, parameters);
+        FilterNode filter = parameters.Count == 1 ? new ComparisonNode(ComparisonOperator.Equals, idColumn, parameters[0]) : new InNode(idColumn, parameters);
+        return new WhereNode(filter);
     }
 }

@@ -69,7 +69,7 @@ internal sealed class UnusedSelectorsRewriter : SqlTreeNodeVisitor<ISet<ColumnNo
     public override SqlTreeNode VisitSelect(SelectNode node, ISet<ColumnNode> usedColumns)
     {
         IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors = VisitSelectors(node, usedColumns);
-        FilterNode? where = TypedVisit(node.Where, usedColumns);
+        WhereNode? where = TypedVisit(node.Where, usedColumns);
         OrderByNode? orderBy = TypedVisit(node.OrderBy, usedColumns);
         return new SelectNode(selectors, where, orderBy, node.LimitOffset, node.Alias);
     }
@@ -134,6 +134,12 @@ internal sealed class UnusedSelectorsRewriter : SqlTreeNodeVisitor<ISet<ColumnNo
     {
         ColumnNode column = TypedVisit(node.Column, usedColumns);
         return new ColumnSelectorNode(column, node.Alias);
+    }
+
+    public override SqlTreeNode VisitWhere(WhereNode node, ISet<ColumnNode> usedColumns)
+    {
+        FilterNode filter = TypedVisit(node.Filter, usedColumns);
+        return new WhereNode(filter);
     }
 
     public override SqlTreeNode VisitNot(NotNode node, ISet<ColumnNode> usedColumns)

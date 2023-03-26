@@ -10,13 +10,13 @@ internal sealed class SelectNode : TableSourceNode
     private readonly List<ColumnInSelectNode> _columns = new();
 
     public IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> Selectors { get; }
-    public FilterNode? Where { get; }
+    public WhereNode? Where { get; }
     public OrderByNode? OrderBy { get; }
     public LimitOffsetNode? LimitOffset { get; }
 
     public override IReadOnlyList<ColumnInSelectNode> Columns => _columns;
 
-    public SelectNode(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors, FilterNode? where, OrderByNode? orderBy,
+    public SelectNode(IReadOnlyDictionary<TableAccessorNode, IReadOnlyList<SelectorNode>> selectors, WhereNode? where, OrderByNode? orderBy,
         LimitOffsetNode? limitOffset, string? alias)
         : base(alias)
     {

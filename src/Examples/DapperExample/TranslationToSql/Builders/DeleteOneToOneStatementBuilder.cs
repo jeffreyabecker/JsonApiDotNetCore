@@ -23,14 +23,15 @@ internal sealed class DeleteOneToOneStatementBuilder : StatementBuilder
         TableNode table = GetTable(resourceType, null);
 
         ColumnNode column = table.GetColumn(whereColumnName, null, table.Alias);
-        FilterNode where = GetWhere(column, whereValue);
+        WhereNode where = GetWhere(column, whereValue);
 
         return new DeleteNode(table, where);
     }
 
-    private FilterNode GetWhere(ColumnNode column, object? value)
+    private WhereNode GetWhere(ColumnNode column, object? value)
     {
         ParameterNode parameter = ParameterGenerator.Create(value);
-        return new ComparisonNode(ComparisonOperator.Equals, column, parameter);
+        var filter = new ComparisonNode(ComparisonOperator.Equals, column, parameter);
+        return new WhereNode(filter);
     }
 }

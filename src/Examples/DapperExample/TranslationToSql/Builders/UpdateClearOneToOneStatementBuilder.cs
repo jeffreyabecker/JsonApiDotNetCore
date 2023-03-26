@@ -27,15 +27,16 @@ internal sealed class UpdateClearOneToOneStatementBuilder : StatementBuilder
         ColumnAssignmentNode columnAssignment = GetColumnAssignment(setColumn);
 
         ColumnNode whereColumn = table.GetColumn(whereColumnName, null, table.Alias);
-        FilterNode where = GetWhere(whereColumn, whereValue);
+        WhereNode where = GetWhere(whereColumn, whereValue);
 
         return new UpdateNode(table, columnAssignment.AsList(), where);
     }
 
-    private FilterNode GetWhere(ColumnNode column, object? value)
+    private WhereNode GetWhere(ColumnNode column, object? value)
     {
         ParameterNode whereParameter = ParameterGenerator.Create(value);
-        return new ComparisonNode(ComparisonOperator.Equals, column, whereParameter);
+        var filter = new ComparisonNode(ComparisonOperator.Equals, column, whereParameter);
+        return new WhereNode(filter);
     }
 
     private ColumnAssignmentNode GetColumnAssignment(ColumnNode setColumn)

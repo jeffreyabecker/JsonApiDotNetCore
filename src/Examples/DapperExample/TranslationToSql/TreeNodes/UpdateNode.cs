@@ -9,9 +9,9 @@ internal sealed class UpdateNode : SqlTreeNode
 {
     public TableNode Table { get; }
     public IReadOnlyCollection<ColumnAssignmentNode> Assignments { get; }
-    public FilterNode Where { get; }
+    public WhereNode Where { get; }
 
-    public UpdateNode(TableNode table, IReadOnlyCollection<ColumnAssignmentNode> assignments, FilterNode where)
+    public UpdateNode(TableNode table, IReadOnlyCollection<ColumnAssignmentNode> assignments, WhereNode where)
     {
         ArgumentGuard.NotNull(table);
         ArgumentGuard.NotNullNorEmpty(assignments);
