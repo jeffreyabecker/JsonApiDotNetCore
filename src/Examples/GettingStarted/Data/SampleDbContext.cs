@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GettingStarted.Models;
 using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
@@ -13,4 +14,15 @@ public class SampleDbContext : DbContext
         : base(options)
     {
     }
+
+#if DEBUG
+    protected override void OnConfiguring(DbContextOptionsBuilder builder)
+    {
+        // Writes SQL statements to the Output Window when debugging.
+        builder.LogTo(message => Debug.WriteLine(message), new[]
+        {
+            DbLoggerCategory.Database.Name
+        }, LogLevel.Information);
+    }
+#endif
 }

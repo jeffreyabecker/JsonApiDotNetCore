@@ -2,13 +2,24 @@ using DatabasePerTenantExample.Data;
 using DatabasePerTenantExample.Models;
 using JsonApiDotNetCore.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql());
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseNpgsql();
+
+#if DEBUG
+    options.EnableDetailedErrors();
+    options.EnableSensitiveDataLogging();
+    options.ConfigureWarnings(warningsBuilder => warningsBuilder.Ignore(CoreEventId.SensitiveDataLoggingEnabledWarning));
+#endif
+});
 
 builder.Services.AddJsonApi<AppDbContext>(options =>
 {

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using DatabasePerTenantExample.Models;
 using JetBrains.Annotations;
@@ -27,10 +28,18 @@ public sealed class AppDbContext : DbContext
         _forcedTenantName = tenantName;
     }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    protected override void OnConfiguring(DbContextOptionsBuilder builder)
     {
         string connectionString = GetConnectionString();
-        optionsBuilder.UseNpgsql(connectionString);
+        builder.UseNpgsql(connectionString);
+
+#if DEBUG
+        // Writes SQL statements to the Output Window when debugging.
+        builder.LogTo(message => Debug.WriteLine(message), new[]
+        {
+            DbLoggerCategory.Database.Name
+        }, LogLevel.Information);
+#endif
     }
 
     private string GetConnectionString()

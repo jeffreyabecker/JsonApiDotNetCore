@@ -5,6 +5,7 @@ using JsonApiDotNetCore.Diagnostics;
 using JsonApiDotNetCoreExample.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 [assembly: ExcludeFromCodeCoverage]
@@ -51,8 +52,9 @@ static void ConfigureServices(WebApplicationBuilder builder)
         options.UseNpgsql(connectionString);
 
 #if DEBUG
-        options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
+        options.EnableSensitiveDataLogging();
+        options.ConfigureWarnings(warningsBuilder => warningsBuilder.Ignore(CoreEventId.SensitiveDataLoggingEnabledWarning));
 #endif
     });
 

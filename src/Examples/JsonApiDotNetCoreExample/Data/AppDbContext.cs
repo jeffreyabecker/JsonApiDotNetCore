@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using JetBrains.Annotations;
 using JsonApiDotNetCoreExample.Models;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,17 @@ public sealed class AppDbContext : DbContext
         : base(options)
     {
     }
+
+#if DEBUG
+    protected override void OnConfiguring(DbContextOptionsBuilder builder)
+    {
+        // Writes SQL statements to the Output Window when debugging.
+        builder.LogTo(message => Debug.WriteLine(message), new[]
+        {
+            DbLoggerCategory.Database.Name
+        }, LogLevel.Information);
+    }
+#endif
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
