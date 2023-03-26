@@ -7,7 +7,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-string? connectionString = builder.Configuration["Data:DefaultConnection"];
+string? connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddNpgsql<AppDbContext>(connectionString);
 
 builder.Services.AddJsonApi(options => options.Namespace = "api/v1", resources: resourceGraphBuilder => resourceGraphBuilder.Add<WorkItem, int>());

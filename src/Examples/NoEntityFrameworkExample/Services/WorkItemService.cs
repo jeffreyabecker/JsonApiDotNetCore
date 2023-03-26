@@ -15,7 +15,7 @@ public sealed class WorkItemService : IResourceService<WorkItem, int>
 
     public WorkItemService(IConfiguration configuration)
     {
-        _connectionString = configuration["Data:DefaultConnection"];
+        _connectionString = configuration.GetConnectionString("Default");
     }
 
     public async Task<IReadOnlyCollection<WorkItem>> GetAsync(CancellationToken cancellationToken)

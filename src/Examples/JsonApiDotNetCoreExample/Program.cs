@@ -47,9 +47,9 @@ static void ConfigureServices(WebApplicationBuilder builder)
 
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
-        string? connectionString = builder.Configuration["Data:DefaultConnection"];
-
+        string? connectionString = builder.Configuration.GetConnectionString("Default");
         options.UseNpgsql(connectionString);
+
 #if DEBUG
         options.EnableSensitiveDataLogging();
         options.EnableDetailedErrors();
