@@ -351,7 +351,7 @@ public class EntityFrameworkCoreRepository<TResource, TId> : IResourceRepository
             if (RequiresLoadOfRelationshipForDeletion(relationship))
             {
                 NavigationEntry navigation = GetNavigationEntry(resourceTracked, relationship);
-                await navigation.LoadAsync(cancellationToken);
+                await navigation.LoadAsync(cancellationToken: cancellationToken);
             }
         }
 
@@ -595,7 +595,7 @@ public class EntityFrameworkCoreRepository<TResource, TId> : IResourceRepository
             EntityEntry entityEntry = _dbContext.Entry(trackedValueToAssign);
             string inversePropertyName = relationship.InverseNavigationProperty!.Name;
 
-            await entityEntry.Reference(inversePropertyName).LoadAsync(cancellationToken);
+            await entityEntry.Reference(inversePropertyName).LoadAsync(cancellationToken: cancellationToken);
         }
 
         relationship.SetValue(leftResource, trackedValueToAssign);
