@@ -2,8 +2,8 @@ using JsonApiDotNetCore.AtomicOperations;
 using JsonApiDotNetCore.AtomicOperations.Processors;
 using JsonApiDotNetCore.Middleware;
 using JsonApiDotNetCore.Queries;
-using JsonApiDotNetCore.Queries.Internal;
 using JsonApiDotNetCore.Queries.Parsing;
+using JsonApiDotNetCore.Queries.QueryableBuilding;
 using JsonApiDotNetCore.QueryStrings;
 using JsonApiDotNetCore.QueryStrings.Internal;
 using JsonApiDotNetCore.Repositories;
@@ -194,6 +194,13 @@ internal sealed class JsonApiApplicationBuilder : IJsonApiApplicationBuilder, ID
         RegisterImplementationForInterfaces(ServiceDiscoveryFacade.RepositoryUnboundInterfaces, typeof(EntityFrameworkCoreRepository<,>));
 
         _services.AddScoped<IResourceRepositoryAccessor, ResourceRepositoryAccessor>();
+
+        _services.AddTransient<IQueryableBuilder, QueryableBuilder>();
+        _services.AddTransient<IIncludeClauseBuilder, IncludeClauseBuilder>();
+        _services.AddTransient<IOrderClauseBuilder, OrderClauseBuilder>();
+        _services.AddTransient<ISelectClauseBuilder, SelectClauseBuilder>();
+        _services.AddTransient<ISkipTakeClauseBuilder, SkipTakeClauseBuilder>();
+        _services.AddTransient<IWhereClauseBuilder, WhereClauseBuilder>();
     }
 
     private void AddServiceLayer()
