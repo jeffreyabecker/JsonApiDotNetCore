@@ -11,7 +11,7 @@ using JsonApiDotNetCore.Resources.Internal;
 namespace JsonApiDotNetCore.Queries.Internal.Parsing;
 
 [PublicAPI]
-public class FilterParser : QueryExpressionParser
+public class FilterParser : QueryExpressionParser, IFilterParser
 {
     private readonly IResourceFactory _resourceFactory;
     private readonly IEnumerable<IFilterValueConverter> _filterValueConverters;

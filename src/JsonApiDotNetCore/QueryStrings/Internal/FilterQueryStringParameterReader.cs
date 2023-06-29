@@ -19,22 +19,21 @@ public class FilterQueryStringParameterReader : QueryStringParameterReader, IFil
 
     private readonly IJsonApiOptions _options;
     private readonly QueryStringParameterScopeParser _scopeParser;
-    private readonly FilterParser _filterParser;
+    private readonly IFilterParser _filterParser;
     private readonly ImmutableArray<FilterExpression>.Builder _filtersInGlobalScope = ImmutableArray.CreateBuilder<FilterExpression>();
     private readonly Dictionary<ResourceFieldChainExpression, ImmutableArray<FilterExpression>.Builder> _filtersPerScope = new();
 
     public bool AllowEmptyValue => false;
 
-    public FilterQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IResourceFactory resourceFactory, IJsonApiOptions options,
-        IEnumerable<IFilterValueConverter> filterValueConverters)
+    public FilterQueryStringParameterReader(IJsonApiRequest request, IResourceGraph resourceGraph, IJsonApiOptions options, IFilterParser filterParser)
         : base(request, resourceGraph)
     {
         ArgumentGuard.NotNull(options);
-        ArgumentGuard.NotNull(filterValueConverters);
+        ArgumentGuard.NotNull(filterParser);
 
         _options = options;
         _scopeParser = new QueryStringParameterScopeParser(FieldChainRequirements.EndsInToMany);
-        _filterParser = new FilterParser(resourceFactory, filterValueConverters);
+        _filterParser = filterParser;
     }
 
     /// <inheritdoc />
