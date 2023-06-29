@@ -23,7 +23,7 @@ public sealed class FilterValueConversionTests : BaseParseTests
         var converter = new NullConverter();
 
         var resourceFactory = new ResourceFactory(new ServiceContainer());
-        var reader = new FilterQueryStringParameterReader(Request, ResourceGraph, resourceFactory, Options, converter.AsEnumerable());
+        var reader = new FilterQueryStringParameterReader(Request, ResourceGraph, Options, new FilterParser(resourceFactory, converter.AsEnumerable()));
 
         // Act
         Action action = () => reader.Read("filter", "equals(title,'some')");
@@ -40,7 +40,7 @@ public sealed class FilterValueConversionTests : BaseParseTests
         var converter = new ThrowingConverter();
 
         var resourceFactory = new ResourceFactory(new ServiceContainer());
-        var reader = new FilterQueryStringParameterReader(Request, ResourceGraph, resourceFactory, Options, converter.AsEnumerable());
+        var reader = new FilterQueryStringParameterReader(Request, ResourceGraph, Options, new FilterParser(resourceFactory, converter.AsEnumerable()));
 
         // Act
         Action action = () => reader.Read("filter", "equals(title,'some')");

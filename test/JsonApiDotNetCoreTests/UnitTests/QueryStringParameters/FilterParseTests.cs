@@ -5,6 +5,7 @@ using JsonApiDotNetCore.Controllers.Annotations;
 using JsonApiDotNetCore.Errors;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
+using JsonApiDotNetCore.Queries.Internal.Parsing;
 using JsonApiDotNetCore.QueryStrings;
 using JsonApiDotNetCore.QueryStrings.Internal;
 using JsonApiDotNetCore.Resources;
@@ -23,7 +24,7 @@ public sealed class FilterParseTests : BaseParseTests
         Options.EnableLegacyFilterNotation = false;
 
         var resourceFactory = new ResourceFactory(new ServiceContainer());
-        _reader = new FilterQueryStringParameterReader(Request, ResourceGraph, resourceFactory, Options, Enumerable.Empty<IFilterValueConverter>());
+        _reader = new FilterQueryStringParameterReader(Request, ResourceGraph, Options, new FilterParser(resourceFactory, Enumerable.Empty<IFilterValueConverter>()));
     }
 
     [Theory]
