@@ -6,16 +6,16 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 
 /// <inheritdoc cref="ISkipTakeClauseBuilder" />
 [PublicAPI]
-public class SkipTakeClauseBuilder : QueryClauseBuilder, ISkipTakeClauseBuilder
+public class SkipTakeClauseBuilder : QueryClauseBuilder, ISkipTakeClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
-    public virtual Expression ApplySkipTake(PaginationExpression expression, QueryClauseBuilderContext context)
+    public virtual Expression ApplySkipTake(PaginationExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         ArgumentGuard.NotNull(expression);
 
         return Visit(expression, context);
     }
 
-    public override Expression VisitPagination(PaginationExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitPagination(PaginationExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression skipTakeExpression = context.Source;
 
@@ -34,7 +34,7 @@ public class SkipTakeClauseBuilder : QueryClauseBuilder, ISkipTakeClauseBuilder
         return skipTakeExpression;
     }
 
-    private static Expression ExtensionMethodCall(Expression source, string operationName, int value, QueryClauseBuilderContext context)
+    private static Expression ExtensionMethodCall(Expression source, string operationName, int value, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression constant = value.CreateTupleAccessExpressionForConstant(typeof(int));
 

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Reflection;
+using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.QueryableBuilding;
 
@@ -9,7 +10,7 @@ internal sealed class IsUpperCaseWhereClauseBuilder : WhereClauseBuilder
 {
     private static readonly MethodInfo ToUpperMethod = typeof(string).GetMethod("ToUpper", Type.EmptyTypes)!;
 
-    public override Expression DefaultVisit(QueryExpression expression, QueryClauseBuilderContext context)
+    public override Expression DefaultVisit(QueryExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         if (expression is IsUpperCaseExpression isUpperCaseExpression)
         {
@@ -19,7 +20,8 @@ internal sealed class IsUpperCaseWhereClauseBuilder : WhereClauseBuilder
         return base.DefaultVisit(expression, context);
     }
 
-    private Expression VisitIsUpperCase(IsUpperCaseExpression expression, QueryClauseBuilderContext context)
+
+    private Expression VisitIsUpperCase(IsUpperCaseExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression propertyAccess = Visit(expression.TargetAttribute, context);
         MethodCallExpression toUpperMethodCall = Expression.Call(propertyAccess, ToUpperMethod);

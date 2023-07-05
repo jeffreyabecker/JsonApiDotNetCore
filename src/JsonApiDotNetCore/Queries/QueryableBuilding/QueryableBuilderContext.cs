@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using JetBrains.Annotations;
 using JsonApiDotNetCore.Configuration;
+using JsonApiDotNetCore.Queries.Expressions;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace JsonApiDotNetCore.Queries.QueryableBuilding;
@@ -9,7 +10,13 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 /// Immutable contextual state for <see cref="IQueryableBuilder" />.
 /// </summary>
 [PublicAPI]
-public sealed class QueryableBuilderContext
+public  class QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>
+    where TQueryLayer : class, IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
 {
     /// <summary>
     /// The source expression to append to.
@@ -58,7 +65,7 @@ public sealed class QueryableBuilderContext
         State = state;
     }
 
-    public static QueryableBuilderContext CreateRoot(IQueryable source, Type extensionType, IModel model, object? state)
+    public static QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> CreateRoot(IQueryable source, Type extensionType, IModel model, object? state)
     {
         ArgumentGuard.NotNull(source);
         ArgumentGuard.NotNull(extensionType);
@@ -66,10 +73,10 @@ public sealed class QueryableBuilderContext
 
         var lambdaScopeFactory = new LambdaScopeFactory();
 
-        return new QueryableBuilderContext(source.Expression, source.ElementType, extensionType, model, lambdaScopeFactory, state);
+        return new QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>(source.Expression, source.ElementType, extensionType, model, lambdaScopeFactory, state);
     }
 
-    public QueryClauseBuilderContext CreateClauseContext(IQueryableBuilder queryableBuilder, Expression source, ResourceType resourceType,
+    public QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> CreateClauseContext(IQueryableBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> queryableBuilder, Expression source, ResourceType resourceType,
         LambdaScope lambdaScope)
     {
         ArgumentGuard.NotNull(queryableBuilder);
@@ -77,6 +84,15 @@ public sealed class QueryableBuilderContext
         ArgumentGuard.NotNull(resourceType);
         ArgumentGuard.NotNull(lambdaScope);
 
-        return new QueryClauseBuilderContext(source, resourceType, ExtensionType, EntityModel, LambdaScopeFactory, lambdaScope, queryableBuilder, State);
+        return new QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>(source, resourceType, ExtensionType, EntityModel, LambdaScopeFactory, lambdaScope, queryableBuilder, State);
     }
 }
+
+/////  <inheritdoc />
+//public class QueryableBuilderContext : QueryableBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
+//{
+//    public QueryableBuilderContext(Expression source, Type elementType, Type extensionType, IModel entityModel, LambdaScopeFactory lambdaScopeFactory, object? state)
+//        : base(source, elementType, extensionType, entityModel, lambdaScopeFactory, state)
+//    {
+//    }
+//}

@@ -7,7 +7,7 @@ namespace JsonApiDotNetCore.Queries.Expressions;
 /// Represents a pagination, produced from <see cref="PaginationQueryStringValueExpression" />.
 /// </summary>
 [PublicAPI]
-public class PaginationExpression : QueryExpression
+public class PaginationExpression : QueryExpression, IQueryLayerPagination
 {
     /// <summary>
     /// The one-based page number.

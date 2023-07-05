@@ -1,3 +1,4 @@
+using JetBrains.Annotations;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
@@ -8,23 +9,29 @@ namespace JsonApiDotNetCore.Repositories;
 /// <summary>
 /// Retrieves an <see cref="IResourceRepository{TResource,TId}" /> instance from the D/I container and invokes a method on it.
 /// </summary>
-public interface IResourceRepositoryAccessor
+public interface IResourceRepositoryAccessor<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>
+    where TQueryLayer : class, IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
 {
     /// <summary>
     /// Invokes <see cref="IResourceReadRepository{TResource,TId}.GetAsync" /> for the specified resource type.
     /// </summary>
-    Task<IReadOnlyCollection<TResource>> GetAsync<TResource>(QueryLayer queryLayer, CancellationToken cancellationToken)
+    Task<IReadOnlyCollection<TResource>> GetAsync<TResource>(TQueryLayer queryLayer, CancellationToken cancellationToken)
         where TResource : class, IIdentifiable;
 
     /// <summary>
     /// Invokes <see cref="IResourceReadRepository{TResource,TId}.GetAsync" /> for the specified resource type.
     /// </summary>
-    Task<IReadOnlyCollection<IIdentifiable>> GetAsync(ResourceType resourceType, QueryLayer queryLayer, CancellationToken cancellationToken);
+    Task<IReadOnlyCollection<IIdentifiable>> GetAsync(ResourceType resourceType, TQueryLayer queryLayer, CancellationToken cancellationToken);
 
     /// <summary>
     /// Invokes <see cref="IResourceReadRepository{TResource,TId}.CountAsync" /> for the specified resource type.
     /// </summary>
-    Task<int> CountAsync(ResourceType resourceType, FilterExpression? filter, CancellationToken cancellationToken);
+    Task<int> CountAsync(ResourceType resourceType, TFilter? filter, CancellationToken cancellationToken);
 
     /// <summary>
     /// Invokes <see cref="IResourceWriteRepository{TResource,TId}.GetForCreateAsync" /> for the specified resource type.
@@ -41,7 +48,7 @@ public interface IResourceRepositoryAccessor
     /// <summary>
     /// Invokes <see cref="IResourceWriteRepository{TResource,TId}.GetForUpdateAsync" /> for the specified resource type.
     /// </summary>
-    Task<TResource?> GetForUpdateAsync<TResource>(QueryLayer queryLayer, CancellationToken cancellationToken)
+    Task<TResource?> GetForUpdateAsync<TResource>(TQueryLayer queryLayer, CancellationToken cancellationToken)
         where TResource : class, IIdentifiable;
 
     /// <summary>
@@ -74,4 +81,11 @@ public interface IResourceRepositoryAccessor
     /// </summary>
     Task RemoveFromToManyRelationshipAsync<TResource>(TResource leftResource, ISet<IIdentifiable> rightResourceIds, CancellationToken cancellationToken)
         where TResource : class, IIdentifiable;
+}
+
+/// <inheritdoc />
+[PublicAPI]
+public interface IResourceRepositoryAccessor : IResourceRepositoryAccessor<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
+{
+
 }

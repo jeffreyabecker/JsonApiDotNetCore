@@ -6,20 +6,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 
+
 /// <inheritdoc cref="IIncludeClauseBuilder" />
 [PublicAPI]
-public class IncludeClauseBuilder : QueryClauseBuilder, IIncludeClauseBuilder
+public class IncludeClauseBuilder : QueryClauseBuilder, IIncludeClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
     private static readonly IncludeChainConverter IncludeChainConverter = new();
 
-    public virtual Expression ApplyInclude(IncludeExpression include, QueryClauseBuilderContext context)
+    public virtual Expression ApplyInclude(IncludeExpression include, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         ArgumentGuard.NotNull(include);
 
         return Visit(include, context);
     }
 
-    public override Expression VisitInclude(IncludeExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitInclude(IncludeExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         // De-duplicate chains coming from derived relationships.
         HashSet<string> propertyPaths = new();
@@ -77,4 +78,6 @@ public class IncludeClauseBuilder : QueryClauseBuilder, IIncludeClauseBuilder
 
         return Expression.Call(typeof(EntityFrameworkQueryableExtensions), "Include", entityType.AsArray(), source, navigationExpression);
     }
+
+ 
 }

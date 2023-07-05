@@ -11,12 +11,12 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 
 /// <inheritdoc cref="IWhereClauseBuilder" />
 [PublicAPI]
-public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
+public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
     private static readonly CollectionConverter CollectionConverter = new();
     private static readonly ConstantExpression NullConstant = Expression.Constant(null);
 
-    public virtual Expression ApplyWhere(FilterExpression filter, QueryClauseBuilderContext context)
+    public virtual Expression ApplyWhere(FilterExpression filter, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         ArgumentGuard.NotNull(filter);
 
@@ -25,18 +25,18 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return WhereExtensionMethodCall(lambda, context);
     }
 
-    private LambdaExpression GetPredicateLambda(FilterExpression filter, QueryClauseBuilderContext context)
+    private LambdaExpression GetPredicateLambda(FilterExpression filter, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression body = Visit(filter, context);
         return Expression.Lambda(body, context.LambdaScope.Parameter);
     }
 
-    private static Expression WhereExtensionMethodCall(LambdaExpression predicate, QueryClauseBuilderContext context)
+    private static Expression WhereExtensionMethodCall(LambdaExpression predicate, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         return Expression.Call(context.ExtensionType, "Where", context.LambdaScope.Parameter.Type.AsArray(), context.Source, predicate);
     }
 
-    public override Expression VisitHas(HasExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitHas(HasExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression property = Visit(expression.TargetCollection, context);
 
@@ -55,7 +55,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
 
             using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(elementType);
 
-            var nestedContext = new QueryClauseBuilderContext(property, resourceType, typeof(Enumerable), context.EntityModel, context.LambdaScopeFactory,
+            var nestedContext = new QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>(property, resourceType, typeof(Enumerable), context.EntityModel, context.LambdaScopeFactory,
                 lambdaScope, context.QueryableBuilder, context.State);
 
             predicate = GetPredicateLambda(expression.Filter, nestedContext);
@@ -71,7 +71,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
             : Expression.Call(typeof(Enumerable), "Any", elementType.AsArray(), source);
     }
 
-    public override Expression VisitIsType(IsTypeExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitIsType(IsTypeExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression property = expression.TargetToOneRelationship != null ? Visit(expression.TargetToOneRelationship, context) : context.LambdaScope.Accessor;
         TypeBinaryExpression typeCheck = Expression.TypeIs(property, expression.DerivedType.ClrType);
@@ -83,13 +83,13 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
 
         UnaryExpression derivedAccessor = Expression.Convert(property, expression.DerivedType.ClrType);
 
-        QueryClauseBuilderContext derivedContext = context.WithLambdaScope(context.LambdaScope.WithAccessor(derivedAccessor));
+        QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> derivedContext = context.WithLambdaScope(context.LambdaScope.WithAccessor(derivedAccessor));
         Expression filter = Visit(expression.Child, derivedContext);
 
         return Expression.AndAlso(typeCheck, filter);
     }
 
-    public override Expression VisitMatchText(MatchTextExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitMatchText(MatchTextExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression property = Visit(expression.TargetAttribute, context);
 
@@ -113,7 +113,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return Expression.Call(property, "Contains", null, text);
     }
 
-    public override Expression VisitAny(AnyExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitAny(AnyExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression property = Visit(expression.TargetAttribute, context);
 
@@ -133,7 +133,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return Expression.Call(typeof(Enumerable), "Contains", value.Type.AsArray(), collection, value);
     }
 
-    public override Expression VisitLogical(LogicalExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitLogical(LogicalExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         var termQueue = new Queue<Expression>(expression.Terms.Select(filter => Visit(filter, context)));
 
@@ -166,13 +166,13 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return tempExpression;
     }
 
-    public override Expression VisitNot(NotExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitNot(NotExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression child = Visit(expression.Child, context);
         return Expression.Not(child);
     }
 
-    public override Expression VisitComparison(ComparisonExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitComparison(ComparisonExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Type commonType = ResolveCommonType(expression.Left, expression.Right, context);
 
@@ -190,7 +190,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         };
     }
 
-    private Type ResolveCommonType(QueryExpression left, QueryExpression right, QueryClauseBuilderContext context)
+    private Type ResolveCommonType(QueryExpression left, QueryExpression right, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Type leftType = ResolveFixedType(left, context);
 
@@ -214,13 +214,13 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return leftType;
     }
 
-    private Type ResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
+    private Type ResolveFixedType(QueryExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Expression result = Visit(expression, context);
         return result.Type;
     }
 
-    private Type? TryResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
+    private Type? TryResolveFixedType(QueryExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         if (expression is CountExpression)
         {
@@ -248,12 +248,12 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         }
     }
 
-    public override Expression VisitNullConstant(NullConstantExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitNullConstant(NullConstantExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         return NullConstant;
     }
 
-    public override Expression VisitLiteralConstant(LiteralConstantExpression expression, QueryClauseBuilderContext context)
+    public override Expression VisitLiteralConstant(LiteralConstantExpression expression, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Type type = expression.TypedValue.GetType();
         return expression.TypedValue.CreateTupleAccessExpressionForConstant(type);

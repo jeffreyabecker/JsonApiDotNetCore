@@ -13,7 +13,7 @@ namespace JsonApiDotNetCore.Queries.Expressions;
 /// .
 /// </summary>
 [PublicAPI]
-public class IncludeElementExpression : QueryExpression
+public class IncludeElementExpression : QueryExpression, IQueryLayerIncludeElement
 {
     /// <summary>
     /// The JSON:API relationship to include.

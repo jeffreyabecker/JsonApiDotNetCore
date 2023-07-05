@@ -13,7 +13,14 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 /// custom state, use the <see cref="QueryClauseBuilderContext.State" /> property. The only private field allowed is a stack where you push/pop state, so
 /// it works recursively.
 /// </remarks>
-public interface ISelectClauseBuilder
+public interface ISelectClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>
+    where TQueryLayer : class, IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
 {
-    Expression ApplySelect(FieldSelection selection, QueryClauseBuilderContext context);
+    Expression ApplySelect(TSelection selection, QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context);
 }
+public interface ISelectClauseBuilder : ISelectClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> { }

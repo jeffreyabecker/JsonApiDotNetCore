@@ -1,16 +1,21 @@
 using System.Collections.Immutable;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Middleware;
+using JsonApiDotNetCore.Queries;
 using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.QueryableBuilding;
 using JsonApiDotNetCore.Resources.Annotations;
 
 namespace JsonApiDotNetCore.Resources;
-
 /// <summary>
 /// Retrieves an <see cref="IResourceDefinition{TResource,TId}" /> instance from the D/I container and invokes a callback on it.
 /// </summary>
-public interface IResourceDefinitionAccessor
+public interface IResourceDefinitionAccessor<TIncludeElement, TFilter, TSort, TPagination, TSparseFields>
+    where TIncludeElement : IQueryLayerIncludeElement
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSparseFields : IQueryLayerSparseFields
 {
     /// <summary>
     /// Indicates whether this request targets only fetching of data (resources and relationships), as opposed to applying changes.
@@ -33,27 +38,27 @@ public interface IResourceDefinitionAccessor
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnApplyIncludes" /> for the specified resource type.
     /// </summary>
-    IImmutableSet<IncludeElementExpression> OnApplyIncludes(ResourceType resourceType, IImmutableSet<IncludeElementExpression> existingIncludes);
+    IImmutableSet<TIncludeElement> OnApplyIncludes(ResourceType resourceType, IImmutableSet<TIncludeElement> existingIncludes);
 
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnApplyFilter" /> for the specified resource type.
     /// </summary>
-    FilterExpression? OnApplyFilter(ResourceType resourceType, FilterExpression? existingFilter);
+    TFilter? OnApplyFilter(ResourceType resourceType, TFilter? existingFilter);
 
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnApplySort" /> for the specified resource type.
     /// </summary>
-    SortExpression? OnApplySort(ResourceType resourceType, SortExpression? existingSort);
+    TSort? OnApplySort(ResourceType resourceType, TSort? existingSort);
 
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnApplyPagination" /> for the specified resource type.
     /// </summary>
-    PaginationExpression? OnApplyPagination(ResourceType resourceType, PaginationExpression? existingPagination);
+    TPagination? OnApplyPagination(ResourceType resourceType, TPagination? existingPagination);
 
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnApplySparseFieldSet" /> for the specified resource type.
     /// </summary>
-    SparseFieldSetExpression? OnApplySparseFieldSet(ResourceType resourceType, SparseFieldSetExpression? existingSparseFieldSet);
+    TSparseFields? OnApplySparseFieldSet(ResourceType resourceType, TSparseFields? existingSparseFieldSet);
 
     /// <summary>
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnRegisterQueryableHandlersForQueryStringParameters" /> for the specified resource type, then
@@ -123,4 +128,10 @@ public interface IResourceDefinitionAccessor
     /// Invokes <see cref="IResourceDefinition{TResource,TId}.OnSerialize" /> for the specified resource.
     /// </summary>
     void OnSerialize(IIdentifiable resource);
+}
+
+
+public interface IResourceDefinitionAccessor : IResourceDefinitionAccessor<IncludeElementExpression, FilterExpression, SortExpression, PaginationExpression, SparseFieldSetExpression>
+{
+
 }

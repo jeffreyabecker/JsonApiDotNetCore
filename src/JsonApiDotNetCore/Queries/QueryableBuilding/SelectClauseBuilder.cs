@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using JetBrains.Annotations;
 using JsonApiDotNetCore.Configuration;
+using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Resources;
 using JsonApiDotNetCore.Resources.Annotations;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -10,7 +11,7 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 
 /// <inheritdoc cref="ISelectClauseBuilder" />
 [PublicAPI]
-public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
+public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
     private static readonly MethodInfo TypeGetTypeMethod = typeof(object).GetMethod("GetType")!;
     private static readonly MethodInfo TypeOpEqualityMethod = typeof(Type).GetMethod("op_Equality")!;
@@ -26,7 +27,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
         _resourceFactory = resourceFactory;
     }
 
-    public virtual Expression ApplySelect(FieldSelection selection, QueryClauseBuilderContext context)
+    public virtual Expression ApplySelect(FieldSelection selection, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         ArgumentGuard.NotNull(selection);
 
@@ -38,7 +39,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
     }
 
     private Expression CreateLambdaBodyInitializer(FieldSelection selection, ResourceType resourceType, LambdaScope lambdaScope,
-        bool lambdaAccessorRequiresTestForNull, QueryClauseBuilderContext context)
+        bool lambdaAccessorRequiresTestForNull, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         IEntityType entityType = context.EntityModel.FindEntityType(resourceType.ClrType)!;
         IEntityType[] concreteEntityTypes = entityType.GetConcreteDerivedTypesInclusive().ToArray();
@@ -56,7 +57,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
     }
 
     private Expression CreateLambdaBodyInitializerForTypeHierarchy(FieldSelection selection, ResourceType baseResourceType,
-        IEnumerable<IEntityType> concreteEntityTypes, LambdaScope lambdaScope, QueryClauseBuilderContext context)
+        IEnumerable<IEntityType> concreteEntityTypes, LambdaScope lambdaScope, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         IReadOnlySet<ResourceType> resourceTypes = selection.GetResourceTypes();
         Expression rootCondition = lambdaScope.Accessor;
@@ -102,7 +103,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
     }
 
     private Expression CreateLambdaBodyInitializerForSingleType(FieldSelection selection, ResourceType resourceType, LambdaScope lambdaScope,
-        QueryClauseBuilderContext context)
+        QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         FieldSelectors fieldSelectors = selection.GetOrCreateSelectors(resourceType);
         ICollection<PropertySelector> propertySelectors = ToPropertySelectors(fieldSelectors, resourceType, lambdaScope.Accessor.Type, context.EntityModel);
@@ -179,7 +180,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
         }
     }
 
-    private MemberAssignment CreatePropertyAssignment(PropertySelector propertySelector, LambdaScope lambdaScope, QueryClauseBuilderContext context)
+    private MemberAssignment CreatePropertyAssignment(PropertySelector propertySelector, LambdaScope lambdaScope, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         bool requiresUpCast = lambdaScope.Accessor.Type != propertySelector.Property.DeclaringType &&
             lambdaScope.Accessor.Type.IsAssignableFrom(propertySelector.Property.DeclaringType);
@@ -200,7 +201,7 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
     }
 
     private Expression CreateAssignmentRightHandSideForLayer(QueryLayer layer, LambdaScope outerLambdaScope, MemberExpression propertyAccess,
-        PropertyInfo selectorPropertyInfo, QueryClauseBuilderContext context)
+        PropertyInfo selectorPropertyInfo, QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         Type? collectionElementType = CollectionConverter.FindCollectionElementType(selectorPropertyInfo.PropertyType);
         Type bodyElementType = collectionElementType ?? selectorPropertyInfo.PropertyType;
@@ -220,11 +221,11 @@ public class SelectClauseBuilder : QueryClauseBuilder, ISelectClauseBuilder
     }
 
     private static Expression CreateCollectionInitializer(LambdaScope lambdaScope, PropertyInfo collectionProperty, Type elementType, QueryLayer layer,
-        QueryClauseBuilderContext context)
+        QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection> context)
     {
         MemberExpression propertyExpression = Expression.Property(lambdaScope.Accessor, collectionProperty);
 
-        var nestedContext = new QueryableBuilderContext(propertyExpression, elementType, typeof(Enumerable), context.EntityModel, context.LambdaScopeFactory,
+        var nestedContext = new QueryableBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>(propertyExpression, elementType, typeof(Enumerable), context.EntityModel, context.LambdaScopeFactory,
             context.State);
 
         Expression layerExpression = context.QueryableBuilder.ApplyQuery(layer, nestedContext);

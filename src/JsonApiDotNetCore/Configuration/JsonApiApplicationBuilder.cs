@@ -2,6 +2,7 @@ using JsonApiDotNetCore.AtomicOperations;
 using JsonApiDotNetCore.AtomicOperations.Processors;
 using JsonApiDotNetCore.Middleware;
 using JsonApiDotNetCore.Queries;
+using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.Parsing;
 using JsonApiDotNetCore.Queries.QueryableBuilding;
 using JsonApiDotNetCore.QueryStrings;
@@ -194,12 +195,12 @@ internal sealed class JsonApiApplicationBuilder : IJsonApiApplicationBuilder, ID
 
         _services.AddScoped<IResourceRepositoryAccessor, ResourceRepositoryAccessor>();
 
-        _services.TryAddTransient<IQueryableBuilder, QueryableBuilder>();
-        _services.TryAddTransient<IIncludeClauseBuilder, IncludeClauseBuilder>();
-        _services.TryAddTransient<IOrderClauseBuilder, OrderClauseBuilder>();
-        _services.TryAddTransient<ISelectClauseBuilder, SelectClauseBuilder>();
-        _services.TryAddTransient<ISkipTakeClauseBuilder, SkipTakeClauseBuilder>();
-        _services.TryAddTransient<IWhereClauseBuilder, WhereClauseBuilder>();
+        _services.TryAddTransient<IQueryableBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, QueryableBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>>();
+        _services.TryAddTransient<IIncludeClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, IncludeClauseBuilder>();
+        _services.TryAddTransient<IOrderClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, OrderClauseBuilder>();
+        _services.TryAddTransient<ISelectClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, SelectClauseBuilder>();
+        _services.TryAddTransient<ISkipTakeClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, SkipTakeClauseBuilder>();
+        _services.TryAddTransient<IWhereClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>, WhereClauseBuilder>();
     }
 
     private void AddServiceLayer()

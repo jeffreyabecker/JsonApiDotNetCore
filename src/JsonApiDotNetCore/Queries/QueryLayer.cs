@@ -5,11 +5,34 @@ using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.Queries;
 
+public interface IQueryLayerSelection
+{
+    bool IsEmpty { get; }
+}
+public interface IQueryLayerInclude { }
+public interface IQueryLayerFilter { }
+public interface IQueryLayerSort { }
+public interface IQueryLayerIncludeElement { }
+public interface IQueryLayerSparseFields { }
+public interface IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
+{
+    ResourceType ResourceType { get; }
+    public TInclude? Include { get; set; }
+    public TFilter? Filter { get; set; }
+    public TSort? Sort { get; set; }
+    public TPagination? Pagination { get; set; }
+    public TSelection? Selection { get; set; }
+}
 /// <summary>
 /// A nested data structure that contains <see cref="QueryExpression" /> constraints per resource type.
 /// </summary>
 [PublicAPI]
-public sealed class QueryLayer
+public class QueryLayer : IQueryLayer<IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
     public ResourceType ResourceType { get; }
 

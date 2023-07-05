@@ -4,7 +4,7 @@ using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Resources.Annotations;
 
 namespace JsonApiDotNetCore.Queries.QueryableBuilding;
-
+using QueryClauseBuilderContext = QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>;
 /// <summary>
 /// Base class for transforming <see cref="QueryExpression" /> trees into system <see cref="Expression" /> trees.
 /// </summary>

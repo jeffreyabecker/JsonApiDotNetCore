@@ -8,57 +8,62 @@ namespace JsonApiDotNetCore.Queries;
 /// <summary>
 /// Takes scoped expressions from <see cref="IQueryConstraintProvider" />s and transforms them.
 /// </summary>
-public interface IQueryLayerComposer
+public interface IQueryLayerComposer<TQueryLayer, TFilterExpression>
 {
     /// <summary>
     /// Builds a filter from constraints, used to determine total resource count on a primary collection endpoint.
     /// </summary>
-    FilterExpression? GetPrimaryFilterFromConstraints(ResourceType primaryResourceType);
+    TFilterExpression? GetPrimaryFilterFromConstraints(ResourceType primaryResourceType);
 
     /// <summary>
     /// Builds a filter from constraints, used to determine total resource count on a secondary collection endpoint.
     /// </summary>
-    FilterExpression? GetSecondaryFilterFromConstraints<TId>(TId primaryId, HasManyAttribute hasManyRelationship);
+    TFilterExpression? GetSecondaryFilterFromConstraints<TId>(TId primaryId, HasManyAttribute hasManyRelationship);
 
     /// <summary>
-    /// Collects constraints and builds a <see cref="QueryLayer" /> out of them, used to retrieve the actual resources.
+    /// Collects constraints and builds a <see cref="TQueryLayer" /> out of them, used to retrieve the actual resources.
     /// </summary>
-    QueryLayer ComposeFromConstraints(ResourceType requestResourceType);
+    TQueryLayer ComposeFromConstraints(ResourceType requestResourceType);
 
     /// <summary>
-    /// Collects constraints and builds a <see cref="QueryLayer" /> out of them, used to retrieve one resource.
+    /// Collects constraints and builds a <see cref="TQueryLayer" /> out of them, used to retrieve one resource.
     /// </summary>
-    QueryLayer ComposeForGetById<TId>(TId id, ResourceType primaryResourceType, TopFieldSelection fieldSelection);
+    TQueryLayer ComposeForGetById<TId>(TId id, ResourceType primaryResourceType, TopFieldSelection fieldSelection);
 
     /// <summary>
     /// Collects constraints and builds the secondary layer for a relationship endpoint.
     /// </summary>
-    QueryLayer ComposeSecondaryLayerForRelationship(ResourceType secondaryResourceType);
+    TQueryLayer ComposeSecondaryLayerForRelationship(ResourceType secondaryResourceType);
 
     /// <summary>
     /// Wraps a layer for a secondary endpoint into a primary layer, rewriting top-level includes.
     /// </summary>
-    QueryLayer WrapLayerForSecondaryEndpoint<TId>(QueryLayer secondaryLayer, ResourceType primaryResourceType, TId primaryId,
+    TQueryLayer WrapLayerForSecondaryEndpoint<TId>(TQueryLayer secondaryLayer, ResourceType primaryResourceType, TId primaryId,
         RelationshipAttribute relationship);
 
     /// <summary>
     /// Builds a query that retrieves the primary resource, including all of its attributes and all targeted relationships, during a create/update/delete
     /// request.
     /// </summary>
-    QueryLayer ComposeForUpdate<TId>(TId id, ResourceType primaryResourceType);
+    TQueryLayer ComposeForUpdate<TId>(TId id, ResourceType primaryResourceType);
 
     /// <summary>
     /// Builds a query for each targeted relationship with a filter to match on its right resource IDs.
     /// </summary>
-    IEnumerable<(QueryLayer, RelationshipAttribute)> ComposeForGetTargetedSecondaryResourceIds(IIdentifiable primaryResource);
+    IEnumerable<(TQueryLayer, RelationshipAttribute)> ComposeForGetTargetedSecondaryResourceIds(IIdentifiable primaryResource);
 
     /// <summary>
     /// Builds a query for the specified relationship with a filter to match on its right resource IDs.
     /// </summary>
-    QueryLayer ComposeForGetRelationshipRightIds(RelationshipAttribute relationship, ICollection<IIdentifiable> rightResourceIds);
+    TQueryLayer ComposeForGetRelationshipRightIds(RelationshipAttribute relationship, ICollection<IIdentifiable> rightResourceIds);
 
     /// <summary>
     /// Builds a query for a to-many relationship with a filter to match on its left and right resource IDs.
     /// </summary>
-    QueryLayer ComposeForHasMany<TId>(HasManyAttribute hasManyRelationship, TId leftId, ICollection<IIdentifiable> rightResourceIds);
+    TQueryLayer ComposeForHasMany<TId>(HasManyAttribute hasManyRelationship, TId leftId, ICollection<IIdentifiable> rightResourceIds);
+}
+
+public interface IQueryLayerComposer: IQueryLayerComposer<QueryLayer, FilterExpression>
+{
+
 }

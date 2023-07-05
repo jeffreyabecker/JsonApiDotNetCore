@@ -12,7 +12,7 @@ namespace JsonApiDotNetCore.Queries.Expressions;
 /// .
 /// </summary>
 [PublicAPI]
-public class SparseFieldSetExpression : QueryExpression
+public class SparseFieldSetExpression : QueryExpression, IQueryLayerSparseFields
 {
     /// <summary>
     /// The set of JSON:API fields to include. Chain format: a single field.

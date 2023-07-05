@@ -10,7 +10,7 @@ namespace JsonApiDotNetCore.Queries;
 /// for an abstract resource type returns derived types.
 /// </summary>
 [PublicAPI]
-public sealed class FieldSelection : Dictionary<ResourceType, FieldSelectors>
+public sealed class FieldSelection : Dictionary<ResourceType, FieldSelectors>, IQueryLayerSelection
 {
     public bool IsEmpty => Values.All(selectors => selectors.IsEmpty);
 

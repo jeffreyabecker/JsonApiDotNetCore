@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Linq.Expressions;
 using JsonApiDotNetCore.Queries;
+using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.QueryableBuilding;
 using JsonApiDotNetCore.Resources;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -27,7 +28,7 @@ internal sealed class QueryLayerToLinqConverter
 
         // Convert QueryLayer into LINQ expression.
         IQueryable source = ((IEnumerable)resources).AsQueryable();
-        var context = QueryableBuilderContext.CreateRoot(source, typeof(Enumerable), _model, null);
+        var context = QueryableBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>.CreateRoot(source, typeof(Enumerable), _model, null);
         Expression expression = _queryableBuilder.ApplyQuery(queryLayer, context);
 
         // Insert null checks to prevent a NullReferenceException during execution of expressions such as:
@@ -41,3 +42,4 @@ internal sealed class QueryLayerToLinqConverter
         return (IEnumerable<TResource>)result;
     }
 }
+//QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>

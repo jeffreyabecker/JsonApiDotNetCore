@@ -3,10 +3,10 @@ using JetBrains.Annotations;
 using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.Queries.QueryableBuilding;
-
+using QueryClauseBuilderContext = QueryClauseBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>;
 /// <inheritdoc cref="IOrderClauseBuilder" />
 [PublicAPI]
-public class OrderClauseBuilder : QueryClauseBuilder, IOrderClauseBuilder
+public class OrderClauseBuilder : QueryClauseBuilder, IOrderClauseBuilder<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
 {
     public virtual Expression ApplyOrderBy(SortExpression expression, QueryClauseBuilderContext context)
     {

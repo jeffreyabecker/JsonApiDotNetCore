@@ -11,7 +11,7 @@ namespace JsonApiDotNetCore.Queries.Expressions;
 /// .
 /// </summary>
 [PublicAPI]
-public class SortExpression : QueryExpression
+public class SortExpression : QueryExpression, IQueryLayerSort
 {
     /// <summary>
     /// One or more elements to sort on.

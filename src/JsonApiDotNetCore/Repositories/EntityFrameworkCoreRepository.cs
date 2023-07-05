@@ -140,7 +140,7 @@ public class EntityFrameworkCoreRepository<TResource, TId> : IResourceRepository
             IQueryableBuilder builder = _resourceDefinitionAccessor.QueryableBuilder;
 #pragma warning restore CS0618
 
-            var context = QueryableBuilderContext.CreateRoot(source, typeof(Queryable), _dbContext.Model, null);
+            var context = QueryableBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>.CreateRoot(source, typeof(Queryable), _dbContext.Model, null);
             Expression expression = builder.ApplyQuery(queryLayer, context);
 
             using (CodeTimingSessionManager.Current.Measure("Convert System.Expression to IQueryable"))

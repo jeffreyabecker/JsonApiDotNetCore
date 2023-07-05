@@ -7,16 +7,26 @@ namespace JsonApiDotNetCore.Queries.QueryableBuilding;
 
 /// <see cref="IQueryableBuilder" />
 [PublicAPI]
-public class QueryableBuilder : IQueryableBuilder
+public class QueryableBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> : IQueryableBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>
+    where TQueryLayer : class, IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
 {
-    private readonly IIncludeClauseBuilder _includeClauseBuilder;
-    private readonly IWhereClauseBuilder _whereClauseBuilder;
-    private readonly IOrderClauseBuilder _orderClauseBuilder;
-    private readonly ISkipTakeClauseBuilder _skipTakeClauseBuilder;
-    private readonly ISelectClauseBuilder _selectClauseBuilder;
+    private readonly IIncludeClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> _includeClauseBuilder;
+    private readonly IWhereClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> _whereClauseBuilder;
+    private readonly IOrderClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> _orderClauseBuilder;
+    private readonly ISkipTakeClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> _skipTakeClauseBuilder;
+    private readonly ISelectClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> _selectClauseBuilder;
 
-    public QueryableBuilder(IIncludeClauseBuilder includeClauseBuilder, IWhereClauseBuilder whereClauseBuilder, IOrderClauseBuilder orderClauseBuilder,
-        ISkipTakeClauseBuilder skipTakeClauseBuilder, ISelectClauseBuilder selectClauseBuilder)
+    public QueryableBuilder(
+        IIncludeClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> includeClauseBuilder,
+        IWhereClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> whereClauseBuilder,
+        IOrderClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> orderClauseBuilder,
+        ISkipTakeClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> skipTakeClauseBuilder,
+        ISelectClauseBuilder<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> selectClauseBuilder)
     {
         ArgumentGuard.NotNull(includeClauseBuilder);
         ArgumentGuard.NotNull(whereClauseBuilder);
@@ -31,7 +41,7 @@ public class QueryableBuilder : IQueryableBuilder
         _selectClauseBuilder = selectClauseBuilder;
     }
 
-    public virtual Expression ApplyQuery(QueryLayer layer, QueryableBuilderContext context)
+    public virtual Expression ApplyQuery(TQueryLayer layer, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         ArgumentGuard.NotNull(layer);
         ArgumentGuard.NotNull(context);
@@ -66,42 +76,42 @@ public class QueryableBuilder : IQueryableBuilder
         return expression;
     }
 
-    protected virtual Expression ApplyInclude(Expression source, IncludeExpression include, ResourceType resourceType, QueryableBuilderContext context)
+    protected virtual Expression ApplyInclude(Expression source, TInclude include, ResourceType resourceType, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(context.ElementType);
-        QueryClauseBuilderContext clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
+        QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
 
         return _includeClauseBuilder.ApplyInclude(include, clauseContext);
     }
 
-    protected virtual Expression ApplyFilter(Expression source, FilterExpression filter, ResourceType resourceType, QueryableBuilderContext context)
+    protected virtual Expression ApplyFilter(Expression source, TFilter filter, ResourceType resourceType, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(context.ElementType);
-        QueryClauseBuilderContext clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
+        QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
 
         return _whereClauseBuilder.ApplyWhere(filter, clauseContext);
     }
 
-    protected virtual Expression ApplySort(Expression source, SortExpression sort, ResourceType resourceType, QueryableBuilderContext context)
+    protected virtual Expression ApplySort(Expression source, TSort sort, ResourceType resourceType, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(context.ElementType);
-        QueryClauseBuilderContext clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
+        QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
 
         return _orderClauseBuilder.ApplyOrderBy(sort, clauseContext);
     }
 
-    protected virtual Expression ApplyPagination(Expression source, PaginationExpression pagination, ResourceType resourceType, QueryableBuilderContext context)
+    protected virtual Expression ApplyPagination(Expression source, TPagination pagination, ResourceType resourceType, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(context.ElementType);
-        QueryClauseBuilderContext clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
+        QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
 
         return _skipTakeClauseBuilder.ApplySkipTake(pagination, clauseContext);
     }
 
-    protected virtual Expression ApplySelection(Expression source, FieldSelection selection, ResourceType resourceType, QueryableBuilderContext context)
+    protected virtual Expression ApplySelection(Expression source, TSelection selection, ResourceType resourceType, QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> context)
     {
         using LambdaScope lambdaScope = context.LambdaScopeFactory.CreateScope(context.ElementType);
-        QueryClauseBuilderContext clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
+        QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection> clauseContext = context.CreateClauseContext(this, source, resourceType, lambdaScope);
 
         return _selectClauseBuilder.ApplySelect(selection, clauseContext);
     }
