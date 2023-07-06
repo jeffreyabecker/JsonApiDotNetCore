@@ -7,7 +7,7 @@ namespace JsonApiDotNetCore.Queries.Parsing;
 /// <summary>
 /// Parses the JSON:API 'page' query string parameter value.
 /// </summary>
-public interface IPaginationParser
+public interface IPaginationParser<TPagination>
 {
     /// <summary>
     /// Parses the specified source into a <see cref="PaginationQueryStringValueExpression" />. Throws a <see cref="QueryParseException" /> if the input is
@@ -23,5 +23,9 @@ public interface IPaginationParser
     /// Due to the syntax of the JSON:API pagination parameter, The returned <see cref="PaginationQueryStringValueExpression" /> is an intermediate value
     /// that gets converted into <see cref="PaginationExpression" /> by <see cref="PaginationQueryStringParameterReader" />.
     /// </remarks>
-    PaginationQueryStringValueExpression Parse(string source, ResourceType resourceType);
+    TPagination Parse(string source, ResourceType resourceType);
+}
+public interface IPaginationParser: IPaginationParser<PaginationQueryStringValueExpression>
+{
+
 }

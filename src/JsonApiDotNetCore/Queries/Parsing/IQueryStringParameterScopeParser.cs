@@ -8,7 +8,7 @@ namespace JsonApiDotNetCore.Queries.Parsing;
 /// Parses the JSON:API 'sort' and 'filter' query string parameter names, which contain a resource field chain that indicates the scope its query string
 /// parameter value applies to.
 /// </summary>
-public interface IQueryStringParameterScopeParser
+public interface IQueryStringParameterScopeParser<TParameterScope>
 {
     /// <summary>
     /// Parses the specified source into a <see cref="QueryStringParameterScopeExpression" />. Throws a <see cref="QueryParseException" /> if the input is
@@ -26,5 +26,10 @@ public interface IQueryStringParameterScopeParser
     /// <param name="options">
     /// The match options for <paramref name="pattern" />.
     /// </param>
-    QueryStringParameterScopeExpression Parse(string source, ResourceType resourceType, FieldChainPattern pattern, FieldChainPatternMatchOptions options);
+    
+        TParameterScope Parse(string source, ResourceType resourceType, FieldChainPattern pattern, FieldChainPatternMatchOptions options);
+}
+public interface IQueryStringParameterScopeParser: IQueryStringParameterScopeParser<QueryStringParameterScopeExpression>
+{
+
 }

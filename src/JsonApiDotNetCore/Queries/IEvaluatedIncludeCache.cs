@@ -8,15 +8,20 @@ namespace JsonApiDotNetCore.Queries;
 /// callbacks. The cache enables the serialization layer to take changes from <see cref="IResourceDefinition{TResource,TId}.OnApplyIncludes" /> into
 /// account.
 /// </summary>
-public interface IEvaluatedIncludeCache
+public interface IEvaluatedIncludeCache<TInclude> where TInclude : IQueryLayerInclude
 {
     /// <summary>
     /// Stores the evaluated inclusion tree for later usage.
     /// </summary>
-    void Set(IncludeExpression include);
+    void Set(TInclude include);
 
     /// <summary>
     /// Gets the evaluated inclusion tree that was stored earlier.
     /// </summary>
-    IncludeExpression? Get();
+    TInclude? Get();
+}
+/// <inheritdoc />
+public interface IEvaluatedIncludeCache : IEvaluatedIncludeCache<IncludeExpression>
+{
+
 }

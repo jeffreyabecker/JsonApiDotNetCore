@@ -4,16 +4,6 @@ using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.Queries;
-
-public interface IQueryLayerSelection
-{
-    bool IsEmpty { get; }
-}
-public interface IQueryLayerInclude { }
-public interface IQueryLayerFilter { }
-public interface IQueryLayerSort { }
-public interface IQueryLayerIncludeElement { }
-public interface IQueryLayerSparseFields { }
 public interface IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
     where TInclude : IQueryLayerInclude
     where TFilter : IQueryLayerFilter

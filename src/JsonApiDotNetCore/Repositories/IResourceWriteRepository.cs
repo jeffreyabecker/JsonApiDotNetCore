@@ -1,5 +1,6 @@
 using JetBrains.Annotations;
 using JsonApiDotNetCore.Queries;
+using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Resources;
 
 namespace JsonApiDotNetCore.Repositories;
@@ -14,7 +15,13 @@ namespace JsonApiDotNetCore.Repositories;
 /// The resource identifier type.
 /// </typeparam>
 [PublicAPI]
-public interface IResourceWriteRepository<TResource, in TId>
+public interface IResourceWriteRepository<TResource, in TId, TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>
+    where TQueryLayer : class, IQueryLayer<TInclude, TFilter, TSort, TPagination, TSelection>
+    where TInclude : IQueryLayerInclude
+    where TFilter : IQueryLayerFilter
+    where TSort : IQueryLayerSort
+    where TPagination : IQueryLayerPagination
+    where TSelection : IQueryLayerSelection
     where TResource : class, IIdentifiable<TId>
 {
     /// <summary>
@@ -33,7 +40,7 @@ public interface IResourceWriteRepository<TResource, in TId>
     /// <summary>
     /// Retrieves a resource with all of its attributes, including the set of targeted relationships, in preparation for <see cref="UpdateAsync" />.
     /// </summary>
-    Task<TResource?> GetForUpdateAsync(QueryLayer queryLayer, CancellationToken cancellationToken);
+    Task<TResource?> GetForUpdateAsync(TQueryLayer queryLayer, CancellationToken cancellationToken);
 
     /// <summary>
     /// Updates the attributes and relationships of an existing resource in the underlying data store.
@@ -59,4 +66,10 @@ public interface IResourceWriteRepository<TResource, in TId>
     /// Removes resources from a to-many relationship in the underlying data store.
     /// </summary>
     Task RemoveFromToManyRelationshipAsync(TResource leftResource, ISet<IIdentifiable> rightResourceIds, CancellationToken cancellationToken);
+}
+[PublicAPI]
+public interface IResourceWriteRepository<TResource, in TId> : IResourceWriteRepository<TResource, TId, QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
+    where TResource : class, IIdentifiable<TId>
+{
+
 }

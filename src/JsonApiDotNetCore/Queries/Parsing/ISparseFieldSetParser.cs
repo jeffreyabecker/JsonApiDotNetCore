@@ -6,7 +6,7 @@ namespace JsonApiDotNetCore.Queries.Parsing;
 /// <summary>
 /// Parses the JSON:API 'fields' query string parameter value.
 /// </summary>
-public interface ISparseFieldSetParser
+public interface ISparseFieldSetParser<TSparseFieldSet>
 {
     /// <summary>
     /// Parses the specified source into a <see cref="SparseFieldSetExpression" />. Throws a <see cref="QueryParseException" /> if the input is invalid.
@@ -17,5 +17,6 @@ public interface ISparseFieldSetParser
     /// <param name="resourceType">
     /// The resource type used to lookup JSON:API fields that are referenced in <paramref name="source" />.
     /// </param>
-    SparseFieldSetExpression? Parse(string source, ResourceType resourceType);
+    TSparseFieldSet? Parse(string source, ResourceType resourceType);
 }
+public interface ISparseFieldSetParser : ISparseFieldSetParser<SparseFieldSetExpression> { }

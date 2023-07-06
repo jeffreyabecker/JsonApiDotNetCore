@@ -87,12 +87,3 @@ public  class QueryableBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPa
         return new QueryClauseBuilderContext<TQueryLayer, TInclude, TFilter, TSort, TPagination, TSelection>(source, resourceType, ExtensionType, EntityModel, LambdaScopeFactory, lambdaScope, queryableBuilder, State);
     }
 }
-
-/////  <inheritdoc />
-//public class QueryableBuilderContext : QueryableBuilderContext<QueryLayer, IncludeExpression, FilterExpression, SortExpression, PaginationExpression, FieldSelection>
-//{
-//    public QueryableBuilderContext(Expression source, Type elementType, Type extensionType, IModel entityModel, LambdaScopeFactory lambdaScopeFactory, object? state)
-//        : base(source, elementType, extensionType, entityModel, lambdaScopeFactory, state)
-//    {
-//    }
-//}
