@@ -37,37 +37,36 @@ public partial class JadncFiltersParser : Parser {
 	protected static DFA[] decisionToDFA;
 	protected static PredictionContextCache sharedContextCache = new PredictionContextCache();
 	public const int
-		BIND_PARAMETER=1, SCOL=2, DOT=3, OPEN_PAR=4, CLOSE_PAR=5, COMMA=6, ASSIGN=7, 
-		STAR=8, PLUS=9, MINUS=10, TILDE=11, PIPE2=12, DIV=13, MOD=14, LT2=15, 
-		GT2=16, AMP=17, PIPE=18, LT=19, LT_EQ=20, GT=21, GT_EQ=22, EQ=23, HASH=24, 
-		NOT_EQ1=25, NOT_EQ2=26, K_ADD=27, K_AND=28, K_AS=29, K_CASE=30, K_CAST=31, 
-		K_DEFAULT=32, K_ELSE=33, K_END=34, K_IF=35, K_IN=36, K_IS=37, K_ISNULL=38, 
-		K_LIKE=39, K_NOT=40, K_NOTNULL=41, K_NULL=42, K_OF=43, K_OR=44, K_REGEXP=45, 
-		K_THEN=46, K_TO=47, K_WHEN=48, K_STRING=49, K_NUMBER=50, K_DATE=51, K_BOOLEAN=52, 
-		K_TRUE=53, K_FALSE=54, K_YES=55, K_NO=56, K_HAS=57, K_TYPE=58, IDENTIFIER=59, 
-		NUMERIC_LITERAL=60, BOOLEAN_LITERAL=61, STRING_LITERAL=62, DATE_LITERAL=63, 
-		SPACES=64, UNEXPECTED_CHAR=65;
+		SCOL=1, DOT=2, OPEN_PAR=3, CLOSE_PAR=4, COMMA=5, ASSIGN=6, STAR=7, PLUS=8, 
+		MINUS=9, TILDE=10, PIPE2=11, DIV=12, MOD=13, LT2=14, GT2=15, AMP=16, PIPE=17, 
+		LT=18, LT_EQ=19, GT=20, GT_EQ=21, EQ=22, HASH=23, NOT_EQ1=24, NOT_EQ2=25, 
+		K_ADD=26, K_AND=27, K_AS=28, K_CASE=29, K_CAST=30, K_DEFAULT=31, K_ELSE=32, 
+		K_END=33, K_IF=34, K_IN=35, K_IS=36, K_ISNULL=37, K_LIKE=38, K_NOT=39, 
+		K_NOTNULL=40, K_NULL=41, K_OF=42, K_OR=43, K_REGEXP=44, K_THEN=45, K_TO=46, 
+		K_WHEN=47, K_STRING=48, K_NUMBER=49, K_DATE=50, K_BOOLEAN=51, K_TRUE=52, 
+		K_FALSE=53, K_YES=54, K_NO=55, K_HAS=56, K_TYPE=57, IDENTIFIER=58, IDENTIFIER_PART=59, 
+		NUMERIC_LITERAL=60, STRING_LITERAL=61, DATE_LITERAL=62, SPACES=63, UNEXPECTED_CHAR=64;
 	public const int
-		RULE_expr = 0, RULE_literal_value = 1, RULE_function_name = 2;
+		RULE_expr = 0, RULE_identifier = 1;
 	public static readonly string[] ruleNames = {
-		"expr", "literal_value", "function_name"
+		"expr", "identifier"
 	};
 
 	private static readonly string[] _LiteralNames = {
-		null, null, "';'", "'.'", "'('", "')'", "','", "'='", "'*'", "'+'", "'-'", 
-		"'~'", "'||'", "'/'", "'%'", "'<<'", "'>>'", "'&'", "'|'", "'<'", "'<='", 
-		"'>'", "'>='", "'=='", "'#'", "'!='", "'<>'"
+		null, "';'", "'.'", "'('", "')'", "','", "'='", "'*'", "'+'", "'-'", "'~'", 
+		"'||'", "'/'", "'%'", "'<<'", "'>>'", "'&'", "'|'", "'<'", "'<='", "'>'", 
+		"'>='", "'=='", "'#'", "'!='", "'<>'"
 	};
 	private static readonly string[] _SymbolicNames = {
-		null, "BIND_PARAMETER", "SCOL", "DOT", "OPEN_PAR", "CLOSE_PAR", "COMMA", 
-		"ASSIGN", "STAR", "PLUS", "MINUS", "TILDE", "PIPE2", "DIV", "MOD", "LT2", 
-		"GT2", "AMP", "PIPE", "LT", "LT_EQ", "GT", "GT_EQ", "EQ", "HASH", "NOT_EQ1", 
-		"NOT_EQ2", "K_ADD", "K_AND", "K_AS", "K_CASE", "K_CAST", "K_DEFAULT", 
-		"K_ELSE", "K_END", "K_IF", "K_IN", "K_IS", "K_ISNULL", "K_LIKE", "K_NOT", 
-		"K_NOTNULL", "K_NULL", "K_OF", "K_OR", "K_REGEXP", "K_THEN", "K_TO", "K_WHEN", 
-		"K_STRING", "K_NUMBER", "K_DATE", "K_BOOLEAN", "K_TRUE", "K_FALSE", "K_YES", 
-		"K_NO", "K_HAS", "K_TYPE", "IDENTIFIER", "NUMERIC_LITERAL", "BOOLEAN_LITERAL", 
-		"STRING_LITERAL", "DATE_LITERAL", "SPACES", "UNEXPECTED_CHAR"
+		null, "SCOL", "DOT", "OPEN_PAR", "CLOSE_PAR", "COMMA", "ASSIGN", "STAR", 
+		"PLUS", "MINUS", "TILDE", "PIPE2", "DIV", "MOD", "LT2", "GT2", "AMP", 
+		"PIPE", "LT", "LT_EQ", "GT", "GT_EQ", "EQ", "HASH", "NOT_EQ1", "NOT_EQ2", 
+		"K_ADD", "K_AND", "K_AS", "K_CASE", "K_CAST", "K_DEFAULT", "K_ELSE", "K_END", 
+		"K_IF", "K_IN", "K_IS", "K_ISNULL", "K_LIKE", "K_NOT", "K_NOTNULL", "K_NULL", 
+		"K_OF", "K_OR", "K_REGEXP", "K_THEN", "K_TO", "K_WHEN", "K_STRING", "K_NUMBER", 
+		"K_DATE", "K_BOOLEAN", "K_TRUE", "K_FALSE", "K_YES", "K_NO", "K_HAS", 
+		"K_TYPE", "IDENTIFIER", "IDENTIFIER_PART", "NUMERIC_LITERAL", "STRING_LITERAL", 
+		"DATE_LITERAL", "SPACES", "UNEXPECTED_CHAR"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
@@ -117,14 +116,30 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_IS() { return GetToken(JadncFiltersParser.K_IS, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_OF() { return GetToken(JadncFiltersParser.K_OF, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_TYPE() { return GetToken(JadncFiltersParser.K_TYPE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(JadncFiltersParser.IDENTIFIER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext identifier() {
+			return GetRuleContext<IdentifierContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public OfTypeExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOfTypeExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class HasExpressionContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_HAS() { return GetToken(JadncFiltersParser.K_HAS, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(JadncFiltersParser.IDENTIFIER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext identifier() {
+			return GetRuleContext<IdentifierContext>(0);
+		}
 		public HasExpressionContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitHasExpression(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class InExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -142,6 +157,12 @@ public partial class JadncFiltersParser : Parser {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public InExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class NestedExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OPEN_PAR() { return GetToken(JadncFiltersParser.OPEN_PAR, 0); }
@@ -150,6 +171,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CLOSE_PAR() { return GetToken(JadncFiltersParser.CLOSE_PAR, 0); }
 		public NestedExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNestedExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class OrExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -160,6 +187,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_OR() { return GetToken(JadncFiltersParser.K_OR, 0); }
 		public OrExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class GreaterLessExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -173,10 +206,16 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT() { return GetToken(JadncFiltersParser.GT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT_EQ() { return GetToken(JadncFiltersParser.GT_EQ, 0); }
 		public GreaterLessExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitGreaterLessExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class FunctionExprContext : ExprContext {
-		[System.Diagnostics.DebuggerNonUserCode] public Function_nameContext function_name() {
-			return GetRuleContext<Function_nameContext>(0);
+		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext identifier() {
+			return GetRuleContext<IdentifierContext>(0);
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OPEN_PAR() { return GetToken(JadncFiltersParser.OPEN_PAR, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CLOSE_PAR() { return GetToken(JadncFiltersParser.CLOSE_PAR, 0); }
@@ -192,10 +231,12 @@ public partial class JadncFiltersParser : Parser {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public FunctionExprContext(ExprContext context) { CopyFrom(context); }
-	}
-	public partial class VariableExprContext : ExprContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BIND_PARAMETER() { return GetToken(JadncFiltersParser.BIND_PARAMETER, 0); }
-		public VariableExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitFunctionExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class NotExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
@@ -203,6 +244,12 @@ public partial class JadncFiltersParser : Parser {
 			return GetRuleContext<ExprContext>(0);
 		}
 		public NotExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNotExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class AddExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -214,6 +261,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PLUS() { return GetToken(JadncFiltersParser.PLUS, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MINUS() { return GetToken(JadncFiltersParser.MINUS, 0); }
 		public AddExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAddExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class IsNullExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext expr() {
@@ -223,12 +276,26 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public IsNullExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIsNullExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class LiteralExprContext : ExprContext {
-		[System.Diagnostics.DebuggerNonUserCode] public Literal_valueContext literal_value() {
-			return GetRuleContext<Literal_valueContext>(0);
-		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMERIC_LITERAL() { return GetToken(JadncFiltersParser.NUMERIC_LITERAL, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING_LITERAL() { return GetToken(JadncFiltersParser.STRING_LITERAL, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_TRUE() { return GetToken(JadncFiltersParser.K_TRUE, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_FALSE() { return GetToken(JadncFiltersParser.K_FALSE, 0); }
 		public LiteralExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitLiteralExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class MulExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -241,6 +308,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DIV() { return GetToken(JadncFiltersParser.DIV, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MOD() { return GetToken(JadncFiltersParser.MOD, 0); }
 		public MulExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitMulExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class LikeExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -252,6 +325,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_LIKE() { return GetToken(JadncFiltersParser.K_LIKE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public LikeExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitLikeExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class IfExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_IF() { return GetToken(JadncFiltersParser.K_IF, 0); }
@@ -265,6 +344,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_ELSE() { return GetToken(JadncFiltersParser.K_ELSE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_END() { return GetToken(JadncFiltersParser.K_END, 0); }
 		public IfExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIfExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class EqualExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -278,6 +363,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOT_EQ1() { return GetToken(JadncFiltersParser.NOT_EQ1, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOT_EQ2() { return GetToken(JadncFiltersParser.NOT_EQ2, 0); }
 		public EqualExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitEqualExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class AndExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -288,6 +379,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_AND() { return GetToken(JadncFiltersParser.K_AND, 0); }
 		public AndExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAndExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 
 	[RuleVersion(0)]
@@ -307,7 +404,7 @@ public partial class JadncFiltersParser : Parser {
 			int _alt;
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 50;
+			State = 52;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case K_NULL:
@@ -315,23 +412,49 @@ public partial class JadncFiltersParser : Parser {
 			case K_FALSE:
 			case NUMERIC_LITERAL:
 			case STRING_LITERAL:
-			case DATE_LITERAL:
 				{
 				_localctx = new LiteralExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
 
-				State = 7;
-				literal_value();
+				State = 9;
+				ErrorHandler.Sync(this);
+				switch (TokenStream.LA(1)) {
+				case NUMERIC_LITERAL:
+					{
+					State = 5;
+					Match(NUMERIC_LITERAL);
+					}
+					break;
+				case STRING_LITERAL:
+					{
+					State = 6;
+					Match(STRING_LITERAL);
+					}
+					break;
+				case K_TRUE:
+				case K_FALSE:
+					{
+					State = 7;
+					_la = TokenStream.LA(1);
+					if ( !(_la==K_TRUE || _la==K_FALSE) ) {
+					ErrorHandler.RecoverInline(this);
+					}
+					else {
+						ErrorHandler.ReportMatch(this);
+					    Consume();
+					}
+					}
+					break;
+				case K_NULL:
+					{
+					State = 8;
+					Match(K_NULL);
+					}
+					break;
+				default:
+					throw new NoViableAltException(this);
 				}
-				break;
-			case BIND_PARAMETER:
-				{
-				_localctx = new VariableExprContext(_localctx);
-				Context = _localctx;
-				_prevctx = _localctx;
-				State = 8;
-				Match(BIND_PARAMETER);
 				}
 				break;
 			case OPEN_PAR:
@@ -339,38 +462,26 @@ public partial class JadncFiltersParser : Parser {
 				_localctx = new NestedExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
-				State = 9;
-				Match(OPEN_PAR);
-				State = 10;
-				expr(0);
 				State = 11;
+				Match(OPEN_PAR);
+				State = 12;
+				expr(0);
+				State = 13;
 				Match(CLOSE_PAR);
 				}
 				break;
-			case K_NOT:
-				{
-				_localctx = new NotExprContext(_localctx);
-				Context = _localctx;
-				_prevctx = _localctx;
-				State = 13;
-				Match(K_NOT);
-				State = 14;
-				expr(14);
-				}
-				break;
-			case IDENTIFIER:
+			case IDENTIFIER_PART:
 				{
 				_localctx = new FunctionExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
 				State = 15;
-				function_name();
+				identifier();
 				State = 16;
 				Match(OPEN_PAR);
 				State = 29;
 				ErrorHandler.Sync(this);
 				switch (TokenStream.LA(1)) {
-				case BIND_PARAMETER:
 				case OPEN_PAR:
 				case COMMA:
 				case K_IF:
@@ -380,10 +491,9 @@ public partial class JadncFiltersParser : Parser {
 				case K_TRUE:
 				case K_FALSE:
 				case K_HAS:
-				case IDENTIFIER:
+				case IDENTIFIER_PART:
 				case NUMERIC_LITERAL:
 				case STRING_LITERAL:
-				case DATE_LITERAL:
 					{
 					State = 18;
 					ErrorHandler.Sync(this);
@@ -452,7 +562,7 @@ public partial class JadncFiltersParser : Parser {
 				State = 38;
 				Match(K_TYPE);
 				State = 39;
-				Match(IDENTIFIER);
+				identifier();
 				}
 				break;
 			case K_HAS:
@@ -463,7 +573,7 @@ public partial class JadncFiltersParser : Parser {
 				State = 40;
 				Match(K_HAS);
 				State = 41;
-				Match(IDENTIFIER);
+				identifier();
 				}
 				break;
 			case K_IF:
@@ -487,48 +597,59 @@ public partial class JadncFiltersParser : Parser {
 				Match(K_END);
 				}
 				break;
+			case K_NOT:
+				{
+				_localctx = new NotExprContext(_localctx);
+				Context = _localctx;
+				_prevctx = _localctx;
+				State = 50;
+				Match(K_NOT);
+				State = 51;
+				expr(3);
+				}
+				break;
 			default:
 				throw new NoViableAltException(this);
 			}
 			Context.Stop = TokenStream.LT(-1);
-			State = 101;
+			State = 103;
 			ErrorHandler.Sync(this);
-			_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
+			_alt = Interpreter.AdaptivePredict(TokenStream,12,Context);
 			while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( ParseListeners!=null )
 						TriggerExitRuleEvent();
 					_prevctx = _localctx;
 					{
-					State = 99;
+					State = 101;
 					ErrorHandler.Sync(this);
-					switch ( Interpreter.AdaptivePredict(TokenStream,10,Context) ) {
+					switch ( Interpreter.AdaptivePredict(TokenStream,11,Context) ) {
 					case 1:
 						{
 						_localctx = new MulExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 52;
-						if (!(Precpred(Context, 13))) throw new FailedPredicateException(this, "Precpred(Context, 13)");
-						State = 53;
+						State = 54;
+						if (!(Precpred(Context, 14))) throw new FailedPredicateException(this, "Precpred(Context, 14)");
+						State = 55;
 						_la = TokenStream.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 24832L) != 0)) ) {
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 12416L) != 0)) ) {
 						ErrorHandler.RecoverInline(this);
 						}
 						else {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 54;
-						expr(14);
+						State = 56;
+						expr(15);
 						}
 						break;
 					case 2:
 						{
 						_localctx = new AddExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 55;
-						if (!(Precpred(Context, 12))) throw new FailedPredicateException(this, "Precpred(Context, 12)");
-						State = 56;
+						State = 57;
+						if (!(Precpred(Context, 13))) throw new FailedPredicateException(this, "Precpred(Context, 13)");
+						State = 58;
 						_la = TokenStream.LA(1);
 						if ( !(_la==PLUS || _la==MINUS) ) {
 						ErrorHandler.RecoverInline(this);
@@ -537,79 +658,79 @@ public partial class JadncFiltersParser : Parser {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 57;
-						expr(13);
+						State = 59;
+						expr(14);
 						}
 						break;
 					case 3:
 						{
 						_localctx = new GreaterLessExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 58;
-						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
-						State = 59;
+						State = 60;
+						if (!(Precpred(Context, 12))) throw new FailedPredicateException(this, "Precpred(Context, 12)");
+						State = 61;
 						_la = TokenStream.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 7864320L) != 0)) ) {
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 3932160L) != 0)) ) {
 						ErrorHandler.RecoverInline(this);
 						}
 						else {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 60;
-						expr(12);
+						State = 62;
+						expr(13);
 						}
 						break;
 					case 4:
 						{
 						_localctx = new EqualExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 61;
-						if (!(Precpred(Context, 10))) throw new FailedPredicateException(this, "Precpred(Context, 10)");
-						State = 62;
+						State = 63;
+						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
+						State = 64;
 						_la = TokenStream.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 109052032L) != 0)) ) {
+						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 54526016L) != 0)) ) {
 						ErrorHandler.RecoverInline(this);
 						}
 						else {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 63;
-						expr(11);
+						State = 65;
+						expr(12);
 						}
 						break;
 					case 5:
 						{
 						_localctx = new LikeExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 64;
-						if (!(Precpred(Context, 8))) throw new FailedPredicateException(this, "Precpred(Context, 8)");
 						State = 66;
+						if (!(Precpred(Context, 9))) throw new FailedPredicateException(this, "Precpred(Context, 9)");
+						State = 68;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 65;
+							State = 67;
 							Match(K_NOT);
 							}
 						}
 
-						State = 68;
+						State = 70;
 						Match(K_LIKE);
-						State = 69;
-						expr(9);
+						State = 71;
+						expr(10);
 						}
 						break;
 					case 6:
 						{
 						_localctx = new AndExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 70;
-						if (!(Precpred(Context, 2))) throw new FailedPredicateException(this, "Precpred(Context, 2)");
-						State = 71;
-						Match(K_AND);
 						State = 72;
+						if (!(Precpred(Context, 2))) throw new FailedPredicateException(this, "Precpred(Context, 2)");
+						State = 73;
+						Match(K_AND);
+						State = 74;
 						expr(3);
 						}
 						break;
@@ -617,11 +738,11 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new OrExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 73;
-						if (!(Precpred(Context, 1))) throw new FailedPredicateException(this, "Precpred(Context, 1)");
-						State = 74;
-						Match(K_OR);
 						State = 75;
+						if (!(Precpred(Context, 1))) throw new FailedPredicateException(this, "Precpred(Context, 1)");
+						State = 76;
+						Match(K_OR);
+						State = 77;
 						expr(2);
 						}
 						break;
@@ -629,21 +750,21 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new IsNullExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 76;
-						if (!(Precpred(Context, 7))) throw new FailedPredicateException(this, "Precpred(Context, 7)");
-						State = 77;
-						Match(K_IS);
+						State = 78;
+						if (!(Precpred(Context, 8))) throw new FailedPredicateException(this, "Precpred(Context, 8)");
 						State = 79;
+						Match(K_IS);
+						State = 81;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 78;
+							State = 80;
 							Match(K_NOT);
 							}
 						}
 
-						State = 81;
+						State = 83;
 						Match(K_NULL);
 						}
 						break;
@@ -651,50 +772,50 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new InExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 82;
-						if (!(Precpred(Context, 3))) throw new FailedPredicateException(this, "Precpred(Context, 3)");
 						State = 84;
+						if (!(Precpred(Context, 4))) throw new FailedPredicateException(this, "Precpred(Context, 4)");
+						State = 86;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 83;
+							State = 85;
 							Match(K_NOT);
 							}
 						}
 
-						State = 86;
+						State = 88;
 						Match(K_IN);
 						{
-						State = 87;
+						State = 89;
 						Match(OPEN_PAR);
-						State = 96;
+						State = 98;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
-						if ((((_la) & ~0x3f) == 0 && ((1L << _la) & -2711161306320207854L) != 0)) {
+						if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 4120796493722419208L) != 0)) {
 							{
-							State = 88;
+							State = 90;
 							expr(0);
-							State = 93;
+							State = 95;
 							ErrorHandler.Sync(this);
 							_la = TokenStream.LA(1);
 							while (_la==COMMA) {
 								{
 								{
-								State = 89;
+								State = 91;
 								Match(COMMA);
-								State = 90;
+								State = 92;
 								expr(0);
 								}
 								}
-								State = 95;
+								State = 97;
 								ErrorHandler.Sync(this);
 								_la = TokenStream.LA(1);
 							}
 							}
 						}
 
-						State = 98;
+						State = 100;
 						Match(CLOSE_PAR);
 						}
 						}
@@ -702,9 +823,9 @@ public partial class JadncFiltersParser : Parser {
 					}
 					} 
 				}
-				State = 103;
+				State = 105;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,12,Context);
 			}
 			}
 		}
@@ -719,130 +840,58 @@ public partial class JadncFiltersParser : Parser {
 		return _localctx;
 	}
 
-	public partial class Literal_valueContext : ParserRuleContext {
-		public Literal_valueContext(ParserRuleContext parent, int invokingState)
+	public partial class IdentifierContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENTIFIER_PART() { return GetTokens(JadncFiltersParser.IDENTIFIER_PART); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER_PART(int i) {
+			return GetToken(JadncFiltersParser.IDENTIFIER_PART, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] DOT() { return GetTokens(JadncFiltersParser.DOT); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DOT(int i) {
+			return GetToken(JadncFiltersParser.DOT, i);
+		}
+		public IdentifierContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
-		public override int RuleIndex { get { return RULE_literal_value; } }
-	 
-		public Literal_valueContext() { }
-		public virtual void CopyFrom(Literal_valueContext context) {
-			base.CopyFrom(context);
+		public override int RuleIndex { get { return RULE_identifier; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIdentifier(this);
+			else return visitor.VisitChildren(this);
 		}
-	}
-	public partial class StrLiteralContext : Literal_valueContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING_LITERAL() { return GetToken(JadncFiltersParser.STRING_LITERAL, 0); }
-		public StrLiteralContext(Literal_valueContext context) { CopyFrom(context); }
-	}
-	public partial class NullLiteralContext : Literal_valueContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
-		public NullLiteralContext(Literal_valueContext context) { CopyFrom(context); }
-	}
-	public partial class NumLiteralContext : Literal_valueContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMERIC_LITERAL() { return GetToken(JadncFiltersParser.NUMERIC_LITERAL, 0); }
-		public NumLiteralContext(Literal_valueContext context) { CopyFrom(context); }
-	}
-	public partial class DateLiteralContext : Literal_valueContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DATE_LITERAL() { return GetToken(JadncFiltersParser.DATE_LITERAL, 0); }
-		public DateLiteralContext(Literal_valueContext context) { CopyFrom(context); }
-	}
-	public partial class BooleanLiteralContext : Literal_valueContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_TRUE() { return GetToken(JadncFiltersParser.K_TRUE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_FALSE() { return GetToken(JadncFiltersParser.K_FALSE, 0); }
-		public BooleanLiteralContext(Literal_valueContext context) { CopyFrom(context); }
 	}
 
 	[RuleVersion(0)]
-	public Literal_valueContext literal_value() {
-		Literal_valueContext _localctx = new Literal_valueContext(Context, State);
-		EnterRule(_localctx, 2, RULE_literal_value);
-		int _la;
+	public IdentifierContext identifier() {
+		IdentifierContext _localctx = new IdentifierContext(Context, State);
+		EnterRule(_localctx, 2, RULE_identifier);
 		try {
-			State = 109;
-			ErrorHandler.Sync(this);
-			switch (TokenStream.LA(1)) {
-			case NUMERIC_LITERAL:
-				_localctx = new NumLiteralContext(_localctx);
-				EnterOuterAlt(_localctx, 1);
-				{
-				State = 104;
-				Match(NUMERIC_LITERAL);
-				}
-				break;
-			case STRING_LITERAL:
-				_localctx = new StrLiteralContext(_localctx);
-				EnterOuterAlt(_localctx, 2);
-				{
-				State = 105;
-				Match(STRING_LITERAL);
-				}
-				break;
-			case DATE_LITERAL:
-				_localctx = new DateLiteralContext(_localctx);
-				EnterOuterAlt(_localctx, 3);
-				{
-				State = 106;
-				Match(DATE_LITERAL);
-				}
-				break;
-			case K_TRUE:
-			case K_FALSE:
-				_localctx = new BooleanLiteralContext(_localctx);
-				EnterOuterAlt(_localctx, 4);
-				{
-				State = 107;
-				_la = TokenStream.LA(1);
-				if ( !(_la==K_TRUE || _la==K_FALSE) ) {
-				ErrorHandler.RecoverInline(this);
-				}
-				else {
-					ErrorHandler.ReportMatch(this);
-				    Consume();
-				}
-				}
-				break;
-			case K_NULL:
-				_localctx = new NullLiteralContext(_localctx);
-				EnterOuterAlt(_localctx, 5);
-				{
-				State = 108;
-				Match(K_NULL);
-				}
-				break;
-			default:
-				throw new NoViableAltException(this);
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class Function_nameContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(JadncFiltersParser.IDENTIFIER, 0); }
-		public Function_nameContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_function_name; } }
-	}
-
-	[RuleVersion(0)]
-	public Function_nameContext function_name() {
-		Function_nameContext _localctx = new Function_nameContext(Context, State);
-		EnterRule(_localctx, 4, RULE_function_name);
-		try {
+			int _alt;
 			EnterOuterAlt(_localctx, 1);
 			{
+			{
+			State = 106;
+			Match(IDENTIFIER_PART);
 			State = 111;
-			Match(IDENTIFIER);
+			ErrorHandler.Sync(this);
+			_alt = Interpreter.AdaptivePredict(TokenStream,13,Context);
+			while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
+				if ( _alt==1 ) {
+					{
+					{
+					State = 107;
+					Match(DOT);
+					State = 108;
+					Match(IDENTIFIER_PART);
+					}
+					} 
+				}
+				State = 113;
+				ErrorHandler.Sync(this);
+				_alt = Interpreter.AdaptivePredict(TokenStream,13,Context);
+			}
+			}
 			}
 		}
 		catch (RecognitionException re) {
@@ -864,59 +913,59 @@ public partial class JadncFiltersParser : Parser {
 	}
 	private bool expr_sempred(ExprContext _localctx, int predIndex) {
 		switch (predIndex) {
-		case 0: return Precpred(Context, 13);
-		case 1: return Precpred(Context, 12);
-		case 2: return Precpred(Context, 11);
-		case 3: return Precpred(Context, 10);
-		case 4: return Precpred(Context, 8);
+		case 0: return Precpred(Context, 14);
+		case 1: return Precpred(Context, 13);
+		case 2: return Precpred(Context, 12);
+		case 3: return Precpred(Context, 11);
+		case 4: return Precpred(Context, 9);
 		case 5: return Precpred(Context, 2);
 		case 6: return Precpred(Context, 1);
-		case 7: return Precpred(Context, 7);
-		case 8: return Precpred(Context, 3);
+		case 7: return Precpred(Context, 8);
+		case 8: return Precpred(Context, 4);
 		}
 		return true;
 	}
 
 	private static int[] _serializedATN = {
-		4,1,65,114,2,0,7,0,2,1,7,1,2,2,7,2,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		1,0,1,0,1,0,3,0,19,8,0,1,0,1,0,1,0,5,0,24,8,0,10,0,12,0,27,9,0,1,0,3,0,
-		30,8,0,1,0,1,0,1,0,1,0,3,0,36,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		1,0,1,0,1,0,1,0,3,0,51,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		1,0,1,0,1,0,3,0,67,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3,0,
-		80,8,0,1,0,1,0,1,0,3,0,85,8,0,1,0,1,0,1,0,1,0,1,0,5,0,92,8,0,10,0,12,0,
-		95,9,0,3,0,97,8,0,1,0,5,0,100,8,0,10,0,12,0,103,9,0,1,1,1,1,1,1,1,1,1,
-		1,3,1,110,8,1,1,2,1,2,1,2,0,1,0,3,0,2,4,0,5,2,0,8,8,13,14,1,0,9,10,1,0,
-		19,22,3,0,7,7,23,23,25,26,1,0,53,54,140,0,50,1,0,0,0,2,109,1,0,0,0,4,111,
-		1,0,0,0,6,7,6,0,-1,0,7,51,3,2,1,0,8,51,5,1,0,0,9,10,5,4,0,0,10,11,3,0,
-		0,0,11,12,5,5,0,0,12,51,1,0,0,0,13,14,5,40,0,0,14,51,3,0,0,14,15,16,3,
-		4,2,0,16,29,5,4,0,0,17,19,5,6,0,0,18,17,1,0,0,0,18,19,1,0,0,0,19,20,1,
-		0,0,0,20,25,3,0,0,0,21,22,5,6,0,0,22,24,3,0,0,0,23,21,1,0,0,0,24,27,1,
-		0,0,0,25,23,1,0,0,0,25,26,1,0,0,0,26,30,1,0,0,0,27,25,1,0,0,0,28,30,5,
-		8,0,0,29,18,1,0,0,0,29,28,1,0,0,0,29,30,1,0,0,0,30,31,1,0,0,0,31,32,5,
-		5,0,0,32,51,1,0,0,0,33,35,5,37,0,0,34,36,5,40,0,0,35,34,1,0,0,0,35,36,
-		1,0,0,0,36,37,1,0,0,0,37,38,5,43,0,0,38,39,5,58,0,0,39,51,5,59,0,0,40,
-		41,5,57,0,0,41,51,5,59,0,0,42,43,5,35,0,0,43,44,3,0,0,0,44,45,5,46,0,0,
-		45,46,3,0,0,0,46,47,5,33,0,0,47,48,3,0,0,0,48,49,5,34,0,0,49,51,1,0,0,
-		0,50,6,1,0,0,0,50,8,1,0,0,0,50,9,1,0,0,0,50,13,1,0,0,0,50,15,1,0,0,0,50,
-		33,1,0,0,0,50,40,1,0,0,0,50,42,1,0,0,0,51,101,1,0,0,0,52,53,10,13,0,0,
-		53,54,7,0,0,0,54,100,3,0,0,14,55,56,10,12,0,0,56,57,7,1,0,0,57,100,3,0,
-		0,13,58,59,10,11,0,0,59,60,7,2,0,0,60,100,3,0,0,12,61,62,10,10,0,0,62,
-		63,7,3,0,0,63,100,3,0,0,11,64,66,10,8,0,0,65,67,5,40,0,0,66,65,1,0,0,0,
-		66,67,1,0,0,0,67,68,1,0,0,0,68,69,5,39,0,0,69,100,3,0,0,9,70,71,10,2,0,
-		0,71,72,5,28,0,0,72,100,3,0,0,3,73,74,10,1,0,0,74,75,5,44,0,0,75,100,3,
-		0,0,2,76,77,10,7,0,0,77,79,5,37,0,0,78,80,5,40,0,0,79,78,1,0,0,0,79,80,
-		1,0,0,0,80,81,1,0,0,0,81,100,5,42,0,0,82,84,10,3,0,0,83,85,5,40,0,0,84,
-		83,1,0,0,0,84,85,1,0,0,0,85,86,1,0,0,0,86,87,5,36,0,0,87,96,5,4,0,0,88,
-		93,3,0,0,0,89,90,5,6,0,0,90,92,3,0,0,0,91,89,1,0,0,0,92,95,1,0,0,0,93,
-		91,1,0,0,0,93,94,1,0,0,0,94,97,1,0,0,0,95,93,1,0,0,0,96,88,1,0,0,0,96,
-		97,1,0,0,0,97,98,1,0,0,0,98,100,5,5,0,0,99,52,1,0,0,0,99,55,1,0,0,0,99,
-		58,1,0,0,0,99,61,1,0,0,0,99,64,1,0,0,0,99,70,1,0,0,0,99,73,1,0,0,0,99,
-		76,1,0,0,0,99,82,1,0,0,0,100,103,1,0,0,0,101,99,1,0,0,0,101,102,1,0,0,
-		0,102,1,1,0,0,0,103,101,1,0,0,0,104,110,5,60,0,0,105,110,5,62,0,0,106,
-		110,5,63,0,0,107,110,7,4,0,0,108,110,5,42,0,0,109,104,1,0,0,0,109,105,
-		1,0,0,0,109,106,1,0,0,0,109,107,1,0,0,0,109,108,1,0,0,0,110,3,1,0,0,0,
-		111,112,5,59,0,0,112,5,1,0,0,0,13,18,25,29,35,50,66,79,84,93,96,99,101,
-		109
+		4,1,64,115,2,0,7,0,2,1,7,1,1,0,1,0,1,0,1,0,1,0,3,0,10,8,0,1,0,1,0,1,0,
+		1,0,1,0,1,0,1,0,3,0,19,8,0,1,0,1,0,1,0,5,0,24,8,0,10,0,12,0,27,9,0,1,0,
+		3,0,30,8,0,1,0,1,0,1,0,1,0,3,0,36,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+		1,0,1,0,1,0,1,0,1,0,1,0,1,0,3,0,53,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+		1,0,1,0,1,0,1,0,1,0,1,0,3,0,69,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+		1,0,1,0,3,0,82,8,0,1,0,1,0,1,0,3,0,87,8,0,1,0,1,0,1,0,1,0,1,0,5,0,94,8,
+		0,10,0,12,0,97,9,0,3,0,99,8,0,1,0,5,0,102,8,0,10,0,12,0,105,9,0,1,1,1,
+		1,1,1,5,1,110,8,1,10,1,12,1,113,9,1,1,1,0,1,0,2,0,2,0,5,1,0,52,53,2,0,
+		7,7,12,13,1,0,8,9,1,0,18,21,3,0,6,6,22,22,24,25,141,0,52,1,0,0,0,2,106,
+		1,0,0,0,4,9,6,0,-1,0,5,10,5,60,0,0,6,10,5,61,0,0,7,10,7,0,0,0,8,10,5,41,
+		0,0,9,5,1,0,0,0,9,6,1,0,0,0,9,7,1,0,0,0,9,8,1,0,0,0,10,53,1,0,0,0,11,12,
+		5,3,0,0,12,13,3,0,0,0,13,14,5,4,0,0,14,53,1,0,0,0,15,16,3,2,1,0,16,29,
+		5,3,0,0,17,19,5,5,0,0,18,17,1,0,0,0,18,19,1,0,0,0,19,20,1,0,0,0,20,25,
+		3,0,0,0,21,22,5,5,0,0,22,24,3,0,0,0,23,21,1,0,0,0,24,27,1,0,0,0,25,23,
+		1,0,0,0,25,26,1,0,0,0,26,30,1,0,0,0,27,25,1,0,0,0,28,30,5,7,0,0,29,18,
+		1,0,0,0,29,28,1,0,0,0,29,30,1,0,0,0,30,31,1,0,0,0,31,32,5,4,0,0,32,53,
+		1,0,0,0,33,35,5,36,0,0,34,36,5,39,0,0,35,34,1,0,0,0,35,36,1,0,0,0,36,37,
+		1,0,0,0,37,38,5,42,0,0,38,39,5,57,0,0,39,53,3,2,1,0,40,41,5,56,0,0,41,
+		53,3,2,1,0,42,43,5,34,0,0,43,44,3,0,0,0,44,45,5,45,0,0,45,46,3,0,0,0,46,
+		47,5,32,0,0,47,48,3,0,0,0,48,49,5,33,0,0,49,53,1,0,0,0,50,51,5,39,0,0,
+		51,53,3,0,0,3,52,4,1,0,0,0,52,11,1,0,0,0,52,15,1,0,0,0,52,33,1,0,0,0,52,
+		40,1,0,0,0,52,42,1,0,0,0,52,50,1,0,0,0,53,103,1,0,0,0,54,55,10,14,0,0,
+		55,56,7,1,0,0,56,102,3,0,0,15,57,58,10,13,0,0,58,59,7,2,0,0,59,102,3,0,
+		0,14,60,61,10,12,0,0,61,62,7,3,0,0,62,102,3,0,0,13,63,64,10,11,0,0,64,
+		65,7,4,0,0,65,102,3,0,0,12,66,68,10,9,0,0,67,69,5,39,0,0,68,67,1,0,0,0,
+		68,69,1,0,0,0,69,70,1,0,0,0,70,71,5,38,0,0,71,102,3,0,0,10,72,73,10,2,
+		0,0,73,74,5,27,0,0,74,102,3,0,0,3,75,76,10,1,0,0,76,77,5,43,0,0,77,102,
+		3,0,0,2,78,79,10,8,0,0,79,81,5,36,0,0,80,82,5,39,0,0,81,80,1,0,0,0,81,
+		82,1,0,0,0,82,83,1,0,0,0,83,102,5,41,0,0,84,86,10,4,0,0,85,87,5,39,0,0,
+		86,85,1,0,0,0,86,87,1,0,0,0,87,88,1,0,0,0,88,89,5,35,0,0,89,98,5,3,0,0,
+		90,95,3,0,0,0,91,92,5,5,0,0,92,94,3,0,0,0,93,91,1,0,0,0,94,97,1,0,0,0,
+		95,93,1,0,0,0,95,96,1,0,0,0,96,99,1,0,0,0,97,95,1,0,0,0,98,90,1,0,0,0,
+		98,99,1,0,0,0,99,100,1,0,0,0,100,102,5,4,0,0,101,54,1,0,0,0,101,57,1,0,
+		0,0,101,60,1,0,0,0,101,63,1,0,0,0,101,66,1,0,0,0,101,72,1,0,0,0,101,75,
+		1,0,0,0,101,78,1,0,0,0,101,84,1,0,0,0,102,105,1,0,0,0,103,101,1,0,0,0,
+		103,104,1,0,0,0,104,1,1,0,0,0,105,103,1,0,0,0,106,111,5,59,0,0,107,108,
+		5,2,0,0,108,110,5,59,0,0,109,107,1,0,0,0,110,113,1,0,0,0,111,109,1,0,0,
+		0,111,112,1,0,0,0,112,3,1,0,0,0,113,111,1,0,0,0,14,9,18,25,29,35,52,68,
+		81,86,95,98,101,103,111
 	};
 
 	public static readonly ATN _ATN =

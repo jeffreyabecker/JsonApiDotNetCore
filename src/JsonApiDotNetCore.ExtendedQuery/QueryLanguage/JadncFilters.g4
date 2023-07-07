@@ -2,39 +2,25 @@ grammar JadncFilters;
 
 
 expr
- : literal_value #literalExpr
- | BIND_PARAMETER #variableExpr
+ : (NUMERIC_LITERAL | STRING_LITERAL | (K_TRUE|K_FALSE) | K_NULL ) #literalExpr
  | OPEN_PAR expr CLOSE_PAR #nestedExpr
- | K_NOT expr #notExpr
  | expr ( '*' | '/' | '%' ) expr #mulExpr
  | expr ( '+' | '-' ) expr #addExpr
  | expr ( '<' | '<=' | '>' | '>=' ) expr #greaterLessExpr
  | expr ( '=' | '==' | '!=' | '<>'  ) expr #equalExpr
- | function_name OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
+ | identifier OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
  | expr K_NOT? K_LIKE expr  #likeExpr
  | expr K_IS K_NOT? K_NULL #isNullExpr
- | K_IS K_NOT? K_OF K_TYPE IDENTIFIER #ofTypeExpr
- | K_HAS IDENTIFIER #hasExpression
+ | K_IS K_NOT? K_OF K_TYPE identifier #ofTypeExpr
+ | K_HAS identifier #hasExpression
  | K_IF expr K_THEN expr K_ELSE expr K_END #ifExpr
  | expr K_NOT? K_IN ( OPEN_PAR ( expr ( ',' expr )* )?  CLOSE_PAR ) #inExpr
+ | K_NOT expr #notExpr
  | expr K_AND  expr #andExpr
  | expr K_OR expr #orExpr
 ;
 
-literal_value
- : NUMERIC_LITERAL #numLiteral
- | STRING_LITERAL #strLiteral
- | DATE_LITERAL #dateLiteral
- | (K_TRUE|K_FALSE) #booleanLiteral
- | K_NULL #nullLiteral
- ;
-BIND_PARAMETER: '$'  [a-zA-Z0-9_.]+ 
-;
-
-
-function_name
- : IDENTIFIER
- ;
+identifier :  ( IDENTIFIER_PART ( DOT IDENTIFIER_PART )*  ) ;
 
 SCOL : ';';
 DOT : '.';
@@ -98,13 +84,14 @@ IDENTIFIER
  : [a-zA-Z_] [a-zA-Z_0-9]* // TODO check: needs more chars in set
  ;
 
+IDENTIFIER_PART
+ : [a-zA-Z_] [a-zA-Z_0-9]* 
+ ;
+
 NUMERIC_LITERAL
  : MINUS? DIGIT+ ( '.' DIGIT* )? ( E [-+]? DIGIT+ )?
  | '.' DIGIT+ ( E [-+]? DIGIT+ )?
  ;
- BOOLEAN_LITERAL: K_TRUE | K_FALSE ;
-
-
 
 STRING_LITERAL
  : '\'' ( ~'\'' | '\'\'' )* '\''
