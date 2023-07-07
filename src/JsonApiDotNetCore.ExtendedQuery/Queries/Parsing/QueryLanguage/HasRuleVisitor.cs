@@ -1,11 +1,18 @@
+using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class HasRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.HasExpressionContext, QueryExpression>
+public class HasRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.HasExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.HasExpressionContext context)
+    private ResourceType _resourceType;
+
+    public HasRuleVisitor(ResourceType resourceType)
+    {
+        _resourceType = resourceType;
+    }
+
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.HasExprContext context)
     {
 		throw new NotImplementedException();
     }

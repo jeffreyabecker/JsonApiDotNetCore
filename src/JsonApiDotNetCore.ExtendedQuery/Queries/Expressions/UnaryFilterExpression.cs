@@ -1,22 +1,19 @@
-﻿
-using JsonApiDotNetCore.Queries.Expressions;
-
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 
-public class UnaryFilterExpression : FilterExpression
+public class UnaryFilterExpression : ExtendedQueryExpression
 {
-    public UnaryFilterExpression(UnaryFilterOperator @operator, QueryExpression operand)
+    public UnaryFilterExpression(UnaryFilterOperator @operator, ExtendedQueryExpression operand)
     {
         Operator = @operator;
         Operand = operand;
     }
 
     public UnaryFilterOperator Operator { get; }
-    public QueryExpression Operand { get; }
+    public ExtendedQueryExpression Operand { get; }
 
-    public override TResult Accept<TArgument, TResult>(QueryExpressionVisitor<TArgument, TResult> visitor, TArgument argument) => visitor.DefaultVisit(this, argument);
+
     public override string ToFullString()
     {
-        return Operator.Prefix? $"{Operator} {Operand}" : $"{Operand} {Operator}";
+        return Operator.Prefix? $"{Operator} {Operand?.ToFullString()}" : $"{Operand?.ToFullString()} {Operator}";
     }
 }

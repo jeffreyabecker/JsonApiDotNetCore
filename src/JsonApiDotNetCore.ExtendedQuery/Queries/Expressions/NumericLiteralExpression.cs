@@ -1,24 +1,23 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using JsonApiDotNetCore.Queries.Expressions;
-
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
-public class NumericLiteralExpression : LiteralConstantExpression
+public class NumericLiteralExpression : ExtendedQueryExpression
 {
-    public NumericLiteralExpression(string parsedValue) : base(ParseNumeric(parsedValue), parsedValue)
+    public NumericLiteralExpression(string parsedValue)
     {
+        Value = parsedValue.IndexOf(".") != -1? decimal.Parse(parsedValue) : long.Parse(parsedValue);
     }
+    public NumericLiteralExpression(long value)
+    {
+        Value = value;
+    }
+    public NumericLiteralExpression(decimal value)
+    {
+        Value = value;
+    }
+    public object Value { get; set; }
 
-    private static object ParseNumeric(string parsedValue)
+
+    public override string ToFullString()
     {
-        if(parsedValue.IndexOf('.') != -1)
-        {
-            return double.Parse(parsedValue);
-        }
-        return long.Parse(parsedValue);
+        return Value.ToString()!;
     }
-    public override TResult Accept<TArgument, TResult>(QueryExpressionVisitor<TArgument, TResult> visitor, TArgument argument) => visitor.DefaultVisit(this, argument);
 }

@@ -1,9 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Antlr4.Runtime.Tree;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
@@ -16,7 +11,7 @@ using JsonApiDotNetCore.Resources.Annotations;
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
 public static class ParserRuleContextExtensions
 {
-    public static BinaryFilterExpression CreateBinaryFilterExpression<TContext>(this TContext context, IJadncFilterVisitor<QueryExpression> visitor) where TContext : JadncFiltersParser.ExprContext
+    public static BinaryFilterExpression CreateBinaryFilterExpression<TContext>(this TContext context, IJadncFilterVisitor<ExtendedQueryExpression> visitor) where TContext : JadncFiltersParser.ExprContext
     {
         var lhs = visitor.Visit(context.GetChild(0));
         var op = ((ITerminalNode)context.GetChild(1)).GetText();
@@ -24,22 +19,40 @@ public static class ParserRuleContextExtensions
         return new BinaryFilterExpression(op, lhs, rhs);
     }
     public static string GetFullName(this JadncFiltersParser.IdentifierContext ctx) => String.Join(".", ctx.IDENTIFIER_PART().Select(node => node.GetText()));
+    private static PatternMatchResult MatchAny(FieldChainPattern[] patterns, string fieldChain, ResourceType resourceType, FieldChainPatternMatchOptions options)
+    {
+        if(patterns == null || patterns.Length == 0)
+        {
+            throw new ArgumentNullException(nameof(patterns));
+        }
+        PatternMatchResult? result = null;
+        foreach( var pattern in patterns)
+        {
+            result = pattern.Match(fieldChain, resourceType, options);
+            if (result.IsSuccess)
+            {
+                return result;
+            }
+        }
+        return result;
+    }
     /// <summary>
     /// Parses a dot-separated path of field names into a chain of resource fields, while matching it against the specified pattern.
     /// </summary>
-    public static ResourceFieldChainExpression ParseFieldChain(this JadncFiltersParser.IdentifierContext ctx, FieldChainPattern pattern, FieldChainPatternMatchOptions options, ResourceType resourceType,
+    public static ResourceFieldChainExpression ParseFieldChain(this JadncFiltersParser.IdentifierContext ctx, FieldChainPattern[] patterns, FieldChainPatternMatchOptions options, ResourceType resourceType,
         string? alternativeErrorMessage)
     {
-        ArgumentGuard.NotNull(pattern);
+        ArgumentGuard.NotNullNorEmpty(patterns);        
         ArgumentGuard.NotNull(resourceType);
 
-        PatternMatchResult result = pattern.Match(ctx.GetFullName(), resourceType, options);
+        var result = MatchAny(patterns, ctx.GetFullName(), resourceType, options);
 
         if (!result.IsSuccess)
         {
+            var patternNames = String.Join(", ", patterns.Select(pattern => pattern.GetDescription()));
             string message = result.IsFieldChainError
                 ? result.FailureMessage
-                : $"Field chain on resource type '{resourceType}' failed to match the pattern: {pattern.GetDescription()}. {result.FailureMessage}";
+                : $"Field chain on resource type '{resourceType}' failed to match the patterns: {patternNames}. {result.FailureMessage}";
 
             throw new QueryParseException(message, ctx.Start.StartIndex + result.FailurePosition);
         }

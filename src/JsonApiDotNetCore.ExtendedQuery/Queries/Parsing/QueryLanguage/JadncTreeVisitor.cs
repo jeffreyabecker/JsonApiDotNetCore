@@ -1,17 +1,32 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using JsonApiDotNetCore.Configuration;
+using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class JadncTreeVisitor : ParseTreeVisitorBase<QueryExpression>
+public class JadncTreeVisitor : ParseTreeVisitorBase<ExtendedQueryExpression>
 {
-    public JadncTreeVisitor(ResourceType resourceType)
+    public JadncTreeVisitor(ResourceType resourceType) : base(
+        new IdentifierRuleVisitor(resourceType),
+        new RootRuleVisitor(),
+        new OfTypeRuleVisitor(resourceType),
+        new HasRuleVisitor(resourceType),
+        new InRuleVisitor(),
+        new NestedRuleVisitor(),
+        new OrRuleVisitor(),
+        new GreaterLessRuleVisitor(),
+        new FunctionRuleVisitor(),
+        new NotRuleVisitor(),
+        new AddRuleVisitor(),
+        new IsNullRuleVisitor(),
+        new LiteralRuleVisitor(),
+        new MulRuleVisitor(),
+        new LikeRuleVisitor(),
+        new IfRuleVisitor(),
+        new EqualRuleVisitor(),
+        new AndRuleVisitor()
+    )
     {
-        Add(new LiteralRuleVisitor());
+
     }
 }
+

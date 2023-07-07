@@ -27,6 +27,7 @@ internal static class ArgumentGuard
         }
     }
 
+
     [AssertionMethod]
     public static void NotNullNorEmpty([SysNotNull] string? value, [CallerArgumentExpression("value")] string? parameterName = null)
     {
@@ -37,4 +38,6 @@ internal static class ArgumentGuard
             throw new ArgumentException("String cannot be null or empty.", parameterName);
         }
     }
+
+ 
 }

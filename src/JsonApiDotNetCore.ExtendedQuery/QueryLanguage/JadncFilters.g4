@@ -2,17 +2,18 @@ grammar JadncFilters;
 
 
 expr
- : (NUMERIC_LITERAL | STRING_LITERAL | (K_TRUE|K_FALSE) | K_NULL ) #literalExpr
+ : (NUMERIC_LITERAL | STRING_LITERAL | K_TRUE | K_FALSE | K_NULL ) #literalExpr
+ | identifier #identifierExpr
  | OPEN_PAR expr CLOSE_PAR #nestedExpr
  | expr ( '*' | '/' | '%' ) expr #mulExpr
  | expr ( '+' | '-' ) expr #addExpr
  | expr ( '<' | '<=' | '>' | '>=' ) expr #greaterLessExpr
  | expr ( '=' | '<>'  ) expr #equalExpr
- | identifier OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
+ | IDENTIFIER_PART OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
  | expr K_NOT? K_LIKE expr  #likeExpr
  | expr K_IS K_NOT? K_NULL #isNullExpr
- | K_IS K_NOT? K_OF K_TYPE identifier #ofTypeExpr
- | identifier K_HAS identifier #hasExpression
+ | identifier K_IS K_NOT? K_OF K_TYPE identifier #ofTypeExpr
+ | identifier K_HAS identifier #hasExpr
  | K_IF expr K_THEN expr K_ELSE expr K_END #ifExpr
  | expr K_NOT? K_IN ( OPEN_PAR ( expr ( ',' expr )* )?  CLOSE_PAR ) #inExpr
  | K_NOT expr #notExpr
@@ -80,9 +81,7 @@ K_NO: N O;
 K_HAS: H A S;
 K_TYPE: T Y P E;
 
-IDENTIFIER
- : [a-zA-Z_] [a-zA-Z_0-9]* // TODO check: needs more chars in set
- ;
+
 
 IDENTIFIER_PART
  : [a-zA-Z_] [a-zA-Z_0-9]* 

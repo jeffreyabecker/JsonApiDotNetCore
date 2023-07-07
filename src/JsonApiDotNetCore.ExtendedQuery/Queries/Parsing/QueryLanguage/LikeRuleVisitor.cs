@@ -1,12 +1,13 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class LikeRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.LikeExprContext, QueryExpression>
+public class LikeRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.LikeExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.LikeExprContext context)
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.LikeExprContext context)
     {
-		throw new NotImplementedException();
+        var lhs = visitor.Visit(context.expr(0));
+        var rhs = visitor.Visit(context.expr(1));
+        return new BinaryFilterExpression(context.K_NOT() != null ? BinaryFilterOperator.Like : BinaryFilterOperator.NotLike, lhs, rhs);
     }
 }

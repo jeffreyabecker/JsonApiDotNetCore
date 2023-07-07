@@ -1,12 +1,11 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class NestedRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.NestedExprContext, QueryExpression>
+public class NestedRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.NestedExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.NestedExprContext context)
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.NestedExprContext context)
     {
-		return visitor.Visit(context.expr())
+        return new ParentheticalExpression(visitor.Visit(context.expr()));
     }
 }

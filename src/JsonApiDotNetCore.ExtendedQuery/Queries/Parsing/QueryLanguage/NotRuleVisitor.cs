@@ -1,12 +1,11 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class NotRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.NotExprContext, QueryExpression>
+public class NotRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.NotExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.NotExprContext context)
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.NotExprContext context)
     {
-		throw new NotImplementedException();
+        return new UnaryFilterExpression( UnaryFilterOperator.Not, visitor.Visit(context.expr()));
     }
 }

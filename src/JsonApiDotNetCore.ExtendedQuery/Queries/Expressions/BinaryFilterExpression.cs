@@ -1,12 +1,8 @@
-
-using JsonApiDotNetCore.Queries.Expressions;
-using static Antlr4.Runtime.Atn.SemanticContext;
-
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
-public class BinaryFilterExpression : FilterExpression
+public class BinaryFilterExpression : ExtendedQueryExpression
 {
-    public BinaryFilterExpression(string @operator, QueryExpression lhs, QueryExpression rhs): this(new BinaryFilterOperator(@operator), lhs, rhs) { }
-    public BinaryFilterExpression(BinaryFilterOperator @operator, QueryExpression lhs, QueryExpression rhs)
+    public BinaryFilterExpression(string @operator, ExtendedQueryExpression lhs, ExtendedQueryExpression rhs): this(new BinaryFilterOperator(@operator), lhs, rhs) { }
+    public BinaryFilterExpression(BinaryFilterOperator @operator, ExtendedQueryExpression lhs, ExtendedQueryExpression rhs)
     {
         Operator = @operator;
         Lhs = lhs;
@@ -14,13 +10,13 @@ public class BinaryFilterExpression : FilterExpression
     }
 
     public BinaryFilterOperator Operator { get; }
-    public QueryExpression Lhs { get; }
-    public QueryExpression Rhs { get; }
+    public ExtendedQueryExpression Lhs { get; }
+    public ExtendedQueryExpression Rhs { get; }
 
-    public override TResult Accept<TArgument, TResult>(QueryExpressionVisitor<TArgument, TResult> visitor, TArgument argument) => visitor.DefaultVisit(this, argument);
+    
 
     public override string ToFullString()
     {
-        return $"{Lhs} {Operator} {Rhs}";
+        return $"{Lhs?.ToFullString()} {Operator} {Rhs?.ToFullString()}";
     }
 }

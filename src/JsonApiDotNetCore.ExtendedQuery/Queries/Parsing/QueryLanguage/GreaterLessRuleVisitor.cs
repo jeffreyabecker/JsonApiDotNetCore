@@ -1,9 +1,8 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class GreaterLessRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.GreaterLessExprContext, QueryExpression>
+public class GreaterLessRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.GreaterLessExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.GreaterLessExprContext context) => context.CreateBinaryFilterExpression(visitor);
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.GreaterLessExprContext context) => context.CreateBinaryFilterExpression(visitor);
 }

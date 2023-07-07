@@ -4,7 +4,7 @@ using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class AddRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.AddExprContext, QueryExpression>
+public class AddRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.AddExprContext, ExtendedQueryExpression>
 {
-    public QueryExpression Visit(IJadncFilterVisitor<QueryExpression> visitor, JadncFiltersParser.AddExprContext context) => context.CreateBinaryFilterExpression(visitor);
+    public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.AddExprContext context) => context.CreateBinaryFilterExpression(visitor);
 }
