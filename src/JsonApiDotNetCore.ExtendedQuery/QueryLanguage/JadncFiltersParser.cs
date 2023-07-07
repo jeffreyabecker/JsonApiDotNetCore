@@ -121,12 +121,6 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public OfTypeExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitOfTypeExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class HasExpressionContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_HAS() { return GetToken(JadncFiltersParser.K_HAS, 0); }
@@ -134,12 +128,6 @@ public partial class JadncFiltersParser : Parser {
 			return GetRuleContext<IdentifierContext>(0);
 		}
 		public HasExpressionContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitHasExpression(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class InExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -157,12 +145,6 @@ public partial class JadncFiltersParser : Parser {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public InExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class NestedExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OPEN_PAR() { return GetToken(JadncFiltersParser.OPEN_PAR, 0); }
@@ -171,12 +153,6 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CLOSE_PAR() { return GetToken(JadncFiltersParser.CLOSE_PAR, 0); }
 		public NestedExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitNestedExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class OrExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -187,12 +163,6 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_OR() { return GetToken(JadncFiltersParser.K_OR, 0); }
 		public OrExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitOrExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class GreaterLessExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -206,12 +176,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT() { return GetToken(JadncFiltersParser.GT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT_EQ() { return GetToken(JadncFiltersParser.GT_EQ, 0); }
 		public GreaterLessExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitGreaterLessExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class FunctionExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext identifier() {
@@ -231,12 +195,6 @@ public partial class JadncFiltersParser : Parser {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public FunctionExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitFunctionExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class NotExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
@@ -244,12 +202,6 @@ public partial class JadncFiltersParser : Parser {
 			return GetRuleContext<ExprContext>(0);
 		}
 		public NotExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitNotExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class AddExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -261,12 +213,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PLUS() { return GetToken(JadncFiltersParser.PLUS, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MINUS() { return GetToken(JadncFiltersParser.MINUS, 0); }
 		public AddExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitAddExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class IsNullExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext expr() {
@@ -276,12 +222,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public IsNullExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitIsNullExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class LiteralExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMERIC_LITERAL() { return GetToken(JadncFiltersParser.NUMERIC_LITERAL, 0); }
@@ -290,12 +230,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_TRUE() { return GetToken(JadncFiltersParser.K_TRUE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_FALSE() { return GetToken(JadncFiltersParser.K_FALSE, 0); }
 		public LiteralExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitLiteralExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class MulExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -308,12 +242,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DIV() { return GetToken(JadncFiltersParser.DIV, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MOD() { return GetToken(JadncFiltersParser.MOD, 0); }
 		public MulExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitMulExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class LikeExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -325,12 +253,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_LIKE() { return GetToken(JadncFiltersParser.K_LIKE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public LikeExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitLikeExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class IfExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_IF() { return GetToken(JadncFiltersParser.K_IF, 0); }
@@ -344,12 +266,6 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_ELSE() { return GetToken(JadncFiltersParser.K_ELSE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_END() { return GetToken(JadncFiltersParser.K_END, 0); }
 		public IfExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitIfExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class EqualExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -359,16 +275,8 @@ public partial class JadncFiltersParser : Parser {
 			return GetRuleContext<ExprContext>(i);
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ASSIGN() { return GetToken(JadncFiltersParser.ASSIGN, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(JadncFiltersParser.EQ, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOT_EQ1() { return GetToken(JadncFiltersParser.NOT_EQ1, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOT_EQ2() { return GetToken(JadncFiltersParser.NOT_EQ2, 0); }
 		public EqualExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitEqualExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 	public partial class AndExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -379,12 +287,6 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_AND() { return GetToken(JadncFiltersParser.K_AND, 0); }
 		public AndExprContext(ExprContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitAndExpr(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 
 	[RuleVersion(0)]
@@ -689,7 +591,7 @@ public partial class JadncFiltersParser : Parser {
 						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
 						State = 64;
 						_la = TokenStream.LA(1);
-						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 54526016L) != 0)) ) {
+						if ( !(_la==ASSIGN || _la==NOT_EQ2) ) {
 						ErrorHandler.RecoverInline(this);
 						}
 						else {
@@ -854,12 +756,6 @@ public partial class JadncFiltersParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_identifier; } }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitIdentifier(this);
-			else return visitor.VisitChildren(this);
-		}
 	}
 
 	[RuleVersion(0)]
@@ -935,15 +831,15 @@ public partial class JadncFiltersParser : Parser {
 		1,0,1,0,3,0,82,8,0,1,0,1,0,1,0,3,0,87,8,0,1,0,1,0,1,0,1,0,1,0,5,0,94,8,
 		0,10,0,12,0,97,9,0,3,0,99,8,0,1,0,5,0,102,8,0,10,0,12,0,105,9,0,1,1,1,
 		1,1,1,5,1,110,8,1,10,1,12,1,113,9,1,1,1,0,1,0,2,0,2,0,5,1,0,52,53,2,0,
-		7,7,12,13,1,0,8,9,1,0,18,21,3,0,6,6,22,22,24,25,141,0,52,1,0,0,0,2,106,
-		1,0,0,0,4,9,6,0,-1,0,5,10,5,60,0,0,6,10,5,61,0,0,7,10,7,0,0,0,8,10,5,41,
-		0,0,9,5,1,0,0,0,9,6,1,0,0,0,9,7,1,0,0,0,9,8,1,0,0,0,10,53,1,0,0,0,11,12,
-		5,3,0,0,12,13,3,0,0,0,13,14,5,4,0,0,14,53,1,0,0,0,15,16,3,2,1,0,16,29,
-		5,3,0,0,17,19,5,5,0,0,18,17,1,0,0,0,18,19,1,0,0,0,19,20,1,0,0,0,20,25,
-		3,0,0,0,21,22,5,5,0,0,22,24,3,0,0,0,23,21,1,0,0,0,24,27,1,0,0,0,25,23,
-		1,0,0,0,25,26,1,0,0,0,26,30,1,0,0,0,27,25,1,0,0,0,28,30,5,7,0,0,29,18,
-		1,0,0,0,29,28,1,0,0,0,29,30,1,0,0,0,30,31,1,0,0,0,31,32,5,4,0,0,32,53,
-		1,0,0,0,33,35,5,36,0,0,34,36,5,39,0,0,35,34,1,0,0,0,35,36,1,0,0,0,36,37,
+		7,7,12,13,1,0,8,9,1,0,18,21,2,0,6,6,25,25,141,0,52,1,0,0,0,2,106,1,0,0,
+		0,4,9,6,0,-1,0,5,10,5,60,0,0,6,10,5,61,0,0,7,10,7,0,0,0,8,10,5,41,0,0,
+		9,5,1,0,0,0,9,6,1,0,0,0,9,7,1,0,0,0,9,8,1,0,0,0,10,53,1,0,0,0,11,12,5,
+		3,0,0,12,13,3,0,0,0,13,14,5,4,0,0,14,53,1,0,0,0,15,16,3,2,1,0,16,29,5,
+		3,0,0,17,19,5,5,0,0,18,17,1,0,0,0,18,19,1,0,0,0,19,20,1,0,0,0,20,25,3,
+		0,0,0,21,22,5,5,0,0,22,24,3,0,0,0,23,21,1,0,0,0,24,27,1,0,0,0,25,23,1,
+		0,0,0,25,26,1,0,0,0,26,30,1,0,0,0,27,25,1,0,0,0,28,30,5,7,0,0,29,18,1,
+		0,0,0,29,28,1,0,0,0,29,30,1,0,0,0,30,31,1,0,0,0,31,32,5,4,0,0,32,53,1,
+		0,0,0,33,35,5,36,0,0,34,36,5,39,0,0,35,34,1,0,0,0,35,36,1,0,0,0,36,37,
 		1,0,0,0,37,38,5,42,0,0,38,39,5,57,0,0,39,53,3,2,1,0,40,41,5,56,0,0,41,
 		53,3,2,1,0,42,43,5,34,0,0,43,44,3,0,0,0,44,45,5,45,0,0,45,46,3,0,0,0,46,
 		47,5,32,0,0,47,48,3,0,0,0,48,49,5,33,0,0,49,53,1,0,0,0,50,51,5,39,0,0,

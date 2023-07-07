@@ -7,12 +7,12 @@ expr
  | expr ( '*' | '/' | '%' ) expr #mulExpr
  | expr ( '+' | '-' ) expr #addExpr
  | expr ( '<' | '<=' | '>' | '>=' ) expr #greaterLessExpr
- | expr ( '=' | '==' | '!=' | '<>'  ) expr #equalExpr
+ | expr ( '=' | '<>'  ) expr #equalExpr
  | identifier OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
  | expr K_NOT? K_LIKE expr  #likeExpr
  | expr K_IS K_NOT? K_NULL #isNullExpr
  | K_IS K_NOT? K_OF K_TYPE identifier #ofTypeExpr
- | K_HAS identifier #hasExpression
+ | identifier K_HAS identifier #hasExpression
  | K_IF expr K_THEN expr K_ELSE expr K_END #ifExpr
  | expr K_NOT? K_IN ( OPEN_PAR ( expr ( ',' expr )* )?  CLOSE_PAR ) #inExpr
  | K_NOT expr #notExpr

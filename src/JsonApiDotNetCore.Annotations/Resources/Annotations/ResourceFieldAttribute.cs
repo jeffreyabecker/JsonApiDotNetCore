@@ -150,4 +150,9 @@ public abstract class ResourceFieldAttribute : Attribute
     {
         return HashCode.Combine(_publicName, _property);
     }
+
+    public bool IsFilterBlocked()
+    {
+        throw new NotImplementedException();
+    }
 }

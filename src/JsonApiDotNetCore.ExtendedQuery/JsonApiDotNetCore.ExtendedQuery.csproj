@@ -21,6 +21,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Internal\**" />
+    <EmbeddedResource Remove="Internal\**" />
+    <None Remove="Internal\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\logo.png" Visible="false">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
@@ -35,11 +41,6 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Internal\Expressions\" />
-    <Folder Include="QueryLanguage\" />
   </ItemGroup>
 
   <ItemGroup>
