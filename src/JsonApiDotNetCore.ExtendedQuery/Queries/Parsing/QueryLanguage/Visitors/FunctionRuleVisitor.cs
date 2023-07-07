@@ -1,7 +1,7 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 
-namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
+namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage.Visitors;
 public class FunctionRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.FunctionExprContext, ExtendedQueryExpression>
 {
     public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.FunctionExprContext context)

@@ -2,7 +2,7 @@ using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 
-namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
+namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage.Visitors;
 public class HasRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.HasExprContext, ExtendedQueryExpression>
 {
     private ResourceType _resourceType;
@@ -14,6 +14,6 @@ public class HasRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.
 
     public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.HasExprContext context)
     {
-		throw new NotImplementedException();
+        throw new NotImplementedException();
     }
 }

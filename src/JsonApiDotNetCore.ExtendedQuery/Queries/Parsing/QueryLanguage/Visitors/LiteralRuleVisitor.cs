@@ -1,7 +1,7 @@
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 
-namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
+namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage.Visitors;
 public class LiteralRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.LiteralExprContext, ExtendedQueryExpression>
 {
     public ExtendedQueryExpression Visit(IJadncFilterVisitor<ExtendedQueryExpression> visitor, JadncFiltersParser.LiteralExprContext ruleContext)
@@ -24,10 +24,10 @@ public class LiteralRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersPar
             return new BooleanLiteralExpression(false);
         }
         var str = ruleContext.STRING_LITERAL();
-        if(str != null)
+        if (str != null)
         {
             var stringVal = str.GetText();
-            stringVal = stringVal.Substring(1, stringVal.Length - 2).Replace("''","'");
+            stringVal = stringVal.Substring(1, stringVal.Length - 2).Replace("''", "'");
             return new StringLiteralExpression(stringVal);
         }
 

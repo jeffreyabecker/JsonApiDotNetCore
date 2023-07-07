@@ -7,7 +7,7 @@ namespace JsonApiDotNetCore.Queries.Parsing;
 /// The error that is thrown when parsing a query string parameter fails.
 /// </summary>
 [PublicAPI]
-public sealed class QueryParseException : Exception
+public class QueryParseException : Exception
 {
     /// <summary>
     /// Gets the zero-based position in the text of the query string parameter name/value, or at its end, where the failure occurred, or -1 if unavailable.

@@ -3,7 +3,7 @@ using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 using JsonApiDotNetCore.Queries.Parsing;
 
-namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
+namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage.Visitors;
 public class OfTypeRuleVisitor : IJadncFilterRuleContextVisitor<JadncFiltersParser.OfTypeExprContext, ExtendedQueryExpression>
 {
     private ResourceType _resourceType;
