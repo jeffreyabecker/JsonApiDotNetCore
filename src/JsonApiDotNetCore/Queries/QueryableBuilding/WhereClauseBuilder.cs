@@ -25,13 +25,13 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return WhereExtensionMethodCall(lambda, context);
     }
 
-    private LambdaExpression GetPredicateLambda(FilterExpression filter, QueryClauseBuilderContext context)
+    protected LambdaExpression GetPredicateLambda(FilterExpression filter, QueryClauseBuilderContext context)
     {
         Expression body = Visit(filter, context);
         return Expression.Lambda(body, context.LambdaScope.Parameter);
     }
 
-    private static Expression WhereExtensionMethodCall(LambdaExpression predicate, QueryClauseBuilderContext context)
+    protected static Expression WhereExtensionMethodCall(LambdaExpression predicate, QueryClauseBuilderContext context)
     {
         return Expression.Call(context.ExtensionType, "Where", context.LambdaScope.Parameter.Type.AsArray(), context.Source, predicate);
     }
@@ -64,7 +64,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return AnyExtensionMethodCall(elementType, property, predicate);
     }
 
-    private static MethodCallExpression AnyExtensionMethodCall(Type elementType, Expression source, Expression? predicate)
+    protected static MethodCallExpression AnyExtensionMethodCall(Type elementType, Expression source, Expression? predicate)
     {
         return predicate != null
             ? Expression.Call(typeof(Enumerable), "Any", elementType.AsArray(), source, predicate)
@@ -128,7 +128,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return ContainsExtensionMethodCall(collection, property);
     }
 
-    private static Expression ContainsExtensionMethodCall(Expression collection, Expression value)
+    protected static Expression ContainsExtensionMethodCall(Expression collection, Expression value)
     {
         return Expression.Call(typeof(Enumerable), "Contains", value.Type.AsArray(), collection, value);
     }
@@ -150,7 +150,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         throw new InvalidOperationException($"Unknown logical operator '{expression.Operator}'.");
     }
 
-    private static BinaryExpression Compose(Queue<Expression> argumentQueue, Func<Expression, Expression, BinaryExpression> applyOperator)
+    protected static BinaryExpression Compose(Queue<Expression> argumentQueue, Func<Expression, Expression, BinaryExpression> applyOperator)
     {
         Expression left = argumentQueue.Dequeue();
         Expression right = argumentQueue.Dequeue();
@@ -190,7 +190,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         };
     }
 
-    private Type ResolveCommonType(QueryExpression left, QueryExpression right, QueryClauseBuilderContext context)
+    protected Type ResolveCommonType(QueryExpression left, QueryExpression right, QueryClauseBuilderContext context)
     {
         Type leftType = ResolveFixedType(left, context);
 
@@ -214,13 +214,13 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return leftType;
     }
 
-    private Type ResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
+    protected Type ResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
     {
         Expression result = Visit(expression, context);
         return result.Type;
     }
 
-    private Type? TryResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
+    protected Type? TryResolveFixedType(QueryExpression expression, QueryClauseBuilderContext context)
     {
         if (expression is CountExpression)
         {
@@ -236,7 +236,7 @@ public class WhereClauseBuilder : QueryClauseBuilder, IWhereClauseBuilder
         return null;
     }
 
-    private static Expression WrapInConvert(Expression expression, Type targetType)
+    protected static Expression WrapInConvert(Expression expression, Type targetType)
     {
         try
         {
