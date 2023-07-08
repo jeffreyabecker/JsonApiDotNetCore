@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Antlr4.Runtime.Tree;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.Queries.Expressions;

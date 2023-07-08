@@ -26,8 +26,4 @@ public class UnaryFilterExpression : ExtendedQueryExpression
         }
     }
 
-    public override string ToFullString()
-    {
-        return Operator.Prefix? $"{Operator} {Operand?.ToFullString()}" : $"{Operand?.ToFullString()} {Operator}";
-    }
 }

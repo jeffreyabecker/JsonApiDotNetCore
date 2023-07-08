@@ -1,44 +1,45 @@
 using Antlr4.Runtime;
 using Antlr4.Runtime.Tree;
-using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 public partial class JadncFiltersParser
 {
-    public partial class ExprContext { public virtual TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) => visitor.Visit(this); }
-    public partial class OfTypeExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class HasExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
+    public partial class ExprContext { }
+    public partial class OfTypeExprContext : ExprContext {  }
+    public partial class HasExprContext : ExprContext {  }
     public partial class InExprContext : ExprContext, IHaveSubExpr {
-        public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); }
+        
         public string Operator => K_NOT() != null ? "not in" : "in";
         public ExprContext Left => (ExprContext)expr(0);
 
     }
-    public partial class NestedExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class OrExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class GreaterLessExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class FunctionExprContext : ExprContext, IHaveSubExpr { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class NotExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class AddExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
+    public partial class NestedExprContext : ExprContext {  }
+    public partial class OrExprContext : ExprContext, IBinaryExprNode {  }
+    public partial class GreaterLessExprContext : ExprContext, IBinaryExprNode {  }
+    public partial class FunctionExprContext : ExprContext, IHaveSubExpr {  }
+    public partial class NotExprContext : ExprContext {  }
+    public partial class AddExprContext : ExprContext, IBinaryExprNode {  }
     public partial class IsNullExprContext : ExprContext {
-        public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); }
+        
         public string Operator => K_NOT() != null ? "is not null" : "is null";
     }
-    public partial class LiteralExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class MulExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
+    public partial class LiteralExprContext : ExprContext {  }
+    public partial class MulExprContext : ExprContext, IBinaryExprNode {  }
     public partial class LikeExprContext : ExprContext, IBinaryExprNode {
-        public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); }
+        
         public string Operator => K_NOT() != null ? "not like" : "like";
     }
     public partial class IfExprContext : ExprContext, IHaveSubExpr {
-        public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); }
+        
         public ExprContext Condition => expr(0);
         public ExprContext WhenTrue => expr(1);
         public ExprContext WhenFalse => expr(2);
     }
-    public partial class EqualExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class AndExprContext : ExprContext, IBinaryExprNode { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
-    public partial class IdentifierExprContext : ExprContext { public override TResult Accept<TResult>(IJadncFilterVisitor<TResult> visitor) { return visitor.Visit(this); } }
+    public partial class EqualExprContext : ExprContext, IBinaryExprNode {  }
+    public partial class AndExprContext : ExprContext, IBinaryExprNode {  }
+    public partial class IdentifierExprContext : ExprContext {
+        public string[] Segments => identifier().Segments;
+    }
 
     public interface IHaveSubExpr : IParseTree
     {
@@ -62,5 +63,8 @@ public partial class JadncFiltersParser
         ExprContext Right => (ExprContext)expr(1);
         string Operator => ((ITerminalNode)GetChild(1)).GetText();
     }
-
+    public partial class IdentifierContext
+    {
+        public string[] Segments => IDENTIFIER_PART().Select(n=>n.GetText()).ToArray();
+    }
 }

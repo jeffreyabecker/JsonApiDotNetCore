@@ -1,7 +1,6 @@
 
 using System.Text;
 using JsonApiDotNetCore.Configuration;
-using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 public class IsOfTypeExpression : ExtendedQueryExpression

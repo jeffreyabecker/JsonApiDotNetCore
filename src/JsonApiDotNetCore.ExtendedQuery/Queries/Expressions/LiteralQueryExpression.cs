@@ -51,8 +51,6 @@ public abstract class LiteralQueryExpression : ExtendedQueryExpression
         {
             sb.Append(Value);
         }
-
-
     }
     public class StringLiteralExpression : LiteralQueryExpression
     {
@@ -65,10 +63,11 @@ public abstract class LiteralQueryExpression : ExtendedQueryExpression
 
         public override object GetRawValue() => Value;
 
-        public override string ToFullString()
+        public override void Serialize(StringBuilder sb)
         {
-            return $"'{Value.Replace("'", "''")}'";
+            sb.Append(Value.Replace("'", "''"));
         }
+
     }
     public class NullLiteralExpression : LiteralQueryExpression
     {
@@ -81,8 +80,6 @@ public abstract class LiteralQueryExpression : ExtendedQueryExpression
         {
             sb.Append("null");
         }
-
-        public override string ToFullString() => "null";
     }
 
 

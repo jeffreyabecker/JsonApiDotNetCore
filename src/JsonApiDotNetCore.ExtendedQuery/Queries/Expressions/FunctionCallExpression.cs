@@ -1,8 +1,8 @@
+using System.Text;
+
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 public class FunctionCallExpression : ExtendedQueryExpression
 {
-
-
     public FunctionCallExpression(string name, ExpressionListExpression arguments)
     {
         Name = name;
@@ -12,9 +12,9 @@ public class FunctionCallExpression : ExtendedQueryExpression
     public string Name { get; }
     public ExpressionListExpression Arguments { get; }
 
-
-    public override string ToFullString()
+    public override void Serialize(StringBuilder sb)
     {
-        return $"{Name} {Arguments?.ToFullString()}";
+        sb.Append(Name);
+        Arguments.Serialize(sb);
     }
 }

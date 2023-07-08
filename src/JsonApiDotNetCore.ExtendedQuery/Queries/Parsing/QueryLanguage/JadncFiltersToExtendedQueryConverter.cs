@@ -1,32 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
-public class Visitor : IJadncFiltersVisitor<ExtendedQueryExpression>
+public class JadncFiltersToExtendedQueryConverter : IJadncFiltersVisitor<ExtendedQueryExpression>
 {
     private Configuration.ResourceType _resourceType;
 
 
-    public Visitor(Configuration.ResourceType resourceType)
+    public JadncFiltersToExtendedQueryConverter(Configuration.ResourceType resourceType)
     {
         _resourceType = resourceType;
     }
-
-
-
-
-
-
-
-
 
 
     public ExtendedQueryExpression Visit(IParseTree tree) => tree.Accept(this);
@@ -56,12 +42,19 @@ public class Visitor : IJadncFiltersVisitor<ExtendedQueryExpression>
 
     public ExtendedQueryExpression VisitIdentifier([NotNull] JadncFiltersParser.IdentifierContext context)
     {
-        throw new NotImplementedException("This rule is never supposed to be directly used");
+        throw new NotImplementedException("The individual rules interpret their identifiers directly through the field chain parser");
     }
 
     public ExtendedQueryExpression VisitIdentifierExpr([NotNull] JadncFiltersParser.IdentifierExprContext context)
     {
-        throw new NotImplementedException("TODO");
+        var segments = context.identifier().GetText();
+        var matchResult = QueryStrings.FieldChains.BuiltInPatterns.ToOneChainEndingInAttribute.Match(segments, _resourceType, QueryStrings.FieldChains.FieldChainPatternMatchOptions.AllowDerivedTypes);
+        if (matchResult.IsSuccess)
+        {
+            throw new ExtendedQueryParseException($"Unable to find a field-chain matching {segments} for {_resourceType.PublicName}", context.Start.StartIndex);
+        }
+        return new IdentifierExpression(matchResult.FieldChain);
+
     }
 
     public ExtendedQueryExpression VisitIfExpr([NotNull] JadncFiltersParser.IfExprContext context) => new ConditionalFilterExpression(Visit(context.Condition), Visit(context.WhenTrue), Visit(context.WhenFalse));

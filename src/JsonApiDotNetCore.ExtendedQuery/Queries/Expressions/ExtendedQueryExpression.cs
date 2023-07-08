@@ -1,6 +1,5 @@
 using System.Text;
 using JsonApiDotNetCore.Queries.Expressions;
-using static Antlr4.Runtime.Atn.SemanticContext;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 public abstract class ExtendedQueryExpression : QueryExpression

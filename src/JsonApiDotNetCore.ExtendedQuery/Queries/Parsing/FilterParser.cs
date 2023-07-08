@@ -36,7 +36,7 @@ public class FilterParser : IFilterParser
         {
             throw new ExtendedQueryParseException("unable to find filter expression", 0);
         }
-        var treebuilder = new JadncTreeVisitor(resourceType);
+        var treebuilder = new JadncFiltersToExtendedQueryConverter(resourceType);
         var result = treebuilder.Visit(expression);
         return result;
     }

@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Resources.Annotations;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
@@ -15,21 +10,12 @@ public class IdentifierExpression : ExtendedQueryExpression
     /// </summary>
     public IImmutableList<ResourceFieldAttribute> Fields { get; }
 
-    public IdentifierExpression(ResourceFieldAttribute field)
-    {
-        ArgumentGuard.NotNull(field);
 
-        Fields = ImmutableArray.Create(field);
-    }
-
-    public override string ToString()
+    public IdentifierExpression(IEnumerable<ResourceFieldAttribute> fields)
     {
-        return string.Join(".", Fields.Select(field => field.PublicName));
-    }
+        ArgumentGuard.NotNullNorEmpty(fields);
 
-    public override string ToFullString()
-    {
-        return string.Join(".", Fields.Select(field => $"{field.Type.PublicName}:{field.PublicName}"));
+        Fields = fields.ToImmutableList();
     }
 
     public override bool Equals(object? obj)
