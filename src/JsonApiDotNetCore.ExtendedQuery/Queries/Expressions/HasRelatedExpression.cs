@@ -1,3 +1,4 @@
+using System.Text;
 using JsonApiDotNetCore.Queries.Expressions;
 
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
@@ -5,17 +6,16 @@ public class HasRelatedExpression : ExtendedQueryExpression
 {
     public HasRelatedExpression(ResourceFieldChainExpression lhs, ResourceFieldChainExpression Rhs)
     {
-        Lhs = lhs;
-        this.Rhs = Rhs;
+        Left = lhs;
+        Right = Rhs;
         
     }
 
-    public ResourceFieldChainExpression Lhs { get; }
-    public ResourceFieldChainExpression Rhs { get; }
+    public ResourceFieldChainExpression Left { get; }
+    public ResourceFieldChainExpression Right { get; }
 
-
-    public override string ToFullString()
+    public override void Serialize(StringBuilder sb)
     {
-        throw new NotImplementedException();
+        throw new NotImplementedException("The syntax for this expression isnt nailed down yet");
     }
 }

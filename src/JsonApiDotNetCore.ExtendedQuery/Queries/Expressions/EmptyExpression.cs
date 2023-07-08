@@ -7,5 +7,8 @@ using System.Threading.Tasks;
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 public class EmptyExpression : ExtendedQueryExpression
 {
-    public override string ToFullString() => "";
+    public override void Serialize(StringBuilder sb)
+    {
+
+    }
 }

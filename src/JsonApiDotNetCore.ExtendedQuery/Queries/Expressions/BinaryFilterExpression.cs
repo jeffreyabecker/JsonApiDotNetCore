@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 public class BinaryFilterExpression : ExtendedQueryExpression
 {
@@ -5,18 +7,19 @@ public class BinaryFilterExpression : ExtendedQueryExpression
     public BinaryFilterExpression(BinaryFilterOperator @operator, ExtendedQueryExpression lhs, ExtendedQueryExpression rhs)
     {
         Operator = @operator;
-        Lhs = lhs;
-        Rhs = rhs;
+        Left = lhs;
+        Right = rhs;
     }
 
     public BinaryFilterOperator Operator { get; }
-    public ExtendedQueryExpression Lhs { get; }
-    public ExtendedQueryExpression Rhs { get; }
+    public ExtendedQueryExpression Left { get; }
+    public ExtendedQueryExpression Right { get; }
 
-    
 
-    public override string ToFullString()
+    public override void Serialize(StringBuilder sb)
     {
-        return $"{Lhs?.ToFullString()} {Operator} {Rhs?.ToFullString()}";
+        Left.Serialize(sb);
+        sb.Append(' ').Append(Operator).Append(' ');
+        Right.Serialize(sb);
     }
 }

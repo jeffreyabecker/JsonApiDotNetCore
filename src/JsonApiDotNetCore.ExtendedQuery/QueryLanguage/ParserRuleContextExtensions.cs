@@ -2,31 +2,34 @@ using System.Collections.Immutable;
 using Antlr4.Runtime.Tree;
 using JsonApiDotNetCore.Configuration;
 using JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
-using JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 using JsonApiDotNetCore.Queries.Expressions;
 using JsonApiDotNetCore.Queries.Parsing;
 using JsonApiDotNetCore.QueryStrings.FieldChains;
 using JsonApiDotNetCore.Resources.Annotations;
 
-namespace JsonApiDotNetCore.ExtendedQuery.Queries.Parsing.QueryLanguage;
+namespace JsonApiDotNetCore.ExtendedQuery.QueryLanguage;
 public static class ParserRuleContextExtensions
 {
-    public static BinaryFilterExpression CreateBinaryFilterExpression<TContext>(this TContext context, IJadncFilterVisitor<ExtendedQueryExpression> visitor) where TContext : JadncFiltersParser.ExprContext
+    public static BinaryFilterExpression CreateBinaryFilterExpression<TContext>(this TContext context, IJadncFiltersVisitor<ExtendedQueryExpression> visitor) where TContext : JadncFiltersParser.IBinaryExprNode
     {
-        var lhs = visitor.Visit(context.GetChild(0));
-        var op = ((ITerminalNode)context.GetChild(1)).GetText();
-        var rhs = visitor.Visit(context.GetChild(2));
+        var lhs = visitor.Visit(context.Left);
+        var op = context.Operator;
+        var rhs = visitor.Visit(context.Right);
         return new BinaryFilterExpression(op, lhs, rhs);
     }
-    public static string GetFullName(this JadncFiltersParser.IdentifierContext ctx) => String.Join(".", ctx.IDENTIFIER_PART().Select(node => node.GetText()));
+    public static ExpressionListExpression GetExpressionList<TContext>(this TContext context, IJadncFiltersVisitor<ExtendedQueryExpression> visitor, int skip = 0) where TContext : JadncFiltersParser.IHaveSubExpr
+    {
+        return new ExpressionListExpression(context.expr().Skip(skip).Select(e => visitor.Visit(e)), false);
+    }
+    public static string GetFullName(this JadncFiltersParser.IdentifierContext ctx) => string.Join(".", ctx.IDENTIFIER_PART().Select(node => node.GetText()));
     private static PatternMatchResult MatchAny(FieldChainPattern[] patterns, string fieldChain, ResourceType resourceType, FieldChainPatternMatchOptions options)
     {
-        if(patterns == null || patterns.Length == 0)
+        if (patterns == null || patterns.Length == 0)
         {
             throw new ArgumentNullException(nameof(patterns));
         }
         PatternMatchResult? result = null;
-        foreach( var pattern in patterns)
+        foreach (var pattern in patterns)
         {
             result = pattern.Match(fieldChain, resourceType, options);
             if (result.IsSuccess)
@@ -42,14 +45,14 @@ public static class ParserRuleContextExtensions
     public static ResourceFieldChainExpression ParseFieldChain(this JadncFiltersParser.IdentifierContext ctx, FieldChainPattern[] patterns, FieldChainPatternMatchOptions options, ResourceType resourceType,
         string? alternativeErrorMessage)
     {
-        ArgumentGuard.NotNullNorEmpty(patterns);        
+        ArgumentGuard.NotNullNorEmpty(patterns);
         ArgumentGuard.NotNull(resourceType);
 
         var result = MatchAny(patterns, ctx.GetFullName(), resourceType, options);
 
         if (!result.IsSuccess)
         {
-            var patternNames = String.Join(", ", patterns.Select(pattern => pattern.GetDescription()));
+            var patternNames = string.Join(", ", patterns.Select(pattern => pattern.GetDescription()));
             string message = result.IsFieldChainError
                 ? result.FailureMessage
                 : $"Field chain on resource type '{resourceType}' failed to match the patterns: {patternNames}. {result.FailureMessage}";

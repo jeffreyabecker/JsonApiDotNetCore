@@ -39,7 +39,7 @@ public partial class WhereClauseBuilder
         throw new ShouldntEverCallThisException(expression.GetType());
     }
 
-    public override Expression VisitHas(HasExpr expression, QueryClauseBuilderContext argument)
+    public override Expression VisitHas(HasExpression expression, QueryClauseBuilderContext argument)
     {
         throw new ShouldntEverCallThisException(expression.GetType());
     }

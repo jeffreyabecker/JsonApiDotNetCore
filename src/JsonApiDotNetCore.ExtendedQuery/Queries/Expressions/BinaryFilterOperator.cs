@@ -1,4 +1,4 @@
-﻿namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
+namespace JsonApiDotNetCore.ExtendedQuery.Queries.Expressions;
 
 public class BinaryFilterOperator
 {
@@ -15,7 +15,6 @@ public class BinaryFilterOperator
     public static readonly BinaryFilterOperator NotEqual = new BinaryFilterOperator("<>");
     public static readonly BinaryFilterOperator And = new BinaryFilterOperator("and");
     public static readonly BinaryFilterOperator Or = new BinaryFilterOperator("or");
-
     public static readonly BinaryFilterOperator Like = new BinaryFilterOperator("like");
     public static readonly BinaryFilterOperator NotLike= new BinaryFilterOperator("not like");
     public static readonly BinaryFilterOperator In = new BinaryFilterOperator("in");

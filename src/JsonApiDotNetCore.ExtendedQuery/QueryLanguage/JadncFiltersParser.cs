@@ -44,8 +44,8 @@ public partial class JadncFiltersParser : Parser {
 		K_END=33, K_IF=34, K_IN=35, K_IS=36, K_ISNULL=37, K_LIKE=38, K_NOT=39, 
 		K_NOTNULL=40, K_NULL=41, K_OF=42, K_OR=43, K_REGEXP=44, K_THEN=45, K_TO=46, 
 		K_WHEN=47, K_STRING=48, K_NUMBER=49, K_DATE=50, K_BOOLEAN=51, K_TRUE=52, 
-		K_FALSE=53, K_YES=54, K_NO=55, K_HAS=56, K_TYPE=57, IDENTIFIER_PART=58, 
-		NUMERIC_LITERAL=59, STRING_LITERAL=60, DATE_LITERAL=61, SPACES=62, UNEXPECTED_CHAR=63;
+		K_FALSE=53, K_YES=54, K_NO=55, K_HAS=56, K_TYPE=57, K_ANY=58, IDENTIFIER_PART=59, 
+		NUMERIC_LITERAL=60, STRING_LITERAL=61, DATE_LITERAL=62, SPACES=63, UNEXPECTED_CHAR=64;
 	public const int
 		RULE_expr = 0, RULE_identifier = 1;
 	public static readonly string[] ruleNames = {
@@ -65,8 +65,8 @@ public partial class JadncFiltersParser : Parser {
 		"K_IF", "K_IN", "K_IS", "K_ISNULL", "K_LIKE", "K_NOT", "K_NOTNULL", "K_NULL", 
 		"K_OF", "K_OR", "K_REGEXP", "K_THEN", "K_TO", "K_WHEN", "K_STRING", "K_NUMBER", 
 		"K_DATE", "K_BOOLEAN", "K_TRUE", "K_FALSE", "K_YES", "K_NO", "K_HAS", 
-		"K_TYPE", "IDENTIFIER_PART", "NUMERIC_LITERAL", "STRING_LITERAL", "DATE_LITERAL", 
-		"SPACES", "UNEXPECTED_CHAR"
+		"K_TYPE", "K_ANY", "IDENTIFIER_PART", "NUMERIC_LITERAL", "STRING_LITERAL", 
+		"DATE_LITERAL", "SPACES", "UNEXPECTED_CHAR"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
@@ -124,6 +124,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_TYPE() { return GetToken(JadncFiltersParser.K_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public OfTypeExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOfTypeExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class InExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -141,6 +147,12 @@ public partial class JadncFiltersParser : Parser {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public InExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class NestedExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OPEN_PAR() { return GetToken(JadncFiltersParser.OPEN_PAR, 0); }
@@ -149,6 +161,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CLOSE_PAR() { return GetToken(JadncFiltersParser.CLOSE_PAR, 0); }
 		public NestedExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNestedExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class OrExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -159,6 +177,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_OR() { return GetToken(JadncFiltersParser.K_OR, 0); }
 		public OrExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class GreaterLessExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -172,6 +196,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT() { return GetToken(JadncFiltersParser.GT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GT_EQ() { return GetToken(JadncFiltersParser.GT_EQ, 0); }
 		public GreaterLessExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitGreaterLessExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class HasExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext[] identifier() {
@@ -182,6 +212,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_HAS() { return GetToken(JadncFiltersParser.K_HAS, 0); }
 		public HasExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitHasExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class FunctionExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER_PART() { return GetToken(JadncFiltersParser.IDENTIFIER_PART, 0); }
@@ -193,12 +229,17 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext expr(int i) {
 			return GetRuleContext<ExprContext>(i);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STAR() { return GetToken(JadncFiltersParser.STAR, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] COMMA() { return GetTokens(JadncFiltersParser.COMMA); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMMA(int i) {
 			return GetToken(JadncFiltersParser.COMMA, i);
 		}
 		public FunctionExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitFunctionExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class NotExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
@@ -206,6 +247,12 @@ public partial class JadncFiltersParser : Parser {
 			return GetRuleContext<ExprContext>(0);
 		}
 		public NotExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNotExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class AddExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -217,6 +264,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PLUS() { return GetToken(JadncFiltersParser.PLUS, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MINUS() { return GetToken(JadncFiltersParser.MINUS, 0); }
 		public AddExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAddExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class IsNullExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext expr() {
@@ -226,6 +279,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public IsNullExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIsNullExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class LiteralExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMERIC_LITERAL() { return GetToken(JadncFiltersParser.NUMERIC_LITERAL, 0); }
@@ -234,6 +293,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_FALSE() { return GetToken(JadncFiltersParser.K_FALSE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NULL() { return GetToken(JadncFiltersParser.K_NULL, 0); }
 		public LiteralExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitLiteralExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class MulExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -246,6 +311,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DIV() { return GetToken(JadncFiltersParser.DIV, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MOD() { return GetToken(JadncFiltersParser.MOD, 0); }
 		public MulExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitMulExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class LikeExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -257,6 +328,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_LIKE() { return GetToken(JadncFiltersParser.K_LIKE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_NOT() { return GetToken(JadncFiltersParser.K_NOT, 0); }
 		public LikeExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitLikeExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class IfExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_IF() { return GetToken(JadncFiltersParser.K_IF, 0); }
@@ -270,12 +347,24 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_ELSE() { return GetToken(JadncFiltersParser.K_ELSE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_END() { return GetToken(JadncFiltersParser.K_END, 0); }
 		public IfExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIfExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class IdentifierExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public IdentifierContext identifier() {
 			return GetRuleContext<IdentifierContext>(0);
 		}
 		public IdentifierExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIdentifierExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class EqualExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -287,6 +376,12 @@ public partial class JadncFiltersParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ASSIGN() { return GetToken(JadncFiltersParser.ASSIGN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOT_EQ2() { return GetToken(JadncFiltersParser.NOT_EQ2, 0); }
 		public EqualExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitEqualExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 	public partial class AndExprContext : ExprContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ExprContext[] expr() {
@@ -297,6 +392,12 @@ public partial class JadncFiltersParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode K_AND() { return GetToken(JadncFiltersParser.K_AND, 0); }
 		public AndExprContext(ExprContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAndExpr(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 
 	[RuleVersion(0)]
@@ -316,9 +417,9 @@ public partial class JadncFiltersParser : Parser {
 			int _alt;
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 51;
+			State = 47;
 			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,4,Context) ) {
+			switch ( Interpreter.AdaptivePredict(TokenStream,3,Context) ) {
 			case 1:
 				{
 				_localctx = new LiteralExprContext(_localctx);
@@ -327,7 +428,7 @@ public partial class JadncFiltersParser : Parser {
 
 				State = 5;
 				_la = TokenStream.LA(1);
-				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 1742895254815637504L) != 0)) ) {
+				if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 3472277511725907968L) != 0)) ) {
 				ErrorHandler.RecoverInline(this);
 				}
 				else {
@@ -367,62 +468,33 @@ public partial class JadncFiltersParser : Parser {
 				Match(IDENTIFIER_PART);
 				State = 12;
 				Match(OPEN_PAR);
-				State = 25;
+				State = 21;
 				ErrorHandler.Sync(this);
-				switch (TokenStream.LA(1)) {
-				case OPEN_PAR:
-				case COMMA:
-				case K_IF:
-				case K_NOT:
-				case K_NULL:
-				case K_TRUE:
-				case K_FALSE:
-				case IDENTIFIER_PART:
-				case NUMERIC_LITERAL:
-				case STRING_LITERAL:
+				_la = TokenStream.LA(1);
+				if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 4048738830965014536L) != 0)) {
 					{
-					State = 14;
-					ErrorHandler.Sync(this);
-					_la = TokenStream.LA(1);
-					if (_la==COMMA) {
-						{
-						State = 13;
-						Match(COMMA);
-						}
-					}
-
-					State = 16;
+					State = 13;
 					expr(0);
-					State = 21;
+					State = 18;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 					while (_la==COMMA) {
 						{
 						{
-						State = 17;
+						State = 14;
 						Match(COMMA);
-						State = 18;
+						State = 15;
 						expr(0);
 						}
 						}
-						State = 23;
+						State = 20;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 					}
 					}
-					break;
-				case STAR:
-					{
-					State = 24;
-					Match(STAR);
-					}
-					break;
-				case CLOSE_PAR:
-					break;
-				default:
-					break;
 				}
-				State = 27;
+
+				State = 23;
 				Match(CLOSE_PAR);
 				}
 				break;
@@ -431,25 +503,25 @@ public partial class JadncFiltersParser : Parser {
 				_localctx = new OfTypeExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
-				State = 28;
+				State = 24;
 				identifier();
-				State = 29;
+				State = 25;
 				Match(K_IS);
-				State = 31;
+				State = 27;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==K_NOT) {
 					{
-					State = 30;
+					State = 26;
 					Match(K_NOT);
 					}
 				}
 
-				State = 33;
+				State = 29;
 				Match(K_OF);
-				State = 34;
+				State = 30;
 				Match(K_TYPE);
-				State = 35;
+				State = 31;
 				identifier();
 				}
 				break;
@@ -458,11 +530,11 @@ public partial class JadncFiltersParser : Parser {
 				_localctx = new HasExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
-				State = 37;
+				State = 33;
 				identifier();
-				State = 38;
+				State = 34;
 				Match(K_HAS);
-				State = 39;
+				State = 35;
 				identifier();
 				}
 				break;
@@ -471,19 +543,19 @@ public partial class JadncFiltersParser : Parser {
 				_localctx = new IfExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
-				State = 41;
+				State = 37;
 				Match(K_IF);
+				State = 38;
+				expr(0);
+				State = 39;
+				Match(K_THEN);
+				State = 40;
+				expr(0);
+				State = 41;
+				Match(K_ELSE);
 				State = 42;
 				expr(0);
 				State = 43;
-				Match(K_THEN);
-				State = 44;
-				expr(0);
-				State = 45;
-				Match(K_ELSE);
-				State = 46;
-				expr(0);
-				State = 47;
 				Match(K_END);
 				}
 				break;
@@ -492,33 +564,33 @@ public partial class JadncFiltersParser : Parser {
 				_localctx = new NotExprContext(_localctx);
 				Context = _localctx;
 				_prevctx = _localctx;
-				State = 49;
+				State = 45;
 				Match(K_NOT);
-				State = 50;
+				State = 46;
 				expr(3);
 				}
 				break;
 			}
 			Context.Stop = TokenStream.LT(-1);
-			State = 102;
+			State = 98;
 			ErrorHandler.Sync(this);
-			_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
+			_alt = Interpreter.AdaptivePredict(TokenStream,10,Context);
 			while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					if ( ParseListeners!=null )
 						TriggerExitRuleEvent();
 					_prevctx = _localctx;
 					{
-					State = 100;
+					State = 96;
 					ErrorHandler.Sync(this);
-					switch ( Interpreter.AdaptivePredict(TokenStream,10,Context) ) {
+					switch ( Interpreter.AdaptivePredict(TokenStream,9,Context) ) {
 					case 1:
 						{
 						_localctx = new MulExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 53;
+						State = 49;
 						if (!(Precpred(Context, 14))) throw new FailedPredicateException(this, "Precpred(Context, 14)");
-						State = 54;
+						State = 50;
 						_la = TokenStream.LA(1);
 						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 12416L) != 0)) ) {
 						ErrorHandler.RecoverInline(this);
@@ -527,7 +599,7 @@ public partial class JadncFiltersParser : Parser {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 55;
+						State = 51;
 						expr(15);
 						}
 						break;
@@ -535,9 +607,9 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new AddExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 56;
+						State = 52;
 						if (!(Precpred(Context, 13))) throw new FailedPredicateException(this, "Precpred(Context, 13)");
-						State = 57;
+						State = 53;
 						_la = TokenStream.LA(1);
 						if ( !(_la==PLUS || _la==MINUS) ) {
 						ErrorHandler.RecoverInline(this);
@@ -546,7 +618,7 @@ public partial class JadncFiltersParser : Parser {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 58;
+						State = 54;
 						expr(14);
 						}
 						break;
@@ -554,9 +626,9 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new GreaterLessExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 59;
+						State = 55;
 						if (!(Precpred(Context, 12))) throw new FailedPredicateException(this, "Precpred(Context, 12)");
-						State = 60;
+						State = 56;
 						_la = TokenStream.LA(1);
 						if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 3932160L) != 0)) ) {
 						ErrorHandler.RecoverInline(this);
@@ -565,7 +637,7 @@ public partial class JadncFiltersParser : Parser {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 61;
+						State = 57;
 						expr(13);
 						}
 						break;
@@ -573,9 +645,9 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new EqualExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 62;
+						State = 58;
 						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
-						State = 63;
+						State = 59;
 						_la = TokenStream.LA(1);
 						if ( !(_la==ASSIGN || _la==NOT_EQ2) ) {
 						ErrorHandler.RecoverInline(this);
@@ -584,7 +656,7 @@ public partial class JadncFiltersParser : Parser {
 							ErrorHandler.ReportMatch(this);
 						    Consume();
 						}
-						State = 64;
+						State = 60;
 						expr(12);
 						}
 						break;
@@ -592,21 +664,21 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new LikeExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 65;
+						State = 61;
 						if (!(Precpred(Context, 9))) throw new FailedPredicateException(this, "Precpred(Context, 9)");
-						State = 67;
+						State = 63;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 66;
+							State = 62;
 							Match(K_NOT);
 							}
 						}
 
-						State = 69;
+						State = 65;
 						Match(K_LIKE);
-						State = 70;
+						State = 66;
 						expr(10);
 						}
 						break;
@@ -614,11 +686,11 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new AndExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 71;
+						State = 67;
 						if (!(Precpred(Context, 2))) throw new FailedPredicateException(this, "Precpred(Context, 2)");
-						State = 72;
+						State = 68;
 						Match(K_AND);
-						State = 73;
+						State = 69;
 						expr(3);
 						}
 						break;
@@ -626,11 +698,11 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new OrExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 74;
+						State = 70;
 						if (!(Precpred(Context, 1))) throw new FailedPredicateException(this, "Precpred(Context, 1)");
-						State = 75;
+						State = 71;
 						Match(K_OR);
-						State = 76;
+						State = 72;
 						expr(2);
 						}
 						break;
@@ -638,21 +710,21 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new IsNullExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 77;
+						State = 73;
 						if (!(Precpred(Context, 8))) throw new FailedPredicateException(this, "Precpred(Context, 8)");
-						State = 78;
+						State = 74;
 						Match(K_IS);
-						State = 80;
+						State = 76;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 79;
+							State = 75;
 							Match(K_NOT);
 							}
 						}
 
-						State = 82;
+						State = 78;
 						Match(K_NULL);
 						}
 						break;
@@ -660,50 +732,50 @@ public partial class JadncFiltersParser : Parser {
 						{
 						_localctx = new InExprContext(new ExprContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expr);
-						State = 83;
+						State = 79;
 						if (!(Precpred(Context, 4))) throw new FailedPredicateException(this, "Precpred(Context, 4)");
-						State = 85;
+						State = 81;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
 						if (_la==K_NOT) {
 							{
-							State = 84;
+							State = 80;
 							Match(K_NOT);
 							}
 						}
 
-						State = 87;
+						State = 83;
 						Match(K_IN);
 						{
-						State = 88;
+						State = 84;
 						Match(OPEN_PAR);
-						State = 97;
+						State = 93;
 						ErrorHandler.Sync(this);
 						_la = TokenStream.LA(1);
-						if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 2031126197903032328L) != 0)) {
+						if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 4048738830965014536L) != 0)) {
 							{
-							State = 89;
+							State = 85;
 							expr(0);
-							State = 94;
+							State = 90;
 							ErrorHandler.Sync(this);
 							_la = TokenStream.LA(1);
 							while (_la==COMMA) {
 								{
 								{
-								State = 90;
+								State = 86;
 								Match(COMMA);
-								State = 91;
+								State = 87;
 								expr(0);
 								}
 								}
-								State = 96;
+								State = 92;
 								ErrorHandler.Sync(this);
 								_la = TokenStream.LA(1);
 							}
 							}
 						}
 
-						State = 99;
+						State = 95;
 						Match(CLOSE_PAR);
 						}
 						}
@@ -711,9 +783,9 @@ public partial class JadncFiltersParser : Parser {
 					}
 					} 
 				}
-				State = 104;
+				State = 100;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,10,Context);
 			}
 			}
 		}
@@ -742,6 +814,12 @@ public partial class JadncFiltersParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_identifier; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IJadncFiltersVisitor<TResult> typedVisitor = visitor as IJadncFiltersVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIdentifier(this);
+			else return visitor.VisitChildren(this);
+		}
 	}
 
 	[RuleVersion(0)]
@@ -753,25 +831,25 @@ public partial class JadncFiltersParser : Parser {
 			EnterOuterAlt(_localctx, 1);
 			{
 			{
-			State = 105;
+			State = 101;
 			Match(IDENTIFIER_PART);
-			State = 110;
+			State = 106;
 			ErrorHandler.Sync(this);
-			_alt = Interpreter.AdaptivePredict(TokenStream,12,Context);
+			_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
 			while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
 				if ( _alt==1 ) {
 					{
 					{
-					State = 106;
+					State = 102;
 					Match(DOT);
-					State = 107;
+					State = 103;
 					Match(IDENTIFIER_PART);
 					}
 					} 
 				}
-				State = 112;
+				State = 108;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,12,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,11,Context);
 			}
 			}
 			}
@@ -809,44 +887,42 @@ public partial class JadncFiltersParser : Parser {
 	}
 
 	private static int[] _serializedATN = {
-		4,1,63,114,2,0,7,0,2,1,7,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3,0,
-		15,8,0,1,0,1,0,1,0,5,0,20,8,0,10,0,12,0,23,9,0,1,0,3,0,26,8,0,1,0,1,0,
-		1,0,1,0,3,0,32,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		1,0,1,0,1,0,1,0,1,0,3,0,52,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		1,0,1,0,1,0,1,0,3,0,68,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
-		3,0,81,8,0,1,0,1,0,1,0,3,0,86,8,0,1,0,1,0,1,0,1,0,1,0,5,0,93,8,0,10,0,
-		12,0,96,9,0,3,0,98,8,0,1,0,5,0,101,8,0,10,0,12,0,104,9,0,1,1,1,1,1,1,5,
-		1,109,8,1,10,1,12,1,112,9,1,1,1,0,1,0,2,0,2,0,5,3,0,41,41,52,53,59,60,
-		2,0,7,7,12,13,1,0,8,9,1,0,18,21,2,0,6,6,25,25,138,0,51,1,0,0,0,2,105,1,
-		0,0,0,4,5,6,0,-1,0,5,52,7,0,0,0,6,52,3,2,1,0,7,8,5,3,0,0,8,9,3,0,0,0,9,
-		10,5,4,0,0,10,52,1,0,0,0,11,12,5,58,0,0,12,25,5,3,0,0,13,15,5,5,0,0,14,
-		13,1,0,0,0,14,15,1,0,0,0,15,16,1,0,0,0,16,21,3,0,0,0,17,18,5,5,0,0,18,
-		20,3,0,0,0,19,17,1,0,0,0,20,23,1,0,0,0,21,19,1,0,0,0,21,22,1,0,0,0,22,
-		26,1,0,0,0,23,21,1,0,0,0,24,26,5,7,0,0,25,14,1,0,0,0,25,24,1,0,0,0,25,
-		26,1,0,0,0,26,27,1,0,0,0,27,52,5,4,0,0,28,29,3,2,1,0,29,31,5,36,0,0,30,
-		32,5,39,0,0,31,30,1,0,0,0,31,32,1,0,0,0,32,33,1,0,0,0,33,34,5,42,0,0,34,
-		35,5,57,0,0,35,36,3,2,1,0,36,52,1,0,0,0,37,38,3,2,1,0,38,39,5,56,0,0,39,
-		40,3,2,1,0,40,52,1,0,0,0,41,42,5,34,0,0,42,43,3,0,0,0,43,44,5,45,0,0,44,
-		45,3,0,0,0,45,46,5,32,0,0,46,47,3,0,0,0,47,48,5,33,0,0,48,52,1,0,0,0,49,
-		50,5,39,0,0,50,52,3,0,0,3,51,4,1,0,0,0,51,6,1,0,0,0,51,7,1,0,0,0,51,11,
-		1,0,0,0,51,28,1,0,0,0,51,37,1,0,0,0,51,41,1,0,0,0,51,49,1,0,0,0,52,102,
-		1,0,0,0,53,54,10,14,0,0,54,55,7,1,0,0,55,101,3,0,0,15,56,57,10,13,0,0,
-		57,58,7,2,0,0,58,101,3,0,0,14,59,60,10,12,0,0,60,61,7,3,0,0,61,101,3,0,
-		0,13,62,63,10,11,0,0,63,64,7,4,0,0,64,101,3,0,0,12,65,67,10,9,0,0,66,68,
-		5,39,0,0,67,66,1,0,0,0,67,68,1,0,0,0,68,69,1,0,0,0,69,70,5,38,0,0,70,101,
-		3,0,0,10,71,72,10,2,0,0,72,73,5,27,0,0,73,101,3,0,0,3,74,75,10,1,0,0,75,
-		76,5,43,0,0,76,101,3,0,0,2,77,78,10,8,0,0,78,80,5,36,0,0,79,81,5,39,0,
-		0,80,79,1,0,0,0,80,81,1,0,0,0,81,82,1,0,0,0,82,101,5,41,0,0,83,85,10,4,
-		0,0,84,86,5,39,0,0,85,84,1,0,0,0,85,86,1,0,0,0,86,87,1,0,0,0,87,88,5,35,
-		0,0,88,97,5,3,0,0,89,94,3,0,0,0,90,91,5,5,0,0,91,93,3,0,0,0,92,90,1,0,
-		0,0,93,96,1,0,0,0,94,92,1,0,0,0,94,95,1,0,0,0,95,98,1,0,0,0,96,94,1,0,
-		0,0,97,89,1,0,0,0,97,98,1,0,0,0,98,99,1,0,0,0,99,101,5,4,0,0,100,53,1,
-		0,0,0,100,56,1,0,0,0,100,59,1,0,0,0,100,62,1,0,0,0,100,65,1,0,0,0,100,
-		71,1,0,0,0,100,74,1,0,0,0,100,77,1,0,0,0,100,83,1,0,0,0,101,104,1,0,0,
-		0,102,100,1,0,0,0,102,103,1,0,0,0,103,1,1,0,0,0,104,102,1,0,0,0,105,110,
-		5,58,0,0,106,107,5,2,0,0,107,109,5,58,0,0,108,106,1,0,0,0,109,112,1,0,
-		0,0,110,108,1,0,0,0,110,111,1,0,0,0,111,3,1,0,0,0,112,110,1,0,0,0,13,14,
-		21,25,31,51,67,80,85,94,97,100,102,110
+		4,1,64,110,2,0,7,0,2,1,7,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,
+		1,0,5,0,17,8,0,10,0,12,0,20,9,0,3,0,22,8,0,1,0,1,0,1,0,1,0,3,0,28,8,0,
+		1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,
+		0,3,0,48,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3,
+		0,64,8,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,3,0,77,8,0,1,0,1,
+		0,1,0,3,0,82,8,0,1,0,1,0,1,0,1,0,1,0,5,0,89,8,0,10,0,12,0,92,9,0,3,0,94,
+		8,0,1,0,5,0,97,8,0,10,0,12,0,100,9,0,1,1,1,1,1,1,5,1,105,8,1,10,1,12,1,
+		108,9,1,1,1,0,1,0,2,0,2,0,5,3,0,41,41,52,53,60,61,2,0,7,7,12,13,1,0,8,
+		9,1,0,18,21,2,0,6,6,25,25,132,0,47,1,0,0,0,2,101,1,0,0,0,4,5,6,0,-1,0,
+		5,48,7,0,0,0,6,48,3,2,1,0,7,8,5,3,0,0,8,9,3,0,0,0,9,10,5,4,0,0,10,48,1,
+		0,0,0,11,12,5,59,0,0,12,21,5,3,0,0,13,18,3,0,0,0,14,15,5,5,0,0,15,17,3,
+		0,0,0,16,14,1,0,0,0,17,20,1,0,0,0,18,16,1,0,0,0,18,19,1,0,0,0,19,22,1,
+		0,0,0,20,18,1,0,0,0,21,13,1,0,0,0,21,22,1,0,0,0,22,23,1,0,0,0,23,48,5,
+		4,0,0,24,25,3,2,1,0,25,27,5,36,0,0,26,28,5,39,0,0,27,26,1,0,0,0,27,28,
+		1,0,0,0,28,29,1,0,0,0,29,30,5,42,0,0,30,31,5,57,0,0,31,32,3,2,1,0,32,48,
+		1,0,0,0,33,34,3,2,1,0,34,35,5,56,0,0,35,36,3,2,1,0,36,48,1,0,0,0,37,38,
+		5,34,0,0,38,39,3,0,0,0,39,40,5,45,0,0,40,41,3,0,0,0,41,42,5,32,0,0,42,
+		43,3,0,0,0,43,44,5,33,0,0,44,48,1,0,0,0,45,46,5,39,0,0,46,48,3,0,0,3,47,
+		4,1,0,0,0,47,6,1,0,0,0,47,7,1,0,0,0,47,11,1,0,0,0,47,24,1,0,0,0,47,33,
+		1,0,0,0,47,37,1,0,0,0,47,45,1,0,0,0,48,98,1,0,0,0,49,50,10,14,0,0,50,51,
+		7,1,0,0,51,97,3,0,0,15,52,53,10,13,0,0,53,54,7,2,0,0,54,97,3,0,0,14,55,
+		56,10,12,0,0,56,57,7,3,0,0,57,97,3,0,0,13,58,59,10,11,0,0,59,60,7,4,0,
+		0,60,97,3,0,0,12,61,63,10,9,0,0,62,64,5,39,0,0,63,62,1,0,0,0,63,64,1,0,
+		0,0,64,65,1,0,0,0,65,66,5,38,0,0,66,97,3,0,0,10,67,68,10,2,0,0,68,69,5,
+		27,0,0,69,97,3,0,0,3,70,71,10,1,0,0,71,72,5,43,0,0,72,97,3,0,0,2,73,74,
+		10,8,0,0,74,76,5,36,0,0,75,77,5,39,0,0,76,75,1,0,0,0,76,77,1,0,0,0,77,
+		78,1,0,0,0,78,97,5,41,0,0,79,81,10,4,0,0,80,82,5,39,0,0,81,80,1,0,0,0,
+		81,82,1,0,0,0,82,83,1,0,0,0,83,84,5,35,0,0,84,93,5,3,0,0,85,90,3,0,0,0,
+		86,87,5,5,0,0,87,89,3,0,0,0,88,86,1,0,0,0,89,92,1,0,0,0,90,88,1,0,0,0,
+		90,91,1,0,0,0,91,94,1,0,0,0,92,90,1,0,0,0,93,85,1,0,0,0,93,94,1,0,0,0,
+		94,95,1,0,0,0,95,97,5,4,0,0,96,49,1,0,0,0,96,52,1,0,0,0,96,55,1,0,0,0,
+		96,58,1,0,0,0,96,61,1,0,0,0,96,67,1,0,0,0,96,70,1,0,0,0,96,73,1,0,0,0,
+		96,79,1,0,0,0,97,100,1,0,0,0,98,96,1,0,0,0,98,99,1,0,0,0,99,1,1,0,0,0,
+		100,98,1,0,0,0,101,106,5,59,0,0,102,103,5,2,0,0,103,105,5,59,0,0,104,102,
+		1,0,0,0,105,108,1,0,0,0,106,104,1,0,0,0,106,107,1,0,0,0,107,3,1,0,0,0,
+		108,106,1,0,0,0,12,18,21,27,47,63,76,81,90,93,96,98,106
 	};
 
 	public static readonly ATN _ATN =

@@ -9,7 +9,7 @@ expr
  | expr ( '+' | '-' ) expr #addExpr
  | expr ( '<' | '<=' | '>' | '>=' ) expr #greaterLessExpr
  | expr ( '=' | '<>'  ) expr #equalExpr
- | IDENTIFIER_PART OPEN_PAR ( (',')? expr ( ',' expr )* | '*' )? CLOSE_PAR #functionExpr
+ | IDENTIFIER_PART OPEN_PAR ( expr ( ',' expr )* )? CLOSE_PAR #functionExpr
  | expr K_NOT? K_LIKE expr  #likeExpr
  | expr K_IS K_NOT? K_NULL #isNullExpr
  | identifier K_IS K_NOT? K_OF K_TYPE identifier #ofTypeExpr
@@ -80,6 +80,7 @@ K_YES: Y E S;
 K_NO: N O;
 K_HAS: H A S;
 K_TYPE: T Y P E;
+K_ANY: A N Y;
 
 
 

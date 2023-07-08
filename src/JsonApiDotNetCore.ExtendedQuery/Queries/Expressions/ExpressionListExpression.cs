@@ -15,19 +15,20 @@ public class ExpressionListExpression : ExtendedQueryExpression
     public IImmutableList<ExtendedQueryExpression> Expressions { get; }
     public bool HasCommaPrefix { get; }
 
-    public override string ToFullString()
+    public override void Serialize(StringBuilder sb)
     {
-        var sb= new StringBuilder();
-        sb.Append("(");        
-        for(int i = 0; i < Expressions.Count; i++)
+        sb.Append("(");
+        for (int i = 0; i < Expressions.Count; i++)
         {
-            if(i > 0 || HasCommaPrefix)
+            if (i > 0 || HasCommaPrefix)
             {
                 sb.Append(",");
             }
             sb.Append(Expressions[i].ToFullString());
         }
         sb.Append(")");
-        return sb.ToString();
+
     }
+
+
 }
